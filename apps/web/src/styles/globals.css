@@ -1,0 +1,108 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Core surfaces - Dark mode default */
+    --background: 0 0% 4%;            /* #0a0a0a - deep black canvas */
+    --foreground: 0 0% 93%;           /* #ededed - off-white text */
+
+    /* Card surfaces */
+    --card: 0 0% 7%;                  /* #121212 - slightly lighter than bg */
+    --card-foreground: 0 0% 93%;
+
+    /* Popover surfaces */
+    --popover: 0 0% 9%;               /* #171717 - for dropdowns */
+    --popover-foreground: 0 0% 93%;
+
+    /* Muted elements (command palette bg, badges) */
+    --muted: 0 0% 12%;                /* #1f1f1f - darker muted surface */
+    --muted-foreground: 0 0% 64%;     /* #a3a3a3 */
+
+    /* Primary - Blue */
+    --primary: 217 91% 60%;           /* #3b82f6 */
+    --primary-foreground: 0 0% 100%;  /* white */
+
+    /* Secondary (buttons) */
+    --secondary: 0 0% 18%;            /* #2e2e2e */
+    --secondary-foreground: 0 0% 93%;
+
+    /* Accent (hover states) - MUST be visibly different from muted */
+    --accent: 0 0% 22%;               /* #383838 - lighter for hover visibility */
+    --accent-foreground: 0 0% 98%;
+
+    /* Destructive */
+    --destructive: 0 84% 60%;         /* #ef4444 */
+    --destructive-foreground: 0 0% 98%;
+
+    /* Border and input */
+    --border: 0 0% 18%;               /* #2e2e2e */
+    --input: 0 0% 18%;
+    --ring: 217 91% 60%;              /* blue focus ring */
+
+    /* Widget specific */
+    --widget: 0 0% 7%;
+    --widget-foreground: 0 0% 93%;
+    --widget-border: 0 0% 18%;
+
+    /* Radius */
+    --radius: 0.5rem;                 /* 8px */
+  }
+
+  /* Light mode */
+  .light {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 4%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 4%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 4%;
+
+    /* Muted elements (command palette bg, badges) */
+    --muted: 0 0% 97%;                /* #f7f7f7 - subtle muted surface */
+    --muted-foreground: 0 0% 45%;
+
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary (buttons) */
+    --secondary: 0 0% 94%;            /* #f0f0f0 */
+    --secondary-foreground: 0 0% 10%;
+
+    /* Accent (hover states) - MUST be visibly different from muted */
+    --accent: 0 0% 90%;               /* #e5e5e5 - darker for hover visibility */
+    --accent-foreground: 0 0% 10%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 0 0% 88%;               /* #e0e0e0 */
+    --input: 0 0% 88%;
+    --ring: 217 91% 60%;
+
+    --widget: 0 0% 100%;
+    --widget-foreground: 0 0% 4%;
+    --widget-border: 0 0% 88%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+/* Canvas background pattern - 20px grid */
+.canvas-grid {
+  background-image:
+    radial-gradient(circle, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+  background-size: 20px 20px;
+}

@@ -1,0 +1,23 @@
+{
+  "name": "boardkit",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Open-source, offline-first, modular whiteboard toolkit",
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --filter @boardkit/web dev",
+    "build": "pnpm -r build",
+    "lint": "eslint . --ext .ts,.tsx,.vue",
+    "typecheck": "pnpm -r typecheck",
+    "desktop": "pnpm --filter @boardkit/desktop tauri dev"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@8.15.0"
+}

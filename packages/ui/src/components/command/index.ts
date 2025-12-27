@@ -1,0 +1,6 @@
+export { default as BkCommandDialog } from './BkCommandDialog.vue'
+export { default as BkCommandInput } from './BkCommandInput.vue'
+export { default as BkCommandList } from './BkCommandList.vue'
+export { default as BkCommandGroup } from './BkCommandGroup.vue'
+export { default as BkCommandItem } from './BkCommandItem.vue'
+export { default as BkCommandEmpty } from './BkCommandEmpty.vue'
