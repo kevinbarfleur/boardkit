@@ -30,6 +30,7 @@ const emit = defineEmits<{
   undo: []
   redo: []
   goToHistory: [id: string]
+  goToLatest: []
 }>()
 
 const boardStore = useBoardStore()
@@ -96,6 +97,11 @@ const handleRedoClick = () => {
 const handleHistorySelect = (id: string) => {
   emit('goToHistory', id)
   showUndoDropdown.value = false
+  showRedoDropdown.value = false
+}
+
+const handleGoToLatest = () => {
+  emit('goToLatest')
   showRedoDropdown.value = false
 }
 </script>
@@ -211,7 +217,9 @@ const handleHistorySelect = (id: string) => {
                 :items="redoEntries"
                 :title="canRedo ? 'Newer versions' : 'Status'"
                 empty-text="Up to date"
+                :show-go-to-latest="redoEntries.length > 0"
                 @select="handleHistorySelect"
+                @go-to-latest="handleGoToLatest"
               />
             </div>
           </Transition>

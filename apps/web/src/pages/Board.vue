@@ -38,6 +38,10 @@ const handleGoToHistory = async (id: string) => {
   await persistence.goToHistoryEntry(id)
 }
 
+const handleGoToLatest = async () => {
+  await persistence.goToLatest()
+}
+
 onMounted(async () => {
   initTheme()
 
@@ -71,6 +75,7 @@ onMounted(async () => {
       @undo="handleUndo"
       @redo="handleRedo"
       @go-to-history="handleGoToHistory"
+      @go-to-latest="handleGoToLatest"
     />
     <BoardCanvas @open-command-palette="openCommandPalette" />
     <CommandPalette :open="isCommandPaletteOpen" @close="closeCommandPalette" />

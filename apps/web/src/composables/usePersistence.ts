@@ -36,24 +36,31 @@ export function usePersistence() {
   let autosaveTimeout: ReturnType<typeof setTimeout> | null = null
   let stopWatch: (() => void) | null = null
 
+  // Actions to hide from history display (low-value, high-frequency)
+  const hiddenActions = ['Initial state', 'Moved widget', 'Resized widget']
+
+  // Filter out hidden actions from entries
+  const filterEntries = (entries: HistoryEntry[]) =>
+    entries.filter((e) => !hiddenActions.includes(e.action))
+
   // Computed: can we undo/redo?
-  const canUndo = computed(() => historyEntries.value.length > 0)
+  const canUndo = computed(() => filterEntries(historyEntries.value).length > 0)
   const canRedo = computed(() => currentHistoryIndex.value >= 0)
 
   // Get entries for undo (past versions)
   const undoEntries = computed(() => {
     if (currentHistoryIndex.value === -1) {
       // At latest version, all history is undoable
-      return historyEntries.value
+      return filterEntries(historyEntries.value)
     }
     // Show entries older than current position
-    return historyEntries.value.slice(currentHistoryIndex.value + 1)
+    return filterEntries(historyEntries.value.slice(currentHistoryIndex.value + 1))
   })
 
   // Get entries for redo (future versions)
   const redoEntries = computed(() => {
     if (currentHistoryIndex.value === -1) return []
-    return historyEntries.value.slice(0, currentHistoryIndex.value + 1).reverse()
+    return filterEntries(historyEntries.value.slice(0, currentHistoryIndex.value + 1).reverse())
   })
 
   // Load the list of documents
@@ -236,8 +243,10 @@ export function usePersistence() {
       boardStore.markClean()
       lastSaved.value = doc.meta.updatedAt
 
-      // Add to history if requested (skip "Initial state" which is the default)
-      if (addHistory && boardStore.lastAction !== 'Initial state') {
+      // Add to history if requested
+      // Skip: "Initial state", moves, and resizes (low-value, high-frequency actions)
+      const skipActions = ['Initial state', 'Moved widget', 'Resized widget']
+      if (addHistory && !skipActions.includes(boardStore.lastAction)) {
         await addToHistory(boardStore.lastAction)
       }
 

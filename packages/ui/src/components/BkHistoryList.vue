@@ -1,11 +1,17 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import BkIcon from './BkIcon.vue'
 
 export interface HistoryItem {
   id: string
   action: string
   timestamp: number
+}
+
+interface HistoryGroup {
+  action: string
+  items: HistoryItem[]
+  isExpanded: boolean
 }
 
 interface Props {
@@ -15,25 +21,59 @@ interface Props {
   emptyText?: string
   maxItems?: number
   minWidth?: number
+  showGoToLatest?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   title: 'History',
   emptyIcon: 'check',
   emptyText: 'Up to date',
-  maxItems: 20,
-  minWidth: 240,
+  maxItems: 50,
+  minWidth: 260,
+  showGoToLatest: false,
 })
 
 const emit = defineEmits<{
   select: [id: string]
+  goToLatest: []
 }>()
 
-const selectedIndex = ref(-1)
+// Track which groups are expanded
+const expandedGroups = ref<Set<number>>(new Set())
 
-const displayItems = () => {
-  return props.items.slice(0, props.maxItems)
+// Group consecutive items with the same action
+const groupedItems = computed<HistoryGroup[]>(() => {
+  const limited = props.items.slice(0, props.maxItems)
+  const groups: HistoryGroup[] = []
+
+  for (const item of limited) {
+    const lastGroup = groups[groups.length - 1]
+
+    if (lastGroup && lastGroup.action === item.action) {
+      lastGroup.items.push(item)
+    } else {
+      groups.push({
+        action: item.action,
+        items: [item],
+        isExpanded: false,
+      })
+    }
+  }
+
+  return groups
+})
+
+const toggleGroup = (index: number) => {
+  if (expandedGroups.value.has(index)) {
+    expandedGroups.value.delete(index)
+  } else {
+    expandedGroups.value.add(index)
+  }
+  // Trigger reactivity
+  expandedGroups.value = new Set(expandedGroups.value)
 }
+
+const isGroupExpanded = (index: number) => expandedGroups.value.has(index)
 
 const formatTimestamp = (timestamp: number): string => {
   const date = new Date(timestamp)
@@ -67,14 +107,6 @@ const formatTimestamp = (timestamp: number): string => {
 const handleSelect = (id: string) => {
   emit('select', id)
 }
-
-const handleMouseEnter = (index: number) => {
-  selectedIndex.value = index
-}
-
-const handleMouseLeave = () => {
-  selectedIndex.value = -1
-}
 </script>
 
 <template>
@@ -83,32 +115,72 @@ const handleMouseLeave = () => {
     :style="{ minWidth: `${minWidth}px` }"
   >
     <!-- Header -->
-    <div class="px-3 py-2 border-b border-border shrink-0">
+    <div class="px-3 py-2 border-b border-border shrink-0 flex items-center justify-between gap-2">
       <span class="text-xs font-medium text-muted-foreground uppercase tracking-wider">
         {{ title }}
       </span>
+      <button
+        v-if="showGoToLatest && items.length > 0"
+        class="text-xs text-primary hover:text-primary/80 font-medium transition-colors"
+        @click="emit('goToLatest')"
+      >
+        Go to latest
+      </button>
     </div>
 
     <!-- Items -->
     <div class="py-1.5 overflow-auto flex-1">
-      <template v-if="items.length > 0">
-        <button
-          v-for="(item, index) in displayItems()"
-          :key="item.id"
-          class="w-full mx-1.5 px-2.5 py-2 text-left rounded-md flex flex-col gap-0.5 transition-colors"
-          :class="[
-            index === selectedIndex
-              ? 'bg-accent text-accent-foreground'
-              : 'hover:bg-accent hover:text-accent-foreground'
-          ]"
-          :style="{ width: 'calc(100% - 12px)' }"
-          @click="handleSelect(item.id)"
-          @mouseenter="handleMouseEnter(index)"
-          @mouseleave="handleMouseLeave"
-        >
-          <span class="text-sm text-foreground truncate">{{ item.action }}</span>
-          <span class="text-xs text-muted-foreground">{{ formatTimestamp(item.timestamp) }}</span>
-        </button>
+      <template v-if="groupedItems.length > 0">
+        <template v-for="(group, groupIndex) in groupedItems" :key="groupIndex">
+          <!-- Single item (no grouping needed) -->
+          <button
+            v-if="group.items.length === 1"
+            class="w-full mx-1.5 px-2.5 py-2 text-left rounded-md flex flex-col gap-0.5 transition-colors hover:bg-accent"
+            :style="{ width: 'calc(100% - 12px)' }"
+            @click="handleSelect(group.items[0].id)"
+          >
+            <span class="text-sm text-foreground truncate">{{ group.action }}</span>
+            <span class="text-xs text-muted-foreground">{{ formatTimestamp(group.items[0].timestamp) }}</span>
+          </button>
+
+          <!-- Group header (multiple items) -->
+          <template v-else>
+            <button
+              class="w-full mx-1.5 px-2.5 py-2 text-left rounded-md flex items-center gap-2 transition-colors hover:bg-accent"
+              :style="{ width: 'calc(100% - 12px)' }"
+              @click="toggleGroup(groupIndex)"
+            >
+              <BkIcon
+                :icon="isGroupExpanded(groupIndex) ? 'chevron-down' : 'chevron-right'"
+                :size="14"
+                class="text-muted-foreground shrink-0"
+              />
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2">
+                  <span class="text-sm text-foreground truncate">{{ group.action }}</span>
+                  <span class="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full shrink-0">
+                    {{ group.items.length }}
+                  </span>
+                </div>
+                <span class="text-xs text-muted-foreground">{{ formatTimestamp(group.items[0].timestamp) }}</span>
+              </div>
+            </button>
+
+            <!-- Expanded group items -->
+            <div v-if="isGroupExpanded(groupIndex)" class="ml-4 border-l border-border">
+              <button
+                v-for="(item, itemIndex) in group.items"
+                :key="item.id"
+                class="w-full mx-1.5 pl-3 pr-2.5 py-1.5 text-left rounded-md flex flex-col gap-0.5 transition-colors hover:bg-accent"
+                :style="{ width: 'calc(100% - 12px)' }"
+                @click="handleSelect(item.id)"
+              >
+                <span class="text-sm text-foreground truncate">{{ item.action }}</span>
+                <span class="text-xs text-muted-foreground">{{ formatTimestamp(item.timestamp) }}</span>
+              </button>
+            </div>
+          </template>
+        </template>
       </template>
 
       <!-- Empty state -->
