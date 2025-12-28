@@ -26,45 +26,42 @@ const resetView = () => {
 </script>
 
 <template>
-  <header class="toolbar h-12 border-b bg-background flex items-center px-4 gap-4 shrink-0">
-    <div class="flex items-center gap-2">
-      <svg class="h-6 w-6" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect width="32" height="32" rx="6" class="fill-foreground"/>
-        <rect x="6" y="6" width="8" height="8" rx="2" class="fill-background/70"/>
-        <rect x="18" y="6" width="8" height="8" rx="2" class="fill-background/70"/>
-        <rect x="6" y="18" width="8" height="8" rx="2" class="fill-background/70"/>
-        <rect x="18" y="18" width="8" height="8" rx="2" class="fill-background/50"/>
-      </svg>
-      <span class="font-semibold text-sm">
+  <header class="toolbar flex h-14 items-center justify-between border-b bg-card px-4 fixed top-0 left-0 right-0 z-50">
+    <!-- Left section: Logo + Title -->
+    <div class="flex items-center gap-4">
+      <div class="flex h-8 w-8 items-center justify-center rounded-md bg-primary">
+        <BkIcon icon="layout-grid" class="text-primary-foreground" />
+      </div>
+      <span class="text-sm font-medium text-foreground">
         {{ title }}
         <span v-if="isDirty" class="text-muted-foreground">*</span>
       </span>
+
+      <BkDivider orientation="vertical" class="h-6" />
+
+      <!-- Add Widget -->
+      <BkDropdown :items="availableModules" @select="addWidgetFromMenu">
+        <template #trigger>
+          <BkButton>
+            <BkIcon icon="plus" />
+            Add Widget
+          </BkButton>
+        </template>
+      </BkDropdown>
     </div>
 
-    <BkDivider orientation="vertical" class="h-6" />
-
-<BkDropdown :items="availableModules" @select="addWidgetFromMenu">
-      <template #trigger>
-        <BkButton variant="secondary" size="sm">
-          <BkIcon icon="plus" size="sm" class="mr-1" />
-          Add Widget
-        </BkButton>
-      </template>
-    </BkDropdown>
-
-    <div class="flex-1" />
-
-<div class="flex items-center gap-1">
+    <!-- Right section: Actions -->
+    <div class="flex items-center gap-2">
       <BkTooltip content="Reset view">
         <BkIconButton aria-label="Reset view" @click="resetView">
-          <BkIcon icon="rotate-ccw" size="sm" />
+          <BkIcon icon="rotate-ccw" />
         </BkIconButton>
       </BkTooltip>
 
       <BkTooltip :content="theme === 'dark' ? 'Light mode' : 'Dark mode'">
         <BkIconButton aria-label="Toggle theme" @click="toggleTheme">
-          <BkIcon v-if="theme === 'dark'" icon="sun" size="sm" />
-          <BkIcon v-else icon="moon" size="sm" />
+          <BkIcon v-if="theme === 'dark'" icon="sun" />
+          <BkIcon v-else icon="moon" />
         </BkIconButton>
       </BkTooltip>
     </div>

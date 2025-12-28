@@ -1,7 +1,19 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useBoardStore, moduleRegistry, useKeyboardShortcuts } from '@boardkit/core'
-import { WidgetFrame } from '@boardkit/ui'
+import {
+  useBoardStore,
+  moduleRegistry,
+  useKeyboardShortcuts,
+  actionRegistry,
+  type ActionContext,
+  type ActionContextType,
+} from '@boardkit/core'
+import {
+  WidgetFrame,
+  BkContextMenu,
+  type ContextMenuItem,
+  type ContextMenuItemOrSeparator,
+} from '@boardkit/ui'
 import WidgetRenderer from './WidgetRenderer.vue'
 
 const emit = defineEmits<{
@@ -15,6 +27,15 @@ const isPanning = ref(false)
 const panStart = ref({ x: 0, y: 0 })
 const viewportStart = ref({ x: 0, y: 0 })
 
+// Context menu state
+const contextMenu = ref({
+  open: false,
+  x: 0,
+  y: 0,
+  type: 'canvas' as ActionContextType,
+  canvasPosition: { x: 0, y: 0 },
+})
+
 const widgets = computed(() => boardStore.widgets)
 const viewport = computed(() => boardStore.viewport)
 const selectedWidgetId = computed(() => boardStore.selectedWidgetId)
@@ -24,10 +45,117 @@ const transformStyle = computed(() => ({
   transformOrigin: '0 0',
 }))
 
+// Grid background style - moves with viewport for parallax effect
+const gridStyle = computed(() => ({
+  backgroundPosition: `${viewport.value.x}px ${viewport.value.y}px`,
+  backgroundSize: `${20 * viewport.value.zoom}px ${20 * viewport.value.zoom}px`,
+}))
+
+// Build action context
+const buildActionContext = (pointerPosition?: { x: number; y: number }): ActionContext => ({
+  selectedWidget: boardStore.selectedWidget,
+  selectedWidgetId: boardStore.selectedWidgetId,
+  viewport: boardStore.viewport,
+  widgets: boardStore.widgets,
+  platform: 'desktop',
+  isDirty: boardStore.isDirty,
+  pointerPosition,
+})
+
+// Convert screen coordinates to canvas coordinates
+const screenToCanvas = (screenX: number, screenY: number) => {
+  const rect = canvasRef.value?.getBoundingClientRect()
+  if (!rect) return { x: 0, y: 0 }
+
+  const relativeX = screenX - rect.left
+  const relativeY = screenY - rect.top
+
+  // Remove viewport translation and zoom
+  const canvasX = (relativeX - viewport.value.x) / viewport.value.zoom
+  const canvasY = (relativeY - viewport.value.y) / viewport.value.zoom
+
+  return { x: canvasX, y: canvasY }
+}
+
+// Build context menu items from actions
+const contextMenuItems = computed<ContextMenuItemOrSeparator[]>(() => {
+  const ctx = buildActionContext(contextMenu.value.canvasPosition)
+  const actions = actionRegistry.getAvailable(ctx, { context: contextMenu.value.type })
+
+  const items: ContextMenuItemOrSeparator[] = []
+  let lastGroup = ''
+
+  for (const action of actions) {
+    // Add separator between groups
+    if (lastGroup && action.group !== lastGroup) {
+      items.push({ separator: true })
+    }
+    lastGroup = action.group
+
+    items.push({
+      id: action.id,
+      label: action.title,
+      icon: action.icon,
+      shortcut: action.shortcutHint,
+      disabled: action.when ? !action.when(ctx) : false,
+    })
+  }
+
+  return items
+})
+
+// Handle context menu item selection
+const handleContextMenuSelect = async (item: ContextMenuItem) => {
+  const ctx = buildActionContext(contextMenu.value.canvasPosition)
+  await actionRegistry.execute(item.id, ctx)
+}
+
+// Handle right-click on canvas
+const handleCanvasContextMenu = (e: MouseEvent) => {
+  e.preventDefault()
+
+  // Check if click was on empty canvas
+  const target = e.target as HTMLElement
+  if (target === canvasRef.value || target.classList.contains('canvas-grid') || target.classList.contains('canvas-transform')) {
+    boardStore.clearSelection()
+    const canvasPos = screenToCanvas(e.clientX, e.clientY)
+    contextMenu.value = {
+      open: true,
+      x: e.clientX,
+      y: e.clientY,
+      type: 'canvas',
+      canvasPosition: canvasPos,
+    }
+  }
+}
+
+// Handle right-click on widget (called from WidgetFrame)
+const handleWidgetContextMenu = (widgetId: string, e: MouseEvent) => {
+  e.preventDefault()
+  e.stopPropagation()
+
+  boardStore.selectWidget(widgetId)
+  contextMenu.value = {
+    open: true,
+    x: e.clientX,
+    y: e.clientY,
+    type: 'widget',
+    canvasPosition: { x: 0, y: 0 },
+  }
+}
+
+const closeContextMenu = () => {
+  contextMenu.value.open = false
+}
+
 // Keyboard shortcuts
 const { isSpacePressed } = useKeyboardShortcuts({
   onEscape: () => {
-    boardStore.clearSelection()
+    if (contextMenu.value.open) {
+      closeContextMenu()
+    } else {
+      boardStore.clearSelection()
+    }
   },
   onDelete: () => {
     if (selectedWidgetId.value) {
@@ -173,9 +301,11 @@ onUnmounted(() => {
     ref="canvasRef"
     class="board-canvas flex-1 overflow-hidden bg-background canvas-grid relative select-none"
     :class="canvasCursor"
+    :style="gridStyle"
     @click="handleCanvasClick"
     @wheel="handleWheel"
     @mousedown="startPan"
+    @contextmenu="handleCanvasContextMenu"
   >
     <!-- Canvas content with transform -->
     <div class="canvas-transform absolute inset-0" :style="transformStyle">
@@ -194,6 +324,7 @@ onUnmounted(() => {
         @move="handleWidgetMove"
         @resize="handleWidgetResize"
         @delete="handleWidgetDelete"
+        @contextmenu.native="(e: MouseEvent) => handleWidgetContextMenu(widget.id, e)"
       >
         <WidgetRenderer :widget-id="widget.id" :module-id="widget.moduleId" />
       </WidgetFrame>
@@ -203,5 +334,15 @@ onUnmounted(() => {
     <div class="absolute bottom-4 right-4 px-2 py-1 rounded bg-background/80 border text-xs text-muted-foreground pointer-events-none">
       {{ Math.round(viewport.zoom * 100) }}%
     </div>
+
+    <!-- Context Menu -->
+    <BkContextMenu
+      :open="contextMenu.open"
+      :x="contextMenu.x"
+      :y="contextMenu.y"
+      :items="contextMenuItems"
+      @close="closeContextMenu"
+      @select="handleContextMenuSelect"
+    />
   </div>
 </template>

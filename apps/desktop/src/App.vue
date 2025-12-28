@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useBoardStore } from '@boardkit/core'
+import { useBoardStore, registerCoreActions } from '@boardkit/core'
 import { useTheme } from '@boardkit/ui'
 import { registerModules } from './modules'
 import BoardCanvas from './components/BoardCanvas.vue'
 import Toolbar from './components/Toolbar.vue'
 import CommandPalette from './components/CommandPalette.vue'
 
+// Register all modules before using the store
 registerModules()
 
 const boardStore = useBoardStore()
@@ -25,6 +26,8 @@ const closeCommandPalette = () => {
 onMounted(() => {
   initTheme()
   boardStore.createNewBoard('Untitled Board')
+  // Register core actions after Pinia store is ready
+  registerCoreActions()
 })
 </script>
 

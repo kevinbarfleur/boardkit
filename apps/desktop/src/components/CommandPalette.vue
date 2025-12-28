@@ -1,7 +1,20 @@
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue'
-import { useBoardStore, moduleRegistry } from '@boardkit/core'
-import { BkModal, BkInput, BkIcon } from '@boardkit/ui'
+import { computed } from 'vue'
+import {
+  useBoardStore,
+  actionRegistry,
+  type ActionDefinition,
+  type ActionContext,
+  type ActionGroup,
+} from '@boardkit/core'
+import {
+  BkCommandDialog,
+  BkCommandInput,
+  BkCommandList,
+  BkCommandGroup,
+  BkCommandItem,
+  BkCommandEmpty,
+} from '@boardkit/ui'
 
 interface Props {
   open: boolean
@@ -14,115 +27,94 @@ const emit = defineEmits<{
 }>()
 
 const boardStore = useBoardStore()
-const searchQuery = ref('')
-const inputRef = ref<InstanceType<typeof BkInput> | null>(null)
-const selectedIndex = ref(0)
 
-const availableModules = computed(() => {
-  const modules = moduleRegistry.getAll()
-  if (!searchQuery.value.trim()) return modules
+const actionContext = computed<ActionContext>(() => ({
+  selectedWidget: boardStore.selectedWidget,
+  selectedWidgetId: boardStore.selectedWidgetId,
+  viewport: boardStore.viewport,
+  widgets: boardStore.widgets,
+  platform: 'desktop',
+  isDirty: boardStore.isDirty,
+}))
 
-  const query = searchQuery.value.toLowerCase()
-  return modules.filter(
-    (m) =>
-      m.displayName.toLowerCase().includes(query) ||
-      m.moduleId.toLowerCase().includes(query)
-  )
+const availableActions = computed(() => {
+  return actionRegistry.getAvailable(actionContext.value, { context: 'global' })
 })
 
-const handleSelect = (moduleId: string) => {
-  boardStore.addWidget(moduleId)
-  close()
+const groupedActions = computed(() => {
+  const groups: Record<ActionGroup, ActionDefinition[]> = {
+    board: [],
+    widget: [],
+    view: [],
+    module: [],
+  }
+
+  for (const action of availableActions.value) {
+    groups[action.group].push(action)
+  }
+
+  return groups
+})
+
+const groupLabels: Record<ActionGroup, string> = {
+  board: 'Board',
+  widget: 'Widget',
+  view: 'View',
+  module: 'Modules',
+}
+
+const handleSelect = async (value: string) => {
+  // Find the action by its ID (we use action.id as the value)
+  const action = availableActions.value.find(a => a.id === value)
+  if (action) {
+    await actionRegistry.execute(action.id, actionContext.value)
+  }
 }
 
 const close = () => {
-  searchQuery.value = ''
-  selectedIndex.value = 0
   emit('close')
 }
-
-const handleKeydown = (e: KeyboardEvent) => {
-  if (e.key === 'ArrowDown') {
-    e.preventDefault()
-    selectedIndex.value = Math.min(selectedIndex.value + 1, availableModules.value.length - 1)
-  } else if (e.key === 'ArrowUp') {
-    e.preventDefault()
-    selectedIndex.value = Math.max(selectedIndex.value - 1, 0)
-  } else if (e.key === 'Enter') {
-    e.preventDefault()
-    const selected = availableModules.value[selectedIndex.value]
-    if (selected) {
-      handleSelect(selected.moduleId)
-    }
-  }
-}
-
-// Focus input when opened
-watch(
-  () => props.open,
-  async (isOpen) => {
-    if (isOpen) {
-      selectedIndex.value = 0
-      await nextTick()
-      // Focus the input inside BkInput
-      const inputEl = inputRef.value?.$el?.querySelector('input')
-      inputEl?.focus()
-    }
-  }
-)
-
-// Reset selection when search changes
-watch(searchQuery, () => {
-  selectedIndex.value = 0
-})
 </script>
 
 <template>
-  <BkModal :open="props.open" title="Add Widget" @close="close">
-    <div class="flex flex-col gap-4" @keydown="handleKeydown">
-      <BkInput
-        ref="inputRef"
-        v-model="searchQuery"
-        placeholder="Search widgets..."
+  <BkCommandDialog
+    :open="props.open"
+    :loop="true"
+    @close="close"
+    @select="handleSelect"
+  >
+    <template #default="{ listboxId, activeDescendant }">
+      <BkCommandInput
+        placeholder="Rechercher des commandes..."
+        :listbox-id="listboxId"
+        :active-descendant="activeDescendant"
       />
 
-      <div class="flex flex-col gap-1 max-h-64 overflow-auto">
-        <button
-          v-for="(module, index) in availableModules"
-          :key="module.moduleId"
-          class="flex items-center gap-3 px-3 py-2 rounded-md text-left transition-colors"
-          :class="[
-            index === selectedIndex
-              ? 'bg-primary text-primary-foreground'
-              : 'hover:bg-accent'
-          ]"
-          @click="handleSelect(module.moduleId)"
-          @mouseenter="selectedIndex = index"
-        >
-          <BkIcon icon="plus" size="sm" />
-          <span class="font-medium">{{ module.displayName }}</span>
-        </button>
+      <BkCommandList :id="listboxId" label="Commands">
+        <BkCommandEmpty>
+          Aucun résultat trouvé.
+        </BkCommandEmpty>
 
-        <p
-          v-if="availableModules.length === 0"
-          class="text-sm text-muted-foreground text-center py-4"
-        >
-          No widgets found
-        </p>
-      </div>
-    </div>
-
-    <template #footer>
-      <div class="flex items-center gap-4 text-xs text-muted-foreground">
-        <span class="flex items-center gap-1">
-          <kbd class="px-1.5 py-0.5 rounded bg-muted text-muted-foreground">Enter</kbd>
-          to select
-        </span>
-        <span class="flex items-center gap-1">
-          <kbd class="px-1.5 py-0.5 rounded bg-muted text-muted-foreground">Esc</kbd>
-          to close
-        </span>
-      </div>
+        <template v-for="(actions, group) in groupedActions" :key="group">
+          <BkCommandGroup
+            v-if="actions.length > 0"
+            :heading="groupLabels[group as ActionGroup]"
+          >
+            <BkCommandItem
+              v-for="action in actions"
+              :key="action.id"
+              :value="action.id"
+              :icon="action.icon"
+              :shortcut="action.shortcutHint"
+              :keywords="[action.title, ...(action.keywords || [])]"
+              :group="group"
+              @select="handleSelect"
+            >
+              {{ action.title }}
+            </BkCommandItem>
+          </BkCommandGroup>
+        </template>
+      </BkCommandList>
     </template>
-  </BkModal>
+  </BkCommandDialog>
 </template>
