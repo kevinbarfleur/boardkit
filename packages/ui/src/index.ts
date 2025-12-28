@@ -15,6 +15,14 @@ export { default as BkEditableText } from './components/BkEditableText.vue'
 export { default as WidgetFrame } from './components/WidgetFrame.vue'
 export { default as BkContextMenu } from './components/BkContextMenu.vue'
 
+// Canvas Tool Components
+export { default as BkToolbar } from './components/BkToolbar.vue'
+export { default as BkToolButton } from './components/BkToolButton.vue'
+export { default as BkColorPicker } from './components/BkColorPicker.vue'
+export { default as BkSlider } from './components/BkSlider.vue'
+export { default as SelectionHandles } from './components/SelectionHandles.vue'
+export { default as ElementRenderer } from './components/ElementRenderer.vue'
+
 // Menu types
 export type { MenuItem, MenuGroup, MenuContent } from './components/BkMenu.vue'
 export type { HistoryItem } from './components/BkHistoryList.vue'
@@ -40,3 +48,12 @@ export { useTheme } from './composables/useTheme'
 // Types
 export type { ButtonVariant, ButtonSize } from './components/BkButton.vue'
 export type { IconName } from './components/BkIcon.vue'
+
+// Re-export element types used by ElementRenderer (from @boardkit/core)
+export type {
+  CanvasElement,
+  ShapeElement,
+  LineElement,
+  DrawElement,
+  TextElement,
+} from '@boardkit/core'

@@ -106,10 +106,25 @@ Do NOT guess APIs when documentation is available.
 - Cloud backend or proprietary sync service
 - CRDTs or automatic conflict resolution
 - Native macOS widgets
-- Freehand drawing / Excalidraw-like sketching
 - Plugin marketplace UI
 
 If a feature is not explicitly described in `SPECS_V0.md`, assume it is out of scope.
+
+---
+
+## Native Canvas Elements (V0 Scope)
+
+Native canvas primitives (shapes, lines, arrows, freehand, text) are **in scope for V0**.
+
+These elements:
+
+- Are NOT modules/widgets (separate lightweight layer)
+- Share z-index space with widgets (can be above/below)
+- Use the same design system (`@boardkit/ui`)
+- Are fully persisted in `.boardkit` documents
+- Support undo/redo through the existing history system
+
+See `docs/SPECS_CANVAS_NATIVE.md` for the full specification.
 
 ---
 

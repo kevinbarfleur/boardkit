@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
-import { useTheme } from "@boardkit/ui";
-import { BkIcon } from "@boardkit/ui";
+import {
+  useTheme,
+  BkIcon,
+  BkToolbar,
+  BkToolButton,
+  BkColorPicker,
+  BkSlider,
+  SelectionHandles,
+} from "@boardkit/ui";
 import { RouterLink } from "vue-router";
 
 const { theme, toggleTheme, initTheme } = useTheme();
@@ -26,6 +33,24 @@ const selectValue = ref("Select an option");
 const tooltipVisible = ref<string | null>(null);
 const activeTab = ref("tab1");
 const showPassword = ref(false);
+
+// Canvas Tools state
+const activeTool = ref("select");
+const strokeColor = ref("#ffffff");
+const fillColor = ref<string | null>(null);
+const strokeWidth = ref(2);
+const opacity = ref(100);
+
+const tools = [
+  { id: "select", icon: "mouse-pointer-2", label: "Select" },
+  { id: "hand", icon: "hand", label: "Hand" },
+  { id: "rectangle", icon: "square", label: "Rectangle" },
+  { id: "ellipse", icon: "circle", label: "Ellipse" },
+  { id: "line", icon: "minus", label: "Line" },
+  { id: "arrow", icon: "arrow-right", label: "Arrow" },
+  { id: "pencil", icon: "pencil", label: "Pencil" },
+  { id: "text", icon: "type", label: "Text" },
+];
 </script>
 
 <template>
@@ -572,6 +597,141 @@ const showPassword = ref(false);
             <code class="text-xs bg-muted px-2 py-1 rounded"
               >rounded-lg border bg-muted px-3 py-1.5 text-sm</code
             >
+          </div>
+        </div>
+      </section>
+
+      <!-- Canvas Tools Section -->
+      <section class="space-y-6">
+        <div class="space-y-2">
+          <h2 class="text-2xl font-medium text-foreground">Canvas Tools</h2>
+          <p class="text-sm text-muted-foreground">
+            Composants pour les outils de dessin natifs du canvas
+          </p>
+        </div>
+
+        <!-- Tool Toolbar -->
+        <div class="space-y-4">
+          <h3 class="text-lg font-medium text-foreground">BkToolbar + BkToolButton</h3>
+          <p class="text-sm text-muted-foreground">
+            Barre d'outils flottante avec boutons de sélection d'outils
+          </p>
+
+          <div class="relative bg-neutral-900 rounded-lg p-8 min-h-[120px] flex items-center justify-center">
+            <BkToolbar position="bottom-center" class="relative transform-none">
+              <template v-for="(tool, index) in tools" :key="tool.id">
+                <div v-if="index === 2" class="w-px h-6 bg-border mx-1" />
+                <BkToolButton
+                  :icon="tool.icon"
+                  :active="activeTool === tool.id"
+                  :tooltip="tool.label"
+                  @click="activeTool = tool.id"
+                />
+              </template>
+            </BkToolbar>
+          </div>
+
+          <div class="text-sm text-muted-foreground">
+            <p>Outil actif: <code class="text-xs bg-muted px-2 py-1 rounded">{{ activeTool }}</code></p>
+          </div>
+        </div>
+
+        <!-- Color Picker -->
+        <div class="space-y-4">
+          <h3 class="text-lg font-medium text-foreground">BkColorPicker</h3>
+          <p class="text-sm text-muted-foreground">
+            Sélecteur de couleur avec palette de presets
+          </p>
+
+          <div class="flex gap-8">
+            <div class="space-y-2">
+              <BkColorPicker
+                v-model="strokeColor"
+                label="Stroke"
+              />
+              <p class="text-xs text-muted-foreground">Couleur: {{ strokeColor }}</p>
+            </div>
+            <div class="space-y-2">
+              <BkColorPicker
+                v-model="fillColor"
+                label="Fill"
+                show-none
+              />
+              <p class="text-xs text-muted-foreground">Couleur: {{ fillColor ?? 'none' }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Slider -->
+        <div class="space-y-4">
+          <h3 class="text-lg font-medium text-foreground">BkSlider</h3>
+          <p class="text-sm text-muted-foreground">
+            Slider numérique pour stroke width et opacity
+          </p>
+
+          <div class="flex gap-8 max-w-md">
+            <div class="flex-1 space-y-2">
+              <BkSlider
+                v-model="strokeWidth"
+                label="Width"
+                :min="1"
+                :max="8"
+                :step="1"
+              />
+              <p class="text-xs text-muted-foreground">Valeur: {{ strokeWidth }}</p>
+            </div>
+            <div class="flex-1 space-y-2">
+              <BkSlider
+                v-model="opacity"
+                label="Opacity"
+                :min="25"
+                :max="100"
+                :step="25"
+              />
+              <p class="text-xs text-muted-foreground">Valeur: {{ opacity }}%</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Selection Handles -->
+        <div class="space-y-4">
+          <h3 class="text-lg font-medium text-foreground">SelectionHandles</h3>
+          <p class="text-sm text-muted-foreground">
+            Poignées de sélection pour resize des éléments
+          </p>
+
+          <div class="flex gap-8">
+            <div class="space-y-2">
+              <p class="text-xs font-medium">All handles (shapes)</p>
+              <svg width="160" height="100" class="bg-neutral-900 rounded">
+                <g transform="translate(20, 10)">
+                  <rect
+                    width="120"
+                    height="80"
+                    fill="none"
+                    stroke="#ffffff"
+                    stroke-width="2"
+                  />
+                  <SelectionHandles :width="120" :height="80" />
+                </g>
+              </svg>
+            </div>
+            <div class="space-y-2">
+              <p class="text-xs font-medium">Corners only (lines/draw)</p>
+              <svg width="160" height="100" class="bg-neutral-900 rounded">
+                <g transform="translate(20, 10)">
+                  <line
+                    x1="0"
+                    y1="80"
+                    x2="120"
+                    y2="0"
+                    stroke="#ffffff"
+                    stroke-width="2"
+                  />
+                  <SelectionHandles :width="120" :height="80" corners-only />
+                </g>
+              </svg>
+            </div>
           </div>
         </div>
       </section>

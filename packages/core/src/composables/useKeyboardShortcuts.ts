@@ -1,4 +1,6 @@
 import { ref, onMounted, onUnmounted } from 'vue'
+import type { ToolType } from '../types/tool'
+import { KEY_TO_TOOL } from '../types/tool'
 
 /**
  * Keyboard Shortcut Manager
@@ -8,12 +10,13 @@ import { ref, onMounted, onUnmounted } from 'vue'
  *
  * Registered shortcuts:
  * - Escape: Clear selection
- * - Delete/Backspace: Remove selected widget
- * - Cmd/Ctrl + D: Duplicate selected widget
+ * - Delete/Backspace: Remove selected widget/element
+ * - Cmd/Ctrl + D: Duplicate selected widget/element
  * - Cmd/Ctrl + 0: Reset view
  * - Cmd/Ctrl + K: Open command palette
- * - Arrow keys: Nudge selected widget (1px)
- * - Shift + Arrow keys: Nudge selected widget (10px)
+ * - Arrow keys: Nudge selected widget/element (1px)
+ * - Shift + Arrow keys: Nudge selected widget/element (10px)
+ * - V, H, R, O, L, A, P, T: Switch tools
  */
 
 export interface ShortcutHandler {
@@ -35,6 +38,7 @@ export interface KeyboardShortcutsOptions {
   onResetView?: () => void
   onCommandPalette?: () => void
   onNudge?: (dx: number, dy: number) => void
+  onToolSwitch?: (tool: ToolType) => void
 }
 
 export function useKeyboardShortcuts(options: KeyboardShortcutsOptions) {
@@ -135,6 +139,16 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions) {
       e.preventDefault()
       options.onNudge?.(nudgeAmount, 0)
       return
+    }
+
+    // Tool shortcuts (V, H, R, O, L, A, P, T) - single key, no modifiers
+    if (!e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+      const tool = KEY_TO_TOOL[key]
+      if (tool) {
+        e.preventDefault()
+        options.onToolSwitch?.(tool)
+        return
+      }
     }
   }
 

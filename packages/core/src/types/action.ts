@@ -1,4 +1,6 @@
 import type { Widget, Viewport } from './document'
+import type { CanvasElement } from './element'
+import type { ToolType } from './tool'
 
 /**
  * Action System for Boardkit
@@ -21,10 +23,18 @@ export interface ActionContext {
   selectedWidget: Widget | null
   /** ID of the selected widget */
   selectedWidgetId: string | null
+  /** Currently selected element, if any */
+  selectedElement: CanvasElement | null
+  /** ID of the selected element */
+  selectedElementId: string | null
+  /** Current active tool */
+  activeTool: ToolType
   /** Current viewport state */
   viewport: Viewport
   /** All widgets on the board */
   widgets: Widget[]
+  /** All elements on the board */
+  elements: CanvasElement[]
   /** Pointer position in canvas coordinates (for "add here" actions) */
   pointerPosition?: { x: number; y: number }
   /** Platform detection */
@@ -36,7 +46,7 @@ export interface ActionContext {
 /**
  * Groups for organizing actions in menus and palette.
  */
-export type ActionGroup = 'board' | 'widget' | 'view' | 'module'
+export type ActionGroup = 'board' | 'widget' | 'element' | 'tool' | 'view' | 'module'
 
 /**
  * Context types for filtering actions.

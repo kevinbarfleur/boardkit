@@ -337,15 +337,14 @@ export function usePersistence() {
 
     console.log('Setting up autosave, currentDocumentId:', currentDocumentId.value)
 
-    // Watch the document for any changes
+    // Watch dirty state instead of deep watching the entire document (performance)
     stopWatch = watch(
-      () => boardStore.document,
-      () => {
-        if (boardStore.isDirty && currentDocumentId.value) {
+      () => boardStore.isDirty,
+      (isDirty) => {
+        if (isDirty && currentDocumentId.value) {
           scheduleAutosave()
         }
-      },
-      { deep: true }
+      }
     )
 
     // Save immediately if already dirty

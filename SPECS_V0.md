@@ -16,10 +16,60 @@ Deliver a usable, offline-first, modular whiteboard with:
 - Infinite canvas (pan + zoom)
 - Add / move / resize widgets
 - Simple z-index handling
-- Single-widget selection
+- Single selection (widgets or elements)
 - Autosave enabled
 
-Freehand drawing is explicitly excluded from V0.
+---
+
+## Canvas Elements (V0)
+
+Native canvas primitives (lightweight, non-module elements):
+
+### Supported Element Types
+
+- **Rectangle** — with optional label text
+- **Ellipse** — with optional label text
+- **Line** — two-point line
+- **Arrow** — line with arrowhead(s)
+- **Draw** — freehand pencil strokes
+- **Text** — standalone text block
+
+### Element Styles
+
+- Stroke color (preset palette)
+- Fill color (none or solid)
+- Stroke width (S/M/L)
+- Opacity (100/75/50%)
+
+### Tools
+
+| Tool      | Shortcut | Description              |
+|-----------|----------|--------------------------|
+| Select    | V        | Select/move/resize       |
+| Hand      | H        | Pan canvas               |
+| Rectangle | R        | Draw rectangle           |
+| Ellipse   | O        | Draw ellipse             |
+| Line      | L        | Draw line                |
+| Arrow     | A        | Draw arrow               |
+| Pencil    | P        | Freehand drawing         |
+| Text      | T        | Place text block         |
+
+### Board Background
+
+- Dots (default)
+- Grid
+- None (transparent)
+- Solid color
+
+### Z-Index
+
+Elements and widgets share the same z-index space.
+Elements can be sent behind or brought in front of widgets.
+
+### Persistence
+
+Elements are stored in `board.elements[]` within the document.
+Full undo/redo support via history snapshots.
 
 ---
 

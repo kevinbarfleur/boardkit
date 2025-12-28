@@ -53,6 +53,21 @@ import {
   Heart,
   Bookmark,
   Share2,
+  // Canvas tool icons
+  MousePointer2,
+  Hand,
+  Square,
+  Minus,
+  ArrowRight,
+  Pencil,
+  Type,
+  Palette,
+  Grid,
+  MoveHorizontal,
+  // Text alignment icons
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
   type LucideIcon,
 } from 'lucide-vue-next'
 
@@ -110,6 +125,21 @@ const iconComponents: Record<string, LucideIcon> = {
   heart: Heart,
   bookmark: Bookmark,
   'share-2': Share2,
+  // Canvas tool icons
+  'mouse-pointer-2': MousePointer2,
+  hand: Hand,
+  square: Square,
+  minus: Minus,
+  'arrow-right': ArrowRight,
+  pencil: Pencil,
+  type: Type,
+  palette: Palette,
+  grid: Grid,
+  'move-horizontal': MoveHorizontal,
+  // Text alignment icons
+  'align-left': AlignLeft,
+  'align-center': AlignCenter,
+  'align-right': AlignRight,
 }
 
 export type IconName = keyof typeof iconComponents

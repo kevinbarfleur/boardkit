@@ -1,3 +1,5 @@
 export * from './document'
 export * from './module'
 export * from './action'
+export * from './element'
+export * from './tool'

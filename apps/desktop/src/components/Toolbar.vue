@@ -84,8 +84,13 @@ const resetView = () => {
   <header class="toolbar flex h-14 items-center justify-between border-b bg-card px-4 fixed top-0 left-0 right-0 z-50">
     <!-- Left section: Logo + Title -->
     <div class="flex items-center gap-4">
-      <div class="flex h-8 w-8 items-center justify-center rounded-md bg-primary">
-        <BkIcon icon="layout-grid" class="text-primary-foreground" />
+      <div class="flex h-8 w-8 items-center justify-center rounded-md bg-muted p-1.5">
+        <svg viewBox="0 0 24 24" fill="none" class="w-full h-full">
+          <rect x="3" y="3" width="8" height="8" rx="1.5" class="fill-foreground/30" />
+          <rect x="13" y="3" width="8" height="8" rx="1.5" class="fill-foreground/45" />
+          <rect x="3" y="13" width="8" height="8" rx="1.5" class="fill-foreground/60" />
+          <rect x="13" y="13" width="8" height="8" rx="1.5" class="fill-foreground/80" />
+        </svg>
       </div>
 
       <!-- Editable Title -->

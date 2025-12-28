@@ -2,42 +2,238 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { nanoid } from 'nanoid'
 import type { BoardkitDocument, Widget, Viewport } from '../types/document'
+import type { CanvasElement, BoardBackground, LineElement, DrawElement } from '../types/element'
 import { createEmptyDocument } from '../types/document'
+import { DEFAULT_BACKGROUND, isLineElement, isDrawElement } from '../types/element'
 import { moduleRegistry } from '../modules/ModuleRegistry'
+import { migrateDocument } from '../migrations'
+
+// ============================================================================
+// Selection Types
+// ============================================================================
+
+/**
+ * Selection item (widget or element).
+ */
+export interface SelectionItem {
+  type: 'widget' | 'element'
+  id: string
+}
+
+/**
+ * Unified selection target (widget or element) - single selection backward compat.
+ */
+export type SelectionTarget = SelectionItem | null
+
+/**
+ * Multi-selection array.
+ */
+export type MultiSelection = SelectionItem[]
+
+// ============================================================================
+// Store Definition
+// ============================================================================
 
 export const useBoardStore = defineStore('board', () => {
+  // ============================================================================
   // State
+  // ============================================================================
+
   const document = ref<BoardkitDocument | null>(null)
-  const selectedWidgetId = ref<string | null>(null)
+  const selection = ref<MultiSelection>([])
   const isDirty = ref(false)
   const lastAction = ref<string>('Initial state')
 
-  // Getters
+  // ============================================================================
+  // Getters - Document
+  // ============================================================================
+
   const widgets = computed(() => document.value?.board.widgets ?? [])
+  const elements = computed(() => document.value?.board.elements ?? [])
   const viewport = computed(() => document.value?.board.viewport ?? { x: 0, y: 0, zoom: 1 })
+  const background = computed(() => document.value?.board.background ?? { ...DEFAULT_BACKGROUND })
   const moduleStates = computed(() => document.value?.modules ?? {})
   const title = computed(() => document.value?.meta.title ?? '')
 
+  // ============================================================================
+  // Internal Maps for O(1) Lookups
+  // ============================================================================
+
+  /** Internal Map for O(1) widget lookups by ID */
+  const widgetMap = computed(() => {
+    const map = new Map<string, Widget>()
+    for (const w of widgets.value) map.set(w.id, w)
+    return map
+  })
+
+  /** Internal Map for O(1) element lookups by ID */
+  const elementMap = computed(() => {
+    const map = new Map<string, CanvasElement>()
+    for (const e of elements.value) map.set(e.id, e)
+    return map
+  })
+
+  // ============================================================================
+  // Getters - Selection
+  // ============================================================================
+
+  /** All selected items */
+  const selectedItems = computed(() => selection.value)
+
+  /** Number of selected items */
+  const selectionCount = computed(() => selection.value.length)
+
+  /** Whether multiple items are selected */
+  const isMultiSelection = computed(() => selection.value.length > 1)
+
+  /** Selected widget IDs */
+  const selectedWidgetIds = computed(() =>
+    selection.value.filter((s) => s.type === 'widget').map((s) => s.id)
+  )
+
+  /** Selected element IDs */
+  const selectedElementIds = computed(() =>
+    selection.value.filter((s) => s.type === 'element').map((s) => s.id)
+  )
+
+  /** Selected widget ID (for backward compatibility - first selected widget) */
+  const selectedWidgetId = computed(() =>
+    selectedWidgetIds.value.length > 0 ? selectedWidgetIds.value[0] : null
+  )
+
+  /** Selected element ID (for backward compatibility - first selected element) */
+  const selectedElementId = computed(() =>
+    selectedElementIds.value.length > 0 ? selectedElementIds.value[0] : null
+  )
+
+  /** Selected widget object (first selected) */
   const selectedWidget = computed(() => {
     if (!selectedWidgetId.value) return null
-    return widgets.value.find((w) => w.id === selectedWidgetId.value) ?? null
+    return widgetMap.value.get(selectedWidgetId.value) ?? null
   })
 
+  /** Selected element object (first selected) */
+  const selectedElement = computed(() => {
+    if (!selectedElementId.value) return null
+    return elementMap.value.get(selectedElementId.value) ?? null
+  })
+
+  /** Set for O(1) widget selection checks */
+  const selectedWidgetIdSet = computed(() => new Set(selectedWidgetIds.value))
+
+  /** Set for O(1) element selection checks */
+  const selectedElementIdSet = computed(() => new Set(selectedElementIds.value))
+
+  /** All selected widgets */
+  const selectedWidgets = computed(() =>
+    widgets.value.filter((w) => selectedWidgetIdSet.value.has(w.id))
+  )
+
+  /** All selected elements */
+  const selectedElements = computed(() =>
+    elements.value.filter((e) => selectedElementIdSet.value.has(e.id))
+  )
+
+  /** Whether anything is selected */
+  const hasSelection = computed(() => selection.value.length > 0)
+
+  /** Selection type ('widget' | 'element' | 'mixed' | null) */
+  const selectionType = computed(() => {
+    if (selection.value.length === 0) return null
+    const types = new Set(selection.value.map((s) => s.type))
+    if (types.size > 1) return 'mixed'
+    return selection.value[0].type
+  })
+
+  /** Check if a specific item is selected */
+  function isSelected(type: 'widget' | 'element', id: string): boolean {
+    return selection.value.some((s) => s.type === type && s.id === id)
+  }
+
+  // ============================================================================
+  // Getters - Z-Index
+  // ============================================================================
+
+  /** Maximum z-index across all widgets and elements */
   const maxZIndex = computed(() => {
-    if (widgets.value.length === 0) return 0
-    return Math.max(...widgets.value.map((w) => w.zIndex))
+    const widgetZIndexes = widgets.value.map((w) => w.zIndex)
+    const elementZIndexes = elements.value.map((e) => e.zIndex)
+    const allZIndexes = [...widgetZIndexes, ...elementZIndexes]
+    if (allZIndexes.length === 0) return 0
+    return Math.max(...allZIndexes)
   })
 
-  // Actions
-  function createNewBoard(title: string) {
-    document.value = createEmptyDocument(title)
-    selectedWidgetId.value = null
+  /** Minimum z-index across all widgets and elements */
+  const minZIndex = computed(() => {
+    const widgetZIndexes = widgets.value.map((w) => w.zIndex)
+    const elementZIndexes = elements.value.map((e) => e.zIndex)
+    const allZIndexes = [...widgetZIndexes, ...elementZIndexes]
+    if (allZIndexes.length === 0) return 0
+    return Math.min(...allZIndexes)
+  })
+
+  // ============================================================================
+  // Helpers - Element Point Translation
+  // ============================================================================
+
+  /**
+   * Translate (move) an element's points by the given delta.
+   * Handles line/arrow and draw elements with proper type safety.
+   */
+  function translateElementPoints(element: CanvasElement, dx: number, dy: number): void {
+    if (isLineElement(element)) {
+      element.points.start.x += dx
+      element.points.start.y += dy
+      element.points.end.x += dx
+      element.points.end.y += dy
+    } else if (isDrawElement(element)) {
+      for (const point of element.points) {
+        point.x += dx
+        point.y += dy
+      }
+    }
+  }
+
+  /**
+   * Scale an element's points proportionally when resizing.
+   * Handles line/arrow and draw elements with proper type safety.
+   */
+  function scaleElementPoints(
+    element: CanvasElement,
+    oldRect: { x: number; y: number; width: number; height: number },
+    newRect: { x: number; y: number; width: number; height: number }
+  ): void {
+    const scaleX = oldRect.width > 0 ? newRect.width / oldRect.width : 1
+    const scaleY = oldRect.height > 0 ? newRect.height / oldRect.height : 1
+
+    if (isLineElement(element)) {
+      element.points.start.x = newRect.x + (element.points.start.x - oldRect.x) * scaleX
+      element.points.start.y = newRect.y + (element.points.start.y - oldRect.y) * scaleY
+      element.points.end.x = newRect.x + (element.points.end.x - oldRect.x) * scaleX
+      element.points.end.y = newRect.y + (element.points.end.y - oldRect.y) * scaleY
+    } else if (isDrawElement(element)) {
+      for (const point of element.points) {
+        point.x = newRect.x + (point.x - oldRect.x) * scaleX
+        point.y = newRect.y + (point.y - oldRect.y) * scaleY
+      }
+    }
+  }
+
+  // ============================================================================
+  // Actions - Document Management
+  // ============================================================================
+
+  function createNewBoard(titleStr: string) {
+    document.value = createEmptyDocument(titleStr)
+    selection.value = []
     isDirty.value = false
   }
 
   function loadDocument(doc: BoardkitDocument) {
-    document.value = doc
-    selectedWidgetId.value = null
+    // Apply migrations if needed
+    const migratedDoc = migrateDocument(doc)
+    document.value = migratedDoc
+    selection.value = []
     isDirty.value = false
   }
 
@@ -46,6 +242,14 @@ export const useBoardStore = defineStore('board', () => {
     document.value.meta.title = newTitle
     markDirty(`Renamed board to "${newTitle}"`)
   }
+
+  function getDocument(): BoardkitDocument | null {
+    return document.value
+  }
+
+  // ============================================================================
+  // Actions - Widget Management
+  // ============================================================================
 
   function addWidget(moduleId: string, x?: number, y?: number): string | null {
     if (!document.value) return null
@@ -71,7 +275,7 @@ export const useBoardStore = defineStore('board', () => {
 
     document.value.board.widgets.push(widget)
     document.value.modules[id] = moduleDef.serialize(moduleDef.defaultState())
-    selectedWidgetId.value = id
+    selectWidget(id)
     markDirty(`Added ${moduleDef.displayName} widget`)
 
     return id
@@ -80,7 +284,7 @@ export const useBoardStore = defineStore('board', () => {
   function removeWidget(widgetId: string) {
     if (!document.value) return
 
-    const widget = document.value.board.widgets.find((w) => w.id === widgetId)
+    const widget = widgetMap.value.get(widgetId)
     const index = document.value.board.widgets.findIndex((w) => w.id === widgetId)
     if (index === -1) return
 
@@ -91,7 +295,7 @@ export const useBoardStore = defineStore('board', () => {
     delete document.value.modules[widgetId]
 
     if (selectedWidgetId.value === widgetId) {
-      selectedWidgetId.value = null
+      clearSelection()
     }
     markDirty(`Deleted ${moduleName}`)
   }
@@ -99,7 +303,7 @@ export const useBoardStore = defineStore('board', () => {
   function moveWidget(widgetId: string, x: number, y: number) {
     if (!document.value) return
 
-    const widget = document.value.board.widgets.find((w) => w.id === widgetId)
+    const widget = widgetMap.value.get(widgetId)
     if (!widget) return
 
     widget.rect.x = x
@@ -110,7 +314,7 @@ export const useBoardStore = defineStore('board', () => {
   function resizeWidget(widgetId: string, width: number, height: number) {
     if (!document.value) return
 
-    const widget = document.value.board.widgets.find((w) => w.id === widgetId)
+    const widget = widgetMap.value.get(widgetId)
     if (!widget) return
 
     const moduleDef = moduleRegistry.get(widget.moduleId)
@@ -125,7 +329,7 @@ export const useBoardStore = defineStore('board', () => {
   function duplicateWidget(widgetId: string): string | null {
     if (!document.value) return null
 
-    const widget = document.value.board.widgets.find((w) => w.id === widgetId)
+    const widget = widgetMap.value.get(widgetId)
     if (!widget) return null
 
     const moduleDef = moduleRegistry.get(widget.moduleId)
@@ -150,7 +354,7 @@ export const useBoardStore = defineStore('board', () => {
     const moduleState = document.value.modules[widgetId]
     document.value.modules[newId] = JSON.parse(JSON.stringify(moduleState))
     document.value.board.widgets.push(newWidget)
-    selectedWidgetId.value = newId
+    selectWidget(newId)
     markDirty(`Duplicated ${moduleName}`)
 
     return newId
@@ -159,7 +363,7 @@ export const useBoardStore = defineStore('board', () => {
   function nudgeWidget(widgetId: string, dx: number, dy: number) {
     if (!document.value) return
 
-    const widget = document.value.board.widgets.find((w) => w.id === widgetId)
+    const widget = widgetMap.value.get(widgetId)
     if (!widget) return
 
     widget.rect.x += dx
@@ -167,30 +371,440 @@ export const useBoardStore = defineStore('board', () => {
     markDirty('Moved widget')
   }
 
-  function selectWidget(widgetId: string | null) {
-    selectedWidgetId.value = widgetId
+  // ============================================================================
+  // Actions - Element Management
+  // ============================================================================
+
+  function addElement(element: Omit<CanvasElement, 'id' | 'zIndex'>): string {
+    if (!document.value) return ''
+
+    const id = nanoid()
+    const newElement = {
+      ...element,
+      id,
+      zIndex: maxZIndex.value + 1,
+    } as CanvasElement
+
+    document.value.board.elements.push(newElement)
+    selectElement(id)
+    markDirty(`Added ${element.type}`)
+
+    return id
+  }
+
+  function removeElement(elementId: string) {
+    if (!document.value) return
+
+    const index = document.value.board.elements.findIndex((e) => e.id === elementId)
+    if (index === -1) return
+
+    const element = document.value.board.elements[index]
+    document.value.board.elements.splice(index, 1)
+
+    if (selectedElementId.value === elementId) {
+      clearSelection()
+    }
+    markDirty(`Deleted ${element.type}`)
+  }
+
+  function updateElement(elementId: string, updates: Partial<CanvasElement>) {
+    if (!document.value) return
+
+    const element = elementMap.value.get(elementId)
+    if (!element) return
+
+    Object.assign(element, updates)
+    markDirty(`Updated ${element.type}`)
+  }
+
+  function moveElement(elementId: string, x: number, y: number, skipDirty = false) {
+    if (!document.value) return
+
+    const element = elementMap.value.get(elementId)
+    if (!element) return
+
+    // Calculate delta for point-based elements
+    const dx = x - element.rect.x
+    const dy = y - element.rect.y
+
+    // Update bounding box
+    element.rect.x = x
+    element.rect.y = y
+
+    // Update points for line/arrow/draw elements
+    translateElementPoints(element, dx, dy)
+
+    if (!skipDirty) {
+      markDirty('Moved element')
+    }
+  }
+
+  function resizeElement(
+    elementId: string,
+    newRect: { x: number; y: number; width: number; height: number },
+    skipDirty = false
+  ) {
+    if (!document.value) return
+
+    const element = elementMap.value.get(elementId)
+    if (!element) return
+
+    const oldRect = { ...element.rect }
+
+    // Update the bounding box
+    element.rect.x = newRect.x
+    element.rect.y = newRect.y
+    element.rect.width = Math.max(10, newRect.width)
+    element.rect.height = Math.max(10, newRect.height)
+
+    // Scale points proportionally for line/arrow/draw elements
+    scaleElementPoints(element, oldRect, newRect)
+
+    if (!skipDirty) {
+      markDirty('Resized element')
+    }
+  }
+
+  function duplicateElement(elementId: string): string | null {
+    if (!document.value) return null
+
+    const element = elementMap.value.get(elementId)
+    if (!element) return null
+
+    const newId = nanoid()
+    const offset = 20
+
+    const newElement = JSON.parse(JSON.stringify(element)) as CanvasElement
+    newElement.id = newId
+    newElement.rect.x += offset
+    newElement.rect.y += offset
+    newElement.zIndex = maxZIndex.value + 1
+
+    document.value.board.elements.push(newElement)
+    selectElement(newId)
+    markDirty(`Duplicated ${element.type}`)
+
+    return newId
+  }
+
+  function nudgeElement(elementId: string, dx: number, dy: number) {
+    if (!document.value) return
+
+    const element = elementMap.value.get(elementId)
+    if (!element) return
+
+    element.rect.x += dx
+    element.rect.y += dy
+    markDirty('Moved element')
+  }
+
+  function bringElementToFront(elementId: string) {
+    if (!document.value) return
+
+    const element = elementMap.value.get(elementId)
+    if (!element) return
+
+    element.zIndex = maxZIndex.value + 1
+    markDirty('Brought element to front')
+  }
+
+  function sendElementToBack(elementId: string) {
+    if (!document.value) return
+
+    const element = elementMap.value.get(elementId)
+    if (!element) return
+
+    element.zIndex = minZIndex.value - 1
+    markDirty('Sent element to back')
+  }
+
+  // ============================================================================
+  // Actions - Selection
+  // ============================================================================
+
+  /**
+   * Select a single widget (replaces current selection).
+   */
+  function selectWidget(widgetId: string | null, addToSelection = false) {
+    if (widgetId === null) {
+      if (!addToSelection) {
+        selection.value = []
+      }
+      return
+    }
+
+    const item: SelectionItem = { type: 'widget', id: widgetId }
+
+    if (addToSelection) {
+      // Toggle selection if already selected
+      const existingIndex = selection.value.findIndex(
+        (s) => s.type === 'widget' && s.id === widgetId
+      )
+      if (existingIndex >= 0) {
+        selection.value.splice(existingIndex, 1)
+      } else {
+        selection.value.push(item)
+      }
+    } else {
+      selection.value = [item]
+    }
 
     // Bring to front if selecting
-    if (widgetId && document.value) {
-      const widget = document.value.board.widgets.find((w) => w.id === widgetId)
+    if (document.value && !addToSelection) {
+      const widget = widgetMap.value.get(widgetId)
       if (widget && widget.zIndex < maxZIndex.value) {
         widget.zIndex = maxZIndex.value + 1
       }
     }
   }
 
-  function clearSelection() {
-    selectedWidgetId.value = null
+  /**
+   * Select a single element (replaces current selection).
+   */
+  function selectElement(elementId: string | null, addToSelection = false) {
+    if (elementId === null) {
+      if (!addToSelection) {
+        selection.value = []
+      }
+      return
+    }
+
+    const item: SelectionItem = { type: 'element', id: elementId }
+
+    if (addToSelection) {
+      // Toggle selection if already selected
+      const existingIndex = selection.value.findIndex(
+        (s) => s.type === 'element' && s.id === elementId
+      )
+      if (existingIndex >= 0) {
+        selection.value.splice(existingIndex, 1)
+      } else {
+        selection.value.push(item)
+      }
+    } else {
+      selection.value = [item]
+    }
+
+    // Bring to front if selecting
+    if (document.value && !addToSelection) {
+      const element = elementMap.value.get(elementId)
+      if (element && element.zIndex < maxZIndex.value) {
+        element.zIndex = maxZIndex.value + 1
+      }
+    }
   }
+
+  /**
+   * Select multiple items at once (for marquee selection).
+   */
+  function selectMultiple(items: SelectionItem[], addToSelection = false) {
+    if (addToSelection) {
+      // Add items that aren't already selected
+      for (const item of items) {
+        const exists = selection.value.some(
+          (s) => s.type === item.type && s.id === item.id
+        )
+        if (!exists) {
+          selection.value.push(item)
+        }
+      }
+    } else {
+      selection.value = [...items]
+    }
+  }
+
+  /**
+   * Select all items within a bounding box (marquee selection).
+   */
+  function selectInRect(rect: { x: number; y: number; width: number; height: number }, addToSelection = false) {
+    if (!document.value) return
+
+    const items: SelectionItem[] = []
+
+    // Normalize rect (handle negative dimensions)
+    const normalizedRect = {
+      x: rect.width >= 0 ? rect.x : rect.x + rect.width,
+      y: rect.height >= 0 ? rect.y : rect.y + rect.height,
+      width: Math.abs(rect.width),
+      height: Math.abs(rect.height),
+    }
+
+    // Check widgets
+    for (const widget of document.value.board.widgets) {
+      if (rectsIntersect(normalizedRect, widget.rect)) {
+        items.push({ type: 'widget', id: widget.id })
+      }
+    }
+
+    // Check elements
+    for (const element of document.value.board.elements) {
+      if (rectsIntersect(normalizedRect, element.rect)) {
+        items.push({ type: 'element', id: element.id })
+      }
+    }
+
+    selectMultiple(items, addToSelection)
+  }
+
+  /**
+   * Clear all selections.
+   */
+  function clearSelection() {
+    selection.value = []
+  }
+
+  /**
+   * Move all selected items by delta.
+   */
+  function moveSelection(dx: number, dy: number, skipDirty = false) {
+    if (!document.value || selection.value.length === 0) return
+
+    for (const item of selection.value) {
+      if (item.type === 'widget') {
+        const widget = widgetMap.value.get(item.id)
+        if (widget) {
+          widget.rect.x += dx
+          widget.rect.y += dy
+        }
+      } else {
+        const element = elementMap.value.get(item.id)
+        if (element) {
+          element.rect.x += dx
+          element.rect.y += dy
+          // Also move line/arrow/draw points
+          translateElementPoints(element, dx, dy)
+        }
+      }
+    }
+
+    if (!skipDirty) {
+      markDirty('Moved selection')
+    }
+  }
+
+  /**
+   * Delete all selected items.
+   */
+  function deleteSelection() {
+    if (!document.value || selection.value.length === 0) return
+
+    const itemsToDelete = [...selection.value]
+    clearSelection()
+
+    for (const item of itemsToDelete) {
+      if (item.type === 'widget') {
+        const index = document.value.board.widgets.findIndex((w) => w.id === item.id)
+        if (index >= 0) {
+          document.value.board.widgets.splice(index, 1)
+          delete document.value.modules[item.id]
+        }
+      } else {
+        const index = document.value.board.elements.findIndex((e) => e.id === item.id)
+        if (index >= 0) {
+          document.value.board.elements.splice(index, 1)
+        }
+      }
+    }
+
+    markDirty('Deleted selection')
+  }
+
+  /**
+   * Duplicate all selected items.
+   */
+  function duplicateSelection(): string[] {
+    if (!document.value || selection.value.length === 0) return []
+
+    const newIds: string[] = []
+    const newItems: SelectionItem[] = []
+    const offset = 20
+
+    for (const item of selection.value) {
+      if (item.type === 'widget') {
+        const widget = widgetMap.value.get(item.id)
+        if (widget) {
+          const newId = nanoid()
+          const newWidget: Widget = {
+            id: newId,
+            moduleId: widget.moduleId,
+            rect: {
+              x: widget.rect.x + offset,
+              y: widget.rect.y + offset,
+              width: widget.rect.width,
+              height: widget.rect.height,
+            },
+            zIndex: maxZIndex.value + 1,
+          }
+          document.value.board.widgets.push(newWidget)
+          document.value.modules[newId] = JSON.parse(JSON.stringify(document.value.modules[item.id]))
+          newIds.push(newId)
+          newItems.push({ type: 'widget', id: newId })
+        }
+      } else {
+        const element = elementMap.value.get(item.id)
+        if (element) {
+          const newId = nanoid()
+          const newElement = JSON.parse(JSON.stringify(element)) as CanvasElement
+          newElement.id = newId
+          newElement.rect.x += offset
+          newElement.rect.y += offset
+          newElement.zIndex = maxZIndex.value + 1
+          // Move line/arrow/draw points too
+          translateElementPoints(newElement, offset, offset)
+          document.value.board.elements.push(newElement)
+          newIds.push(newId)
+          newItems.push({ type: 'element', id: newId })
+        }
+      }
+    }
+
+    // Select the new items
+    selection.value = newItems
+    markDirty('Duplicated selection')
+    return newIds
+  }
+
+  // Helper function to check if two rectangles intersect
+  // Uses EPSILON tolerance to handle floating-point precision issues
+  function rectsIntersect(
+    a: { x: number; y: number; width: number; height: number },
+    b: { x: number; y: number; width: number; height: number }
+  ): boolean {
+    const EPSILON = 0.5
+    return !(
+      a.x + a.width < b.x - EPSILON ||
+      b.x + b.width < a.x - EPSILON ||
+      a.y + a.height < b.y - EPSILON ||
+      b.y + b.height < a.y - EPSILON
+    )
+  }
+
+  // ============================================================================
+  // Actions - Viewport
+  // ============================================================================
 
   function updateViewport(newViewport: Partial<Viewport>) {
     if (!document.value) return
     Object.assign(document.value.board.viewport, newViewport)
   }
 
+  // ============================================================================
+  // Actions - Background
+  // ============================================================================
+
+  function setBackground(updates: Partial<BoardBackground>) {
+    if (!document.value) return
+    Object.assign(document.value.board.background, updates)
+    markDirty('Changed background')
+  }
+
+  // ============================================================================
+  // Actions - Module State
+  // ============================================================================
+
   function getModuleState<T = unknown>(widgetId: string): T | null {
     if (!document.value) return null
-    const widget = document.value.board.widgets.find((w) => w.id === widgetId)
+    const widget = widgetMap.value.get(widgetId)
     if (!widget) return null
 
     const moduleDef = moduleRegistry.get(widget.moduleId)
@@ -202,16 +816,16 @@ export const useBoardStore = defineStore('board', () => {
     return moduleDef.deserialize(serialized) as T
   }
 
-  function updateModuleState<T>(widgetId: string, partial: Partial<T>) {
+  function updateModuleState<T extends object>(widgetId: string, partial: Partial<T>) {
     if (!document.value) return
 
-    const widget = document.value.board.widgets.find((w) => w.id === widgetId)
+    const widget = widgetMap.value.get(widgetId)
     if (!widget) return
 
     const moduleDef = moduleRegistry.get(widget.moduleId)
     if (!moduleDef) return
 
-    const current = moduleDef.deserialize(document.value.modules[widgetId])
+    const current = moduleDef.deserialize(document.value.modules[widgetId]) as T
     const updated = { ...current, ...partial }
     document.value.modules[widgetId] = moduleDef.serialize(updated)
     markDirty(`Updated ${moduleDef.displayName}`)
@@ -220,7 +834,7 @@ export const useBoardStore = defineStore('board', () => {
   function setModuleState<T>(widgetId: string, state: T) {
     if (!document.value) return
 
-    const widget = document.value.board.widgets.find((w) => w.id === widgetId)
+    const widget = widgetMap.value.get(widgetId)
     if (!widget) return
 
     const moduleDef = moduleRegistry.get(widget.moduleId)
@@ -229,6 +843,10 @@ export const useBoardStore = defineStore('board', () => {
     document.value.modules[widgetId] = moduleDef.serialize(state)
     markDirty(`Updated ${moduleDef.displayName}`)
   }
+
+  // ============================================================================
+  // Actions - Dirty State
+  // ============================================================================
 
   function markDirty(action?: string) {
     isDirty.value = true
@@ -244,43 +862,93 @@ export const useBoardStore = defineStore('board', () => {
     isDirty.value = false
   }
 
-  function getDocument(): BoardkitDocument | null {
-    return document.value
-  }
+  // ============================================================================
+  // Return
+  // ============================================================================
 
   return {
     // State
     document,
-    selectedWidgetId,
+    selection,
     isDirty,
     lastAction,
 
-    // Getters
+    // Getters - Document
     widgets,
+    elements,
     viewport,
+    background,
     moduleStates,
     title,
-    selectedWidget,
-    maxZIndex,
 
-    // Actions
+    // Getters - Selection
+    selectedItems,
+    selectionCount,
+    isMultiSelection,
+    selectedWidgetIds,
+    selectedElementIds,
+    selectedWidgetId,
+    selectedElementId,
+    selectedWidget,
+    selectedElement,
+    selectedWidgets,
+    selectedElements,
+    hasSelection,
+    selectionType,
+    isSelected,
+
+    // Getters - Z-Index
+    maxZIndex,
+    minZIndex,
+
+    // Actions - Document
     createNewBoard,
     loadDocument,
     setTitle,
+    getDocument,
+
+    // Actions - Widget
     addWidget,
     removeWidget,
     moveWidget,
     resizeWidget,
     duplicateWidget,
     nudgeWidget,
+
+    // Actions - Element
+    addElement,
+    removeElement,
+    updateElement,
+    moveElement,
+    resizeElement,
+    duplicateElement,
+    nudgeElement,
+    bringElementToFront,
+    sendElementToBack,
+
+    // Actions - Selection
     selectWidget,
+    selectElement,
+    selectMultiple,
+    selectInRect,
     clearSelection,
+    moveSelection,
+    deleteSelection,
+    duplicateSelection,
+
+    // Actions - Viewport
     updateViewport,
+
+    // Actions - Background
+    setBackground,
+
+    // Actions - Module State
     getModuleState,
     updateModuleState,
     setModuleState,
+
+    // Actions - Dirty State
     markDirty,
     markClean,
-    getDocument,
   }
 })

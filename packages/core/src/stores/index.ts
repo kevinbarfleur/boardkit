@@ -1,1 +1,2 @@
-export { useBoardStore } from './boardStore'
+export { useBoardStore, type SelectionTarget } from './boardStore'
+export { useToolStore } from './toolStore'

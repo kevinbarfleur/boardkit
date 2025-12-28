@@ -114,8 +114,10 @@ export class ActionRegistry {
       const groupOrder: Record<ActionGroup, number> = {
         board: 0,
         widget: 1,
-        view: 2,
-        module: 3,
+        element: 2,
+        tool: 3,
+        view: 4,
+        module: 5,
       }
       const groupDiff = groupOrder[a.group] - groupOrder[b.group]
       if (groupDiff !== 0) return groupDiff

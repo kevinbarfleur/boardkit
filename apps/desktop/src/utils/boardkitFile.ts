@@ -5,6 +5,7 @@ import type { BoardkitDocument } from '@boardkit/core'
 
 const PACKAGE_JSON_NAME = 'package.json'
 const BOARD_JSON_NAME = 'board.json'
+const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB
 
 interface PackageJson {
   name: string
@@ -46,6 +47,11 @@ export async function exportBoardkit(document: BoardkitDocument): Promise<Uint8A
  * Import a .boardkit file and return the BoardkitDocument
  */
 export async function importBoardkit(data: Uint8Array): Promise<BoardkitDocument> {
+  // Check file size before processing
+  if (data.length > MAX_FILE_SIZE) {
+    throw new Error(`File too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024}MB.`)
+  }
+
   const zip = await JSZip.loadAsync(data)
 
   // Check for board.json

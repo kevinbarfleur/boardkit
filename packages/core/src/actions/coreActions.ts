@@ -2,6 +2,8 @@ import type { ActionDefinition } from '../types/action'
 import { actionRegistry } from './ActionRegistry'
 import { moduleRegistry } from '../modules/ModuleRegistry'
 import { useBoardStore } from '../stores/boardStore'
+import { createToolActions } from './toolActions'
+import { createElementActions } from './elementActions'
 
 /**
  * Core actions for Boardkit.
@@ -149,18 +151,28 @@ function createCoreActions(): ActionDefinition[] {
     {
       id: 'selection.clear',
       title: 'Clear Selection',
-      subtitle: 'Deselect the current widget',
+      subtitle: 'Deselect the current widget or element',
       keywords: ['deselect', 'clear', 'none'],
       icon: 'x',
       group: 'widget',
       contexts: ['global'],
       shortcutHint: 'Esc',
       priority: 60,
-      when: (ctx) => ctx.selectedWidgetId !== null,
+      when: (ctx) => ctx.selectedWidgetId !== null || ctx.selectedElementId !== null,
       run: () => {
         store.clearSelection()
       },
     },
+
+    // ============================================
+    // TOOL ACTIONS
+    // ============================================
+    ...createToolActions(),
+
+    // ============================================
+    // ELEMENT ACTIONS
+    // ============================================
+    ...createElementActions(),
   ]
 }
 
