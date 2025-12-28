@@ -3,9 +3,11 @@ import { ref, onMounted } from 'vue'
 import { useBoardStore, registerCoreActions } from '@boardkit/core'
 import { useTheme } from '@boardkit/ui'
 import { registerModules } from '../modules'
+import { registerWebActions } from '../actions/webActions'
 import BoardCanvas from '../components/BoardCanvas.vue'
 import Toolbar from '../components/Toolbar.vue'
 import CommandPalette from '../components/CommandPalette.vue'
+import SettingsPanel from '../components/SettingsPanel.vue'
 
 // Register all modules before using the store
 registerModules()
@@ -28,6 +30,8 @@ onMounted(() => {
   boardStore.createNewBoard('Untitled Board')
   // Register core actions after Pinia store is ready
   registerCoreActions()
+  // Register web-specific actions
+  registerWebActions()
 })
 </script>
 
@@ -36,5 +40,6 @@ onMounted(() => {
     <Toolbar />
     <BoardCanvas @open-command-palette="openCommandPalette" />
     <CommandPalette :open="isCommandPaletteOpen" @close="closeCommandPalette" />
+    <SettingsPanel />
   </div>
 </template>

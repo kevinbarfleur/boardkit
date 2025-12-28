@@ -15,12 +15,14 @@ import {
   type ContextMenuItemOrSeparator,
 } from '@boardkit/ui'
 import WidgetRenderer from './WidgetRenderer.vue'
+import { useWidgetSettings } from '../composables/useWidgetSettings'
 
 const emit = defineEmits<{
   openCommandPalette: []
 }>()
 
 const boardStore = useBoardStore()
+const { visibility } = useWidgetSettings()
 
 const canvasRef = ref<HTMLElement | null>(null)
 const isPanning = ref(false)
@@ -271,6 +273,10 @@ const handleWidgetDelete = (id: string) => {
   boardStore.removeWidget(id)
 }
 
+const handleWidgetDragStart = () => {
+  closeContextMenu()
+}
+
 const getModuleDisplayName = (moduleId: string) => {
   const module = moduleRegistry.get(moduleId)
   return module?.displayName ?? moduleId
@@ -320,10 +326,13 @@ onUnmounted(() => {
         :height="widget.rect.height"
         :z-index="widget.zIndex"
         :selected="selectedWidgetId === widget.id"
+        :rest-mode="visibility.restMode"
+        :hover-mode="visibility.hoverMode"
         @select="handleWidgetSelect"
         @move="handleWidgetMove"
         @resize="handleWidgetResize"
         @delete="handleWidgetDelete"
+        @dragstart="handleWidgetDragStart"
         @contextmenu.native="(e: MouseEvent) => handleWidgetContextMenu(widget.id, e)"
       >
         <WidgetRenderer :widget-id="widget.id" :module-id="widget.moduleId" />
