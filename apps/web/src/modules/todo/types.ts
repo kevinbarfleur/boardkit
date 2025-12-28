@@ -5,5 +5,7 @@ export interface TodoItem {
 }
 
 export interface TodoState {
+  title: string
+  description: string
   items: TodoItem[]
 }

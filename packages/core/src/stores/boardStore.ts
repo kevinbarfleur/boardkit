@@ -10,6 +10,7 @@ export const useBoardStore = defineStore('board', () => {
   const document = ref<BoardkitDocument | null>(null)
   const selectedWidgetId = ref<string | null>(null)
   const isDirty = ref(false)
+  const lastAction = ref<string>('Initial state')
 
   // Getters
   const widgets = computed(() => document.value?.board.widgets ?? [])
@@ -43,7 +44,7 @@ export const useBoardStore = defineStore('board', () => {
   function setTitle(newTitle: string) {
     if (!document.value) return
     document.value.meta.title = newTitle
-    markDirty()
+    markDirty(`Renamed board to "${newTitle}"`)
   }
 
   function addWidget(moduleId: string, x?: number, y?: number): string | null {
@@ -71,7 +72,7 @@ export const useBoardStore = defineStore('board', () => {
     document.value.board.widgets.push(widget)
     document.value.modules[id] = moduleDef.serialize(moduleDef.defaultState())
     selectedWidgetId.value = id
-    markDirty()
+    markDirty(`Added ${moduleDef.displayName} widget`)
 
     return id
   }
@@ -79,8 +80,12 @@ export const useBoardStore = defineStore('board', () => {
   function removeWidget(widgetId: string) {
     if (!document.value) return
 
+    const widget = document.value.board.widgets.find((w) => w.id === widgetId)
     const index = document.value.board.widgets.findIndex((w) => w.id === widgetId)
     if (index === -1) return
+
+    const moduleDef = widget ? moduleRegistry.get(widget.moduleId) : null
+    const moduleName = moduleDef?.displayName ?? 'widget'
 
     document.value.board.widgets.splice(index, 1)
     delete document.value.modules[widgetId]
@@ -88,7 +93,7 @@ export const useBoardStore = defineStore('board', () => {
     if (selectedWidgetId.value === widgetId) {
       selectedWidgetId.value = null
     }
-    markDirty()
+    markDirty(`Deleted ${moduleName}`)
   }
 
   function moveWidget(widgetId: string, x: number, y: number) {
@@ -99,7 +104,7 @@ export const useBoardStore = defineStore('board', () => {
 
     widget.rect.x = x
     widget.rect.y = y
-    markDirty()
+    markDirty('Moved widget')
   }
 
   function resizeWidget(widgetId: string, width: number, height: number) {
@@ -114,7 +119,7 @@ export const useBoardStore = defineStore('board', () => {
 
     widget.rect.width = Math.max(minWidth, width)
     widget.rect.height = Math.max(minHeight, height)
-    markDirty()
+    markDirty('Resized widget')
   }
 
   function duplicateWidget(widgetId: string): string | null {
@@ -122,6 +127,9 @@ export const useBoardStore = defineStore('board', () => {
 
     const widget = document.value.board.widgets.find((w) => w.id === widgetId)
     if (!widget) return null
+
+    const moduleDef = moduleRegistry.get(widget.moduleId)
+    const moduleName = moduleDef?.displayName ?? 'widget'
 
     const newId = nanoid()
     const offset = 20
@@ -143,7 +151,7 @@ export const useBoardStore = defineStore('board', () => {
     document.value.modules[newId] = JSON.parse(JSON.stringify(moduleState))
     document.value.board.widgets.push(newWidget)
     selectedWidgetId.value = newId
-    markDirty()
+    markDirty(`Duplicated ${moduleName}`)
 
     return newId
   }
@@ -156,7 +164,7 @@ export const useBoardStore = defineStore('board', () => {
 
     widget.rect.x += dx
     widget.rect.y += dy
-    markDirty()
+    markDirty('Moved widget')
   }
 
   function selectWidget(widgetId: string | null) {
@@ -206,7 +214,7 @@ export const useBoardStore = defineStore('board', () => {
     const current = moduleDef.deserialize(document.value.modules[widgetId])
     const updated = { ...current, ...partial }
     document.value.modules[widgetId] = moduleDef.serialize(updated)
-    markDirty()
+    markDirty(`Updated ${moduleDef.displayName}`)
   }
 
   function setModuleState<T>(widgetId: string, state: T) {
@@ -219,11 +227,14 @@ export const useBoardStore = defineStore('board', () => {
     if (!moduleDef) return
 
     document.value.modules[widgetId] = moduleDef.serialize(state)
-    markDirty()
+    markDirty(`Updated ${moduleDef.displayName}`)
   }
 
-  function markDirty() {
+  function markDirty(action?: string) {
     isDirty.value = true
+    if (action) {
+      lastAction.value = action
+    }
     if (document.value) {
       document.value.meta.updatedAt = Date.now()
     }
@@ -242,6 +253,7 @@ export const useBoardStore = defineStore('board', () => {
     document,
     selectedWidgetId,
     isDirty,
+    lastAction,
 
     // Getters
     widgets,

@@ -13,20 +13,24 @@
   },
   "dependencies": {
     "@boardkit/core": "workspace:*",
-    "@boardkit/ui": "workspace:*",
     "@boardkit/platform": "workspace:*",
+    "@boardkit/ui": "workspace:*",
     "@tauri-apps/api": "^2.0.0",
-    "vue": "^3.4.0",
-    "pinia": "^2.1.7"
+    "@tauri-apps/plugin-dialog": "^2.4.2",
+    "@tauri-apps/plugin-fs": "^2.4.4",
+    "jszip": "^3.10.1",
+    "nanoid": "^5.0.4",
+    "pinia": "^2.1.7",
+    "vue": "^3.4.0"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.0.0",
     "@vitejs/plugin-vue": "^5.0.0",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.32",
+    "tailwindcss": "^3.4.0",
     "typescript": "^5.3.0",
     "vite": "^5.0.0",
-    "vue-tsc": "^1.8.27",
-    "tailwindcss": "^3.4.0",
-    "autoprefixer": "^10.4.16",
-    "postcss": "^8.4.32"
+    "vue-tsc": "^1.8.27"
   }
 }

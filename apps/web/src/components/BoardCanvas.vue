@@ -190,7 +190,13 @@ const canvasCursor = computed(() => {
 })
 
 const handleCanvasClick = (e: MouseEvent) => {
-  if (e.target === canvasRef.value || (e.target as HTMLElement).classList.contains('canvas-grid')) {
+  const target = e.target as HTMLElement
+  // Clear selection when clicking on empty canvas areas
+  if (
+    target === canvasRef.value ||
+    target.classList.contains('canvas-grid') ||
+    target.classList.contains('canvas-transform')
+  ) {
     boardStore.clearSelection()
   }
 }
@@ -200,7 +206,40 @@ const MIN_ZOOM = 0.1
 const MAX_ZOOM = 3
 const ZOOM_SENSITIVITY = 0.002
 
+// Check if an element or its ancestors is a scrollable container (regardless of current scroll position)
+const isInsideScrollableContainer = (element: HTMLElement): boolean => {
+  let current: HTMLElement | null = element
+
+  while (current && current !== canvasRef.value) {
+    const style = getComputedStyle(current)
+    const overflowY = style.overflowY
+    const overflowX = style.overflowX
+
+    // Check if this is a scrollable container (has overflow auto/scroll and content that overflows)
+    const isVerticallyScrollable = (overflowY === 'auto' || overflowY === 'scroll') &&
+                                    current.scrollHeight > current.clientHeight
+    const isHorizontallyScrollable = (overflowX === 'auto' || overflowX === 'scroll') &&
+                                      current.scrollWidth > current.clientWidth
+
+    if (isVerticallyScrollable || isHorizontallyScrollable) {
+      return true
+    }
+
+    current = current.parentElement
+  }
+
+  return false
+}
+
 const handleWheel = (e: WheelEvent) => {
+  // If we're inside a scrollable widget, never propagate scroll to canvas
+  // User must use Space+drag or be outside the widget to pan the canvas
+  const target = e.target as HTMLElement
+  if (!e.ctrlKey && !e.metaKey && isInsideScrollableContainer(target)) {
+    // Let the element handle scrolling, don't touch the canvas
+    return
+  }
+
   e.preventDefault()
 
   if (e.ctrlKey || e.metaKey) {

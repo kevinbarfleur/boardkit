@@ -8,6 +8,8 @@ export const TodoModule = defineModule<TodoState>({
   displayName: 'To-Do',
   component: TodoWidget,
   defaultState: () => ({
+    title: '',
+    description: '',
     items: [],
   }),
   serialize: (state) => state,

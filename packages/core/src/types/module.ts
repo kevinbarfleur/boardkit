@@ -48,6 +48,9 @@ export interface ModuleContext<TState = unknown> {
 
   /** Replace entire module state */
   setState: (state: TState) => void
+
+  /** Whether the widget is currently selected */
+  isSelected: boolean
 }
 
 export type ModuleComponent<TState = unknown> = Component<{

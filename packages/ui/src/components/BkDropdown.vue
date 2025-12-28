@@ -1,42 +1,108 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import BkMenu, { type MenuItem, type MenuGroup, type MenuContent } from './BkMenu.vue'
 
-interface DropdownItem {
+// Support both simple items and grouped items
+export interface DropdownItem {
   id: string
   label: string
   icon?: string
+  shortcut?: string
   disabled?: boolean
-  separator?: boolean
+  destructive?: boolean
 }
 
 interface Props {
-  items: DropdownItem[]
+  items?: DropdownItem[]
+  groups?: MenuContent
   align?: 'left' | 'right'
+  minWidth?: number
 }
 
 const props = withDefaults(defineProps<Props>(), {
   align: 'left',
+  minWidth: 200,
 })
 
 const emit = defineEmits<{
-  select: [item: DropdownItem]
+  select: [item: MenuItem]
 }>()
 
 const isOpen = ref(false)
+const selectedIndex = ref(-1)
 const dropdownRef = ref<HTMLElement | null>(null)
+
+// Convert simple items to groups if needed
+const menuGroups = computed<MenuContent>(() => {
+  if (props.groups) {
+    return props.groups
+  }
+  if (props.items) {
+    return [{ items: props.items }]
+  }
+  return []
+})
+
+// Flatten for keyboard nav
+const flatItems = computed(() => {
+  const items: MenuItem[] = []
+  for (const group of menuGroups.value) {
+    items.push(...group.items)
+  }
+  return items
+})
 
 const toggle = () => {
   isOpen.value = !isOpen.value
+  if (isOpen.value) {
+    selectedIndex.value = -1
+  }
 }
 
 const close = () => {
   isOpen.value = false
+  selectedIndex.value = -1
 }
 
-const selectItem = (item: DropdownItem) => {
-  if (item.disabled || item.separator) return
+const handleSelect = (item: MenuItem) => {
   emit('select', item)
   close()
+}
+
+const handleHover = (index: number) => {
+  selectedIndex.value = index
+}
+
+const handleKeydown = (e: KeyboardEvent) => {
+  if (!isOpen.value) return
+
+  const items = flatItems.value
+
+  switch (e.key) {
+    case 'ArrowDown':
+      e.preventDefault()
+      do {
+        selectedIndex.value = (selectedIndex.value + 1) % items.length
+      } while (items[selectedIndex.value]?.disabled)
+      break
+    case 'ArrowUp':
+      e.preventDefault()
+      do {
+        selectedIndex.value = (selectedIndex.value - 1 + items.length) % items.length
+      } while (items[selectedIndex.value]?.disabled)
+      break
+    case 'Enter':
+    case ' ':
+      e.preventDefault()
+      if (selectedIndex.value >= 0 && !items[selectedIndex.value]?.disabled) {
+        handleSelect(items[selectedIndex.value])
+      }
+      break
+    case 'Escape':
+      e.preventDefault()
+      close()
+      break
+  }
 }
 
 const handleClickOutside = (event: MouseEvent) => {
@@ -47,10 +113,12 @@ const handleClickOutside = (event: MouseEvent) => {
 
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
+  document.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
+  document.removeEventListener('keydown', handleKeydown)
 })
 </script>
 
@@ -70,24 +138,16 @@ onUnmounted(() => {
     >
       <div
         v-if="isOpen"
-        class="absolute z-50 mt-2 w-full min-w-[140px] rounded-lg border border-border bg-popover p-1 shadow-lg"
+        class="absolute z-50 mt-2"
         :class="props.align === 'right' ? 'right-0' : 'left-0'"
       >
-        <template v-for="item in props.items" :key="item.id">
-          <div
-            v-if="item.separator"
-            class="my-1 h-px bg-border"
-          />
-          <button
-            v-else
-            class="relative flex w-full cursor-pointer items-center rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:bg-accent"
-            :class="{ 'opacity-50 cursor-not-allowed': item.disabled }"
-            :disabled="item.disabled"
-            @click="selectItem(item)"
-          >
-            {{ item.label }}
-          </button>
-        </template>
+        <BkMenu
+          :groups="menuGroups"
+          :selected-index="selectedIndex"
+          :min-width="minWidth"
+          @select="handleSelect"
+          @hover="handleHover"
+        />
       </div>
     </Transition>
   </div>

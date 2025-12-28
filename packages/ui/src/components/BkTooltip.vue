@@ -37,10 +37,10 @@ const positionClasses: Record<string, string> = {
 }
 
 const arrowClasses: Record<string, string> = {
-  top: 'absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-primary',
-  bottom: 'absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-primary',
-  left: 'absolute left-full top-1/2 -translate-y-1/2 border-4 border-transparent border-l-primary',
-  right: 'absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-primary',
+  top: 'absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-popover',
+  bottom: 'absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-popover',
+  left: 'absolute left-full top-1/2 -translate-y-1/2 border-4 border-transparent border-l-popover',
+  right: 'absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-popover',
 }
 </script>
 
@@ -64,7 +64,7 @@ const arrowClasses: Record<string, string> = {
     >
       <div
         v-if="isVisible"
-        class="absolute z-50 px-3 py-1.5 text-xs text-primary-foreground bg-primary rounded-md whitespace-nowrap"
+        class="absolute z-50 px-3 py-1.5 text-xs text-popover-foreground bg-popover border border-border rounded-md shadow-md whitespace-nowrap"
         :class="positionClasses[props.position]"
       >
         {{ props.content }}
