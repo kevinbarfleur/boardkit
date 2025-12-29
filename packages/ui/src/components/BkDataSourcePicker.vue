@@ -146,7 +146,7 @@ function getProviderIcon(provider: ProviderInfo): string {
       </div>
 
       <!-- Provider list -->
-      <div v-else class="space-y-2 max-h-[300px] overflow-y-auto">
+      <div v-else class="space-y-2 max-h-72 overflow-y-auto">
         <button
           v-for="provider in providers"
           :key="provider.id"

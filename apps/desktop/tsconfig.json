@@ -1,7 +1,6 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "composite": true,
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
@@ -11,10 +10,5 @@
     }
   },
   "include": ["src/**/*", "src/**/*.vue"],
-  "exclude": ["node_modules", "dist", "src-tauri"],
-  "references": [
-    { "path": "../../packages/core" },
-    { "path": "../../packages/ui" },
-    { "path": "../../packages/platform" }
-  ]
+  "exclude": ["node_modules", "dist", "src-tauri"]
 }

@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import {
   useBoardStore,
+  useToolStore,
   actionRegistry,
   type ActionDefinition,
   type ActionContext,
@@ -27,12 +28,17 @@ const emit = defineEmits<{
 }>()
 
 const boardStore = useBoardStore()
+const toolStore = useToolStore()
 
 const actionContext = computed<ActionContext>(() => ({
   selectedWidget: boardStore.selectedWidget,
   selectedWidgetId: boardStore.selectedWidgetId,
+  selectedElement: boardStore.selectedElement,
+  selectedElementId: boardStore.selectedElementId,
+  activeTool: toolStore.activeTool,
   viewport: boardStore.viewport,
   widgets: boardStore.widgets,
+  elements: boardStore.elements,
   platform: 'desktop',
   isDirty: boardStore.isDirty,
 }))
@@ -45,12 +51,19 @@ const groupedActions = computed(() => {
   const groups: Record<ActionGroup, ActionDefinition[]> = {
     board: [],
     widget: [],
+    element: [],
+    tool: [],
     view: [],
     module: [],
   }
 
   for (const action of availableActions.value) {
-    groups[action.group].push(action)
+    // Defensive check - skip actions with unknown groups
+    if (groups[action.group]) {
+      groups[action.group].push(action)
+    } else {
+      console.warn('[CommandPalette] Unknown action group:', action.group, 'for action:', action.id)
+    }
   }
 
   return groups
@@ -59,6 +72,8 @@ const groupedActions = computed(() => {
 const groupLabels: Record<ActionGroup, string> = {
   board: 'Board',
   widget: 'Widget',
+  element: 'Element',
+  tool: 'Tool',
   view: 'View',
   module: 'Modules',
 }

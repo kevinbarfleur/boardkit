@@ -58,7 +58,7 @@ export {
 export { useTheme } from './composables/useTheme'
 
 // Types
-export type { ButtonVariant, ButtonSize } from './components/BkButton.vue'
+export type { ButtonVariant } from './components/BkButton.vue'
 export type { IconName } from './components/BkIcon.vue'
 
 // Re-export element types used by ElementRenderer (from @boardkit/core)

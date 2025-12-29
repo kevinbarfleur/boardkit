@@ -14,6 +14,17 @@ import { common, createLowlight } from 'lowlight'
 // Create lowlight instance with common languages
 const lowlight = createLowlight(common)
 
+// Type for the Markdown extension's storage
+interface MarkdownStorage {
+  getMarkdown: () => string
+}
+
+// Helper to get markdown from editor
+function getMarkdownFromEditor(editor: { storage: unknown }): string {
+  const storage = editor.storage as { markdown: MarkdownStorage }
+  return storage.markdown.getMarkdown()
+}
+
 interface Props {
   modelValue: string
   placeholder?: string
@@ -92,7 +103,7 @@ const editor = useEditor({
   ],
   onUpdate: ({ editor }) => {
     // Get content as markdown
-    const markdown = editor.storage.markdown.getMarkdown()
+    const markdown = getMarkdownFromEditor(editor)
     emit('update:modelValue', markdown)
   },
   editorProps: {
@@ -108,7 +119,7 @@ watch(
   (newValue) => {
     if (!editor.value) return
 
-    const currentMarkdown = editor.value.storage.markdown.getMarkdown()
+    const currentMarkdown = getMarkdownFromEditor(editor.value)
     if (newValue !== currentMarkdown) {
       editor.value.commands.setContent(newValue)
     }

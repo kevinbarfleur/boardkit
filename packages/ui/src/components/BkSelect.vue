@@ -264,9 +264,9 @@ const triggerClasses = computed(() => {
   ]
 
   if (props.size === 'sm') {
-    base.push('h-8 px-2.5 min-w-[120px]')
+    base.push('h-8 px-2.5 min-w-32')
   } else {
-    base.push('h-9 px-3 min-w-[140px]')
+    base.push('h-9 px-3 min-w-36')
   }
 
   if (props.disabled) {
@@ -335,7 +335,7 @@ const getOptionClasses = (index: number) => {
           ref="listRef"
           role="listbox"
           :aria-activedescendant="highlightedIndex >= 0 ? `option-${highlightedIndex}` : undefined"
-          class="rounded-lg border border-border bg-popover py-1 shadow-lg max-h-[200px] overflow-auto"
+          class="rounded-lg border border-border bg-popover py-1 shadow-lg max-h-52 overflow-auto"
         >
           <div
             v-for="(option, index) in options"

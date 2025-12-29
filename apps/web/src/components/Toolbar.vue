@@ -130,7 +130,7 @@ const handleGoToLatest = () => {
       <!-- File Menu -->
       <BkDropdown :groups="fileMenuGroups" @select="handleFileMenu">
         <template #trigger>
-          <BkIconButton aria-label="File menu" size="sm">
+          <BkIconButton ariaLabel="File menu" size="sm">
             <BkIcon icon="chevron-down" :size="14" />
           </BkIconButton>
         </template>
@@ -159,7 +159,7 @@ const handleGoToLatest = () => {
         >
           <BkTooltip :content="canUndo ? 'Undo' : 'Nothing to undo'">
             <BkIconButton
-              aria-label="Undo"
+              ariaLabel="Undo"
               :disabled="!canUndo"
               @click="handleUndoClick"
             >
@@ -197,7 +197,7 @@ const handleGoToLatest = () => {
         >
           <BkTooltip :content="canRedo ? 'Redo' : 'Up to date'">
             <BkIconButton
-              aria-label="Redo"
+              ariaLabel="Redo"
               :disabled="!canRedo"
               @click="handleRedoClick"
             >
@@ -234,13 +234,13 @@ const handleGoToLatest = () => {
       <BkDivider orientation="vertical" class="h-6 mx-1" />
 
       <BkTooltip content="Reset view">
-        <BkIconButton aria-label="Reset view" @click="resetView">
+        <BkIconButton ariaLabel="Reset view" @click="resetView">
           <BkIcon icon="rotate-ccw" />
         </BkIconButton>
       </BkTooltip>
 
       <BkTooltip :content="theme === 'dark' ? 'Light mode' : 'Dark mode'">
-        <BkIconButton aria-label="Toggle theme" @click="toggleTheme">
+        <BkIconButton ariaLabel="Toggle theme" @click="toggleTheme">
           <BkIcon v-if="theme === 'dark'" icon="sun" />
           <BkIcon v-else icon="moon" />
         </BkIconButton>

@@ -1,6 +1,6 @@
 import JSZip from 'jszip'
 import { save, open } from '@tauri-apps/plugin-dialog'
-import { readFile, writeFile, BaseDirectory } from '@tauri-apps/plugin-fs'
+import { readFile, writeFile, rename, remove, BaseDirectory, exists } from '@tauri-apps/plugin-fs'
 import type { BoardkitDocument } from '@boardkit/core'
 
 const PACKAGE_JSON_NAME = 'package.json'
@@ -76,7 +76,7 @@ export async function importBoardkit(data: Uint8Array): Promise<BoardkitDocument
 }
 
 /**
- * Save a .boardkit file using Tauri's file dialog
+ * Save a .boardkit file using Tauri's file dialog (uses atomic writes)
  */
 export async function saveToFile(document: BoardkitDocument): Promise<boolean> {
   const filename = `${document.meta.title.replace(/[^a-zA-Z0-9-_]/g, '_')}.boardkit`
@@ -94,7 +94,7 @@ export async function saveToFile(document: BoardkitDocument): Promise<boolean> {
   if (!path) return false
 
   const data = await exportBoardkit(document)
-  await writeFile(path, data)
+  await writeFileAtomically(path, data)
   return true
 }
 
@@ -127,13 +127,44 @@ export function getAutosaveDir(): string {
 }
 
 /**
- * Save document to local autosave
+ * Atomically write data to a file.
+ * Uses a write-then-rename pattern to prevent data corruption if the write is interrupted.
+ */
+async function writeFileAtomically(
+  path: string,
+  data: Uint8Array,
+  options: { baseDir?: BaseDirectory } = {}
+): Promise<void> {
+  const tempPath = `${path}.tmp`
+
+  // 1. Write to temporary file
+  await writeFile(tempPath, data, options)
+
+  // 2. Remove original file if exists (for rename to work on some systems)
+  try {
+    const originalExists = await exists(path, options)
+    if (originalExists) {
+      await remove(path, options)
+    }
+  } catch {
+    // Ignore if original doesn't exist
+  }
+
+  // 3. Rename temp to final (atomic on most filesystems)
+  // Use options as-is since we've already written with baseDir, rename should respect it
+  await rename(tempPath, path, options as Parameters<typeof rename>[2])
+}
+
+/**
+ * Save document to local autosave (uses atomic writes)
  */
 export async function saveToAutosave(documentId: string, document: BoardkitDocument): Promise<void> {
   const dir = getAutosaveDir()
   const data = JSON.stringify(document, null, 2)
   const encoder = new TextEncoder()
-  await writeFile(`${dir}/${documentId}.json`, encoder.encode(data), { baseDir: BaseDirectory.AppLocalData })
+  await writeFileAtomically(`${dir}/${documentId}.json`, encoder.encode(data), {
+    baseDir: BaseDirectory.AppLocalData,
+  })
 }
 
 /**
@@ -147,5 +178,158 @@ export async function loadFromAutosave(documentId: string): Promise<BoardkitDocu
     return JSON.parse(decoder.decode(data)) as BoardkitDocument
   } catch {
     return null
+  }
+}
+
+// ============================================================================
+// History System
+// ============================================================================
+
+const HISTORY_DIR = 'history'
+const MAX_HISTORY_ENTRIES = 100
+
+export interface HistoryEntry {
+  id: string
+  timestamp: number
+  action: string
+}
+
+/**
+ * Get the history directory path for a document
+ */
+export function getHistoryDir(documentId: string): string {
+  return `${getAutosaveDir()}/${documentId}/${HISTORY_DIR}`
+}
+
+/**
+ * Save a history snapshot for undo/redo
+ */
+export async function saveToHistory(
+  documentId: string,
+  action: string,
+  document: BoardkitDocument
+): Promise<string> {
+  const historyDir = getHistoryDir(documentId)
+  const timestamp = Date.now()
+  const entryId = `${timestamp}-${action.replace(/\s+/g, '_').toLowerCase()}`
+  const filename = `${entryId}.json`
+
+  const data = JSON.stringify(document, null, 2)
+  const encoder = new TextEncoder()
+
+  await writeFileAtomically(`${historyDir}/${filename}`, encoder.encode(data), {
+    baseDir: BaseDirectory.AppLocalData,
+  })
+
+  // Prune old entries if needed
+  await pruneHistory(documentId)
+
+  return entryId
+}
+
+/**
+ * Get list of history entries for a document
+ */
+export async function getHistoryEntries(documentId: string): Promise<HistoryEntry[]> {
+  try {
+    const { readDir } = await import('@tauri-apps/plugin-fs')
+    const historyDir = getHistoryDir(documentId)
+
+    const dirExists = await exists(historyDir, { baseDir: BaseDirectory.AppLocalData })
+    if (!dirExists) {
+      return []
+    }
+
+    const entries = await readDir(historyDir, { baseDir: BaseDirectory.AppLocalData })
+
+    const historyEntries: HistoryEntry[] = entries
+      .filter((entry) => entry.name?.endsWith('.json'))
+      .map((entry) => {
+        const name = entry.name!.replace('.json', '')
+        const parts = name.split('-')
+        const timestamp = parseInt(parts[0], 10)
+        const action = parts.slice(1).join(' ').replace(/_/g, ' ')
+
+        return {
+          id: name,
+          timestamp,
+          action,
+        }
+      })
+      .sort((a, b) => b.timestamp - a.timestamp) // Newest first
+
+    return historyEntries
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Load a specific history entry
+ */
+export async function loadHistoryEntry(
+  documentId: string,
+  entryId: string
+): Promise<BoardkitDocument | null> {
+  try {
+    const historyDir = getHistoryDir(documentId)
+    const data = await readFile(`${historyDir}/${entryId}.json`, {
+      baseDir: BaseDirectory.AppLocalData,
+    })
+    const decoder = new TextDecoder()
+    return JSON.parse(decoder.decode(data)) as BoardkitDocument
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Prune old history entries, keeping only the most recent MAX_HISTORY_ENTRIES
+ */
+export async function pruneHistory(documentId: string): Promise<void> {
+  try {
+    const entries = await getHistoryEntries(documentId)
+
+    if (entries.length <= MAX_HISTORY_ENTRIES) {
+      return
+    }
+
+    // Remove oldest entries
+    const historyDir = getHistoryDir(documentId)
+    const toRemove = entries.slice(MAX_HISTORY_ENTRIES)
+
+    for (const entry of toRemove) {
+      try {
+        await remove(`${historyDir}/${entry.id}.json`, {
+          baseDir: BaseDirectory.AppLocalData,
+        })
+      } catch {
+        // Ignore individual removal errors
+      }
+    }
+  } catch {
+    // Ignore pruning errors
+  }
+}
+
+/**
+ * Clear all history for a document
+ */
+export async function clearHistory(documentId: string): Promise<void> {
+  try {
+    const entries = await getHistoryEntries(documentId)
+    const historyDir = getHistoryDir(documentId)
+
+    for (const entry of entries) {
+      try {
+        await remove(`${historyDir}/${entry.id}.json`, {
+          baseDir: BaseDirectory.AppLocalData,
+        })
+      } catch {
+        // Ignore individual removal errors
+      }
+    }
+  } catch {
+    // Ignore clearing errors
   }
 }

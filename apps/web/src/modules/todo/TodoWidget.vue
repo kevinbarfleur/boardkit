@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import { nanoid } from 'nanoid'
 import type { ModuleContext } from '@boardkit/core'
-import { useDataProvider, todoContractV1, type PublicTodoList } from '@boardkit/core'
+import { useProvideData, todoContractV1, type PublicTodoList } from '@boardkit/core'
 import { BkCheckbox, BkInput, BkIcon } from '@boardkit/ui'
 import type { TodoState, TodoItem, TodoPriority } from './types'
 import { defaultTodoSettings } from './types'
@@ -14,10 +14,7 @@ interface Props {
 const props = defineProps<Props>()
 
 // Register as data provider for todo contract
-useDataProvider({
-  widgetId: props.context.widgetId,
-  contract: todoContractV1,
-  getState: () => props.context.state,
+useProvideData(props.context, todoContractV1, {
   project: (state): PublicTodoList => ({
     widgetId: props.context.widgetId,
     title: state.title || '',
@@ -26,11 +23,7 @@ useDataProvider({
       done: (state.items || []).filter((i) => i.completed).length,
       total: (state.items || []).length,
     },
-    items: (state.items || []).map((item) => ({
-      id: item.id,
-      label: item.label,
-      completed: item.completed,
-    })),
+    items: (state.items || []).map(({ id, label, completed }) => ({ id, label, completed })),
   }),
 })
 

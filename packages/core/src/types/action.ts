@@ -41,6 +41,8 @@ export interface ActionContext {
   platform: 'web' | 'desktop'
   /** Whether the board has unsaved changes */
   isDirty: boolean
+  /** Whether shift key is pressed (for nudge actions) */
+  shiftKey?: boolean
 }
 
 /**

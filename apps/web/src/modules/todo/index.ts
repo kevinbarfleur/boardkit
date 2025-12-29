@@ -1,4 +1,4 @@
-import { defineModule } from '@boardkit/core'
+import { defineModule, todoContractV1 } from '@boardkit/core'
 import TodoWidget from './TodoWidget.vue'
 import type { TodoState } from './types'
 import { defaultTodoSettings } from './types'
@@ -27,6 +27,7 @@ export const TodoModule = defineModule<TodoState>({
   minHeight: 150,
   defaultWidth: 300,
   defaultHeight: 300,
+  provides: [todoContractV1],
 })
 
 export type { TodoState, TodoItem, TodoPriority } from './types'

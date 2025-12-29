@@ -26,7 +26,7 @@ onMounted(() => {
     :id="props.id"
     role="listbox"
     :aria-label="props.label"
-    class="max-h-[300px] overflow-y-auto overflow-x-hidden"
+    class="max-h-72 overflow-y-auto overflow-x-hidden"
   >
     <slot />
   </div>

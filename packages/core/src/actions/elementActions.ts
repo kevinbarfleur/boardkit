@@ -1,5 +1,7 @@
 import type { ActionDefinition } from '../types/action'
+import type { TextElement } from '../types/element'
 import { useBoardStore } from '../stores/boardStore'
+import { DEFAULT_ELEMENT_STYLE, DEFAULT_FONT_SIZE, DEFAULT_FONT_FAMILY } from '../types/element'
 
 /**
  * Element Actions
@@ -104,6 +106,7 @@ export function createElementActions(): ActionDefinition[] {
         boardStore.addElement({
           type: 'rectangle',
           rect: { x, y, width: 150, height: 100 },
+          style: { ...DEFAULT_ELEMENT_STYLE },
         })
       },
     },
@@ -122,6 +125,7 @@ export function createElementActions(): ActionDefinition[] {
         boardStore.addElement({
           type: 'ellipse',
           rect: { x, y, width: 120, height: 120 },
+          style: { ...DEFAULT_ELEMENT_STYLE },
         })
       },
     },
@@ -140,12 +144,13 @@ export function createElementActions(): ActionDefinition[] {
         boardStore.addElement({
           type: 'text',
           rect: { x, y, width: 200, height: 40 },
+          style: { ...DEFAULT_ELEMENT_STYLE },
           content: 'Text',
-          fontFamily: 'system',
-          fontSize: 16,
+          fontFamily: DEFAULT_FONT_FAMILY,
+          fontSize: DEFAULT_FONT_SIZE,
           fontWeight: 'normal',
           textAlign: 'left',
-        })
+        } as Omit<TextElement, 'id' | 'zIndex'>)
       },
     },
 
@@ -165,6 +170,78 @@ export function createElementActions(): ActionDefinition[] {
       when: (ctx) => ctx.selectedElementId !== null,
       run: () => {
         boardStore.clearSelection()
+      },
+    },
+
+    // ============================================
+    // NUDGE ACTIONS
+    // ============================================
+    {
+      id: 'element.nudge.up',
+      title: 'Nudge Element Up',
+      subtitle: 'Move selected element up by 1px (or 10px with Shift)',
+      keywords: ['nudge', 'move', 'up', 'element'],
+      group: 'element',
+      contexts: ['global'],
+      shortcutHint: '↑',
+      priority: 40,
+      when: (ctx) => ctx.selectedElementId !== null,
+      run: (ctx) => {
+        if (ctx.selectedElementId) {
+          const amount = ctx.shiftKey ? 10 : 1
+          boardStore.nudgeElement(ctx.selectedElementId, 0, -amount)
+        }
+      },
+    },
+    {
+      id: 'element.nudge.down',
+      title: 'Nudge Element Down',
+      subtitle: 'Move selected element down by 1px (or 10px with Shift)',
+      keywords: ['nudge', 'move', 'down', 'element'],
+      group: 'element',
+      contexts: ['global'],
+      shortcutHint: '↓',
+      priority: 39,
+      when: (ctx) => ctx.selectedElementId !== null,
+      run: (ctx) => {
+        if (ctx.selectedElementId) {
+          const amount = ctx.shiftKey ? 10 : 1
+          boardStore.nudgeElement(ctx.selectedElementId, 0, amount)
+        }
+      },
+    },
+    {
+      id: 'element.nudge.left',
+      title: 'Nudge Element Left',
+      subtitle: 'Move selected element left by 1px (or 10px with Shift)',
+      keywords: ['nudge', 'move', 'left', 'element'],
+      group: 'element',
+      contexts: ['global'],
+      shortcutHint: '←',
+      priority: 38,
+      when: (ctx) => ctx.selectedElementId !== null,
+      run: (ctx) => {
+        if (ctx.selectedElementId) {
+          const amount = ctx.shiftKey ? 10 : 1
+          boardStore.nudgeElement(ctx.selectedElementId, -amount, 0)
+        }
+      },
+    },
+    {
+      id: 'element.nudge.right',
+      title: 'Nudge Element Right',
+      subtitle: 'Move selected element right by 1px (or 10px with Shift)',
+      keywords: ['nudge', 'move', 'right', 'element'],
+      group: 'element',
+      contexts: ['global'],
+      shortcutHint: '→',
+      priority: 37,
+      when: (ctx) => ctx.selectedElementId !== null,
+      run: (ctx) => {
+        if (ctx.selectedElementId) {
+          const amount = ctx.shiftKey ? 10 : 1
+          boardStore.nudgeElement(ctx.selectedElementId, amount, 0)
+        }
       },
     },
   ]

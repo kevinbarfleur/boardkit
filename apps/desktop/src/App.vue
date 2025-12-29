@@ -8,22 +8,14 @@ import { usePersistence } from './composables/usePersistence'
 import BoardCanvas from './components/BoardCanvas.vue'
 import Toolbar from './components/Toolbar.vue'
 import CommandPalette from './components/CommandPalette.vue'
+import SettingsPanel from './components/SettingsPanel.vue'
 
 // Register all modules before using the store
 registerModules()
 
 const boardStore = useBoardStore()
 const { initTheme } = useTheme()
-const {
-  initialize,
-  createDocument,
-  saveDocument,
-  setupAutosave,
-  exportToFile,
-  importFromFile,
-  isSaving,
-  lastSaved,
-} = usePersistence()
+const persistence = usePersistence()
 
 const isCommandPaletteOpen = ref(false)
 const unlisteners: UnlistenFn[] = []
@@ -37,25 +29,41 @@ const closeCommandPalette = () => {
 }
 
 const handleNewBoard = async () => {
-  await createDocument('Untitled Board')
+  await persistence.createDocument('Untitled Board')
 }
 
 const handleExport = async () => {
-  await exportToFile()
+  await persistence.exportToFile()
 }
 
 const handleImport = async () => {
-  await importFromFile()
+  await persistence.importFromFile()
+}
+
+const handleUndo = async () => {
+  await persistence.undo()
+}
+
+const handleRedo = async () => {
+  await persistence.redo()
+}
+
+const handleGoToHistory = async (id: string) => {
+  await persistence.goToHistoryEntry(id)
+}
+
+const handleGoToLatest = async () => {
+  await persistence.goToLatest()
 }
 
 onMounted(async () => {
   initTheme()
 
   // Initialize persistence (loads last document or creates new)
-  await initialize()
+  await persistence.initialize()
 
   // Setup autosave
-  setupAutosave()
+  persistence.setupAutosave()
 
   // Register core actions after Pinia store is ready
   registerCoreActions()
@@ -88,13 +96,25 @@ onMounted(async () => {
   unlisteners.push(
     await listen('menu-save', () => {
       // Autosave handles this, but we can trigger immediate save
-      saveDocument()
+      persistence.saveDocument()
     })
   )
 
   unlisteners.push(
     await listen('menu-export', () => {
       handleExport()
+    })
+  )
+
+  unlisteners.push(
+    await listen('menu-undo', () => {
+      handleUndo()
+    })
+  )
+
+  unlisteners.push(
+    await listen('menu-redo', () => {
+      handleRedo()
     })
   )
 })
@@ -108,13 +128,23 @@ onUnmounted(() => {
 <template>
   <div class="h-screen w-screen overflow-hidden flex flex-col">
     <Toolbar
-      :is-saving="isSaving"
-      :last-saved="lastSaved"
+      :is-saving="persistence.isSaving.value"
+      :last-saved="persistence.lastSaved.value"
+      :can-undo="persistence.canUndo.value"
+      :can-redo="persistence.canRedo.value"
+      :undo-entries="persistence.undoEntries.value"
+      :redo-entries="persistence.redoEntries.value"
       @new-board="handleNewBoard"
       @export="handleExport"
       @import="handleImport"
+      @open-command-palette="openCommandPalette"
+      @undo="handleUndo"
+      @redo="handleRedo"
+      @go-to-history="handleGoToHistory"
+      @go-to-latest="handleGoToLatest"
     />
     <BoardCanvas @open-command-palette="openCommandPalette" />
     <CommandPalette :open="isCommandPaletteOpen" @close="closeCommandPalette" />
+    <SettingsPanel />
   </div>
 </template>

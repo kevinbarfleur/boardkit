@@ -113,10 +113,15 @@ interface DataLink {
 │  │   - getData(provider, contract)                        │      │
 │  └───────────────────────────────────────────────────────┘      │
 │                                                                  │
-│  ┌─────────────────┐    ┌─────────────────┐                     │
-│  │ useDataProvider │    │ useDataConsumer │                     │
-│  │ (composable)    │    │ (composable)    │                     │
-│  └─────────────────┘    └─────────────────┘                     │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │               Composables (Simplified API)              │    │
+│  │                                                         │    │
+│  │  useProvideData(context, contract, options?)            │    │
+│  │  useConsumeData(context, contract, options?)            │    │
+│  │                                                         │    │
+│  │  Legacy (full control):                                 │    │
+│  │  useDataProvider / useDataConsumer                      │    │
+│  └─────────────────────────────────────────────────────────┘    │
 │                                                                  │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -232,6 +237,97 @@ interface PublicTodoList {
 ```
 
 **Important:** This is a *projection*, not the raw module state. The provider transforms its internal state into this public format.
+
+---
+
+## Module Development
+
+### Simplified API (Recommended)
+
+The simplified API reduces boilerplate significantly while maintaining full access to the underlying system.
+
+#### Provider Module
+
+```typescript
+// In index.ts
+export const TodoModule = defineModule<TodoState>({
+  moduleId: 'todo',
+  // ... other options ...
+  provides: [todoContractV1],  // Auto-registers contract
+})
+
+// In TodoWidget.vue
+useProvideData(props.context, todoContractV1, {
+  project: (state) => ({
+    widgetId: props.context.widgetId,
+    title: state.title,
+    items: state.items.map(({ id, label, completed }) => ({ id, label, completed })),
+    progress: { done: state.items.filter(i => i.completed).length, total: state.items.length }
+  })
+})
+```
+
+#### Single Consumer Module
+
+```typescript
+// In index.ts
+export const FocusLensModule = defineModule<FocusLensState>({
+  moduleId: 'focus-lens',
+  // ... other options ...
+  consumes: [{
+    contract: todoContractV1,
+    stateKey: 'connectedProvider',  // Where provider ID is stored
+    sourceLabel: 'Todo List',       // For UI
+  }],
+})
+
+// In FocusLensWidget.vue
+const { data, status } = useConsumeData(props.context, todoContractV1)
+// data: Ref<PublicTodoList | null>
+// status: ComputedRef<'connected' | 'disconnected' | 'broken'>
+```
+
+#### Multi Consumer Module
+
+```typescript
+// In index.ts
+export const TaskRadarModule = defineModule<TaskRadarState>({
+  moduleId: 'task-radar',
+  // ... other options ...
+  consumes: [{
+    contract: todoContractV1,
+    multi: true,                    // Enable multi-provider mode
+    stateKey: 'connectedProviders', // Array of provider IDs
+    sourceLabel: 'Todo List',
+  }],
+})
+
+// In TaskRadarWidget.vue
+const { connections, allData } = useConsumeData(props.context, todoContractV1, { multi: true })
+// connections: ComputedRef<Map<string, { providerId, status, data }>>
+// allData: ComputedRef<PublicTodoList[]>  // Convenience: all connected data
+```
+
+### Legacy API (Full Control)
+
+For advanced use cases requiring fine-grained control:
+
+```typescript
+// Provider
+useDataProvider({
+  widgetId: props.context.widgetId,
+  contract: todoContractV1,
+  getState: () => props.context.state,
+  project: (state) => ({ ... }),
+})
+
+// Consumer
+const { status, data } = useDataConsumer<PublicTodoList>({
+  widgetId: props.context.widgetId,
+  contractId: 'boardkit.todo.v1',
+  getProviderWidgetId: () => props.context.state.connectedProvider,
+})
+```
 
 ---
 

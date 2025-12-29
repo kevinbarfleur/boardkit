@@ -166,6 +166,78 @@ function createCoreActions(): ActionDefinition[] {
     },
 
     // ============================================
+    // NUDGE ACTIONS
+    // ============================================
+    {
+      id: 'widget.nudge.up',
+      title: 'Nudge Up',
+      subtitle: 'Move selected widget up by 1px (or 10px with Shift)',
+      keywords: ['nudge', 'move', 'up'],
+      group: 'widget',
+      contexts: ['global'],
+      shortcutHint: '↑',
+      priority: 40,
+      when: (ctx) => ctx.selectedWidgetId !== null,
+      run: (ctx) => {
+        if (ctx.selectedWidgetId) {
+          const amount = ctx.shiftKey ? 10 : 1
+          store.nudgeWidget(ctx.selectedWidgetId, 0, -amount)
+        }
+      },
+    },
+    {
+      id: 'widget.nudge.down',
+      title: 'Nudge Down',
+      subtitle: 'Move selected widget down by 1px (or 10px with Shift)',
+      keywords: ['nudge', 'move', 'down'],
+      group: 'widget',
+      contexts: ['global'],
+      shortcutHint: '↓',
+      priority: 39,
+      when: (ctx) => ctx.selectedWidgetId !== null,
+      run: (ctx) => {
+        if (ctx.selectedWidgetId) {
+          const amount = ctx.shiftKey ? 10 : 1
+          store.nudgeWidget(ctx.selectedWidgetId, 0, amount)
+        }
+      },
+    },
+    {
+      id: 'widget.nudge.left',
+      title: 'Nudge Left',
+      subtitle: 'Move selected widget left by 1px (or 10px with Shift)',
+      keywords: ['nudge', 'move', 'left'],
+      group: 'widget',
+      contexts: ['global'],
+      shortcutHint: '←',
+      priority: 38,
+      when: (ctx) => ctx.selectedWidgetId !== null,
+      run: (ctx) => {
+        if (ctx.selectedWidgetId) {
+          const amount = ctx.shiftKey ? 10 : 1
+          store.nudgeWidget(ctx.selectedWidgetId, -amount, 0)
+        }
+      },
+    },
+    {
+      id: 'widget.nudge.right',
+      title: 'Nudge Right',
+      subtitle: 'Move selected widget right by 1px (or 10px with Shift)',
+      keywords: ['nudge', 'move', 'right'],
+      group: 'widget',
+      contexts: ['global'],
+      shortcutHint: '→',
+      priority: 37,
+      when: (ctx) => ctx.selectedWidgetId !== null,
+      run: (ctx) => {
+        if (ctx.selectedWidgetId) {
+          const amount = ctx.shiftKey ? 10 : 1
+          store.nudgeWidget(ctx.selectedWidgetId, amount, 0)
+        }
+      },
+    },
+
+    // ============================================
     // TOOL ACTIONS
     // ============================================
     ...createToolActions(),

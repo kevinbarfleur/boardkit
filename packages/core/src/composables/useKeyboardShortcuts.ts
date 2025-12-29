@@ -1,15 +1,17 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import type { ToolType } from '../types/tool'
+import type { ActionContext } from '../types/action'
+import type { ActionRegistry } from '../actions/ActionRegistry'
 import { KEY_TO_TOOL } from '../types/tool'
 
 /**
  * Keyboard Shortcut Manager
  *
  * Centralized keyboard shortcut handling for canvas applications.
- * Shortcuts are automatically disabled when focus is on input elements.
+ * Routes shortcuts through ActionRegistry for consistent behavior.
  *
  * Registered shortcuts:
- * - Escape: Clear selection
+ * - Escape: Close context menu / Cancel drawing / Clear selection
  * - Delete/Backspace: Remove selected widget/element
  * - Cmd/Ctrl + D: Duplicate selected widget/element
  * - Cmd/Ctrl + 0: Reset view
@@ -19,19 +21,24 @@ import { KEY_TO_TOOL } from '../types/tool'
  * - V, H, R, O, L, A, P, T: Switch tools
  */
 
-export interface ShortcutHandler {
-  key: string
-  modifiers?: {
-    ctrl?: boolean
-    meta?: boolean
-    shift?: boolean
-    alt?: boolean
-  }
-  handler: (e: KeyboardEvent) => void
-  description?: string
+export interface KeyboardShortcutsOptions {
+  /** ActionRegistry instance for executing actions */
+  actionRegistry: ActionRegistry
+  /** Function to build current ActionContext */
+  buildActionContext: (shiftKey?: boolean) => ActionContext
+  /** Callback when Escape closes context menu (UI-local) */
+  onContextMenuClose?: () => boolean // Returns true if menu was closed
+  /** Callback when Escape cancels drawing (UI-local) */
+  onDrawingCancel?: () => boolean // Returns true if drawing was canceled
+  /** Callback for opening command palette (emitted to parent) */
+  onCommandPalette?: () => void
 }
 
-export interface KeyboardShortcutsOptions {
+/**
+ * Legacy options interface for backward compatibility.
+ * @deprecated Use the ActionRegistry-based interface instead.
+ */
+export interface LegacyKeyboardShortcutsOptions {
   onEscape?: () => void
   onDelete?: () => void
   onDuplicate?: () => void
@@ -41,7 +48,15 @@ export interface KeyboardShortcutsOptions {
   onToolSwitch?: (tool: ToolType) => void
 }
 
-export function useKeyboardShortcuts(options: KeyboardShortcutsOptions) {
+function isLegacyOptions(
+  options: KeyboardShortcutsOptions | LegacyKeyboardShortcutsOptions
+): options is LegacyKeyboardShortcutsOptions {
+  return !('actionRegistry' in options)
+}
+
+export function useKeyboardShortcuts(
+  options: KeyboardShortcutsOptions | LegacyKeyboardShortcutsOptions
+) {
   const isSpacePressed = ref(false)
 
   const isInputElement = (target: EventTarget | null): boolean => {
@@ -59,23 +74,15 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions) {
     return navigator.platform.toUpperCase().indexOf('MAC') >= 0
   }
 
-  const hasModifier = (e: KeyboardEvent, ctrl: boolean = false, meta: boolean = false) => {
-    // On Mac, prefer metaKey (Cmd). On other platforms, prefer ctrlKey.
-    if (isMac()) {
-      return meta ? e.metaKey : ctrl ? e.ctrlKey : false
-    }
-    return ctrl ? e.ctrlKey : meta ? e.metaKey : false
-  }
-
   const hasCmdOrCtrl = (e: KeyboardEvent) => {
     return isMac() ? e.metaKey : e.ctrlKey
   }
 
-  const handleKeyDown = (e: KeyboardEvent) => {
+  // Legacy handler for backward compatibility
+  const handleKeyDownLegacy = (e: KeyboardEvent, opts: LegacyKeyboardShortcutsOptions) => {
     // Track space key for panning
     if (e.code === 'Space' && !isInputElement(e.target)) {
       isSpacePressed.value = true
-      // Don't prevent default here - let the canvas handle the cursor change
     }
 
     // Skip shortcuts when typing in inputs
@@ -86,35 +93,35 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions) {
     // Escape - clear selection
     if (key === 'escape') {
       e.preventDefault()
-      options.onEscape?.()
+      opts.onEscape?.()
       return
     }
 
     // Delete / Backspace - remove selected widget
     if (key === 'delete' || key === 'backspace') {
       e.preventDefault()
-      options.onDelete?.()
+      opts.onDelete?.()
       return
     }
 
     // Cmd/Ctrl + D - duplicate
     if (key === 'd' && hasCmdOrCtrl(e)) {
       e.preventDefault()
-      options.onDuplicate?.()
+      opts.onDuplicate?.()
       return
     }
 
     // Cmd/Ctrl + 0 - reset view
     if ((key === '0' || e.code === 'Digit0') && hasCmdOrCtrl(e)) {
       e.preventDefault()
-      options.onResetView?.()
+      opts.onResetView?.()
       return
     }
 
     // Cmd/Ctrl + K - command palette
     if (key === 'k' && hasCmdOrCtrl(e)) {
       e.preventDefault()
-      options.onCommandPalette?.()
+      opts.onCommandPalette?.()
       return
     }
 
@@ -122,22 +129,22 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions) {
     const nudgeAmount = e.shiftKey ? 10 : 1
     if (key === 'arrowup') {
       e.preventDefault()
-      options.onNudge?.(0, -nudgeAmount)
+      opts.onNudge?.(0, -nudgeAmount)
       return
     }
     if (key === 'arrowdown') {
       e.preventDefault()
-      options.onNudge?.(0, nudgeAmount)
+      opts.onNudge?.(0, nudgeAmount)
       return
     }
     if (key === 'arrowleft') {
       e.preventDefault()
-      options.onNudge?.(-nudgeAmount, 0)
+      opts.onNudge?.(-nudgeAmount, 0)
       return
     }
     if (key === 'arrowright') {
       e.preventDefault()
-      options.onNudge?.(nudgeAmount, 0)
+      opts.onNudge?.(nudgeAmount, 0)
       return
     }
 
@@ -146,9 +153,110 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions) {
       const tool = KEY_TO_TOOL[key]
       if (tool) {
         e.preventDefault()
-        options.onToolSwitch?.(tool)
+        opts.onToolSwitch?.(tool)
         return
       }
+    }
+  }
+
+  // New handler using ActionRegistry
+  const handleKeyDownWithRegistry = (e: KeyboardEvent, opts: KeyboardShortcutsOptions) => {
+    // Track space key for panning
+    if (e.code === 'Space' && !isInputElement(e.target)) {
+      isSpacePressed.value = true
+    }
+
+    // Skip shortcuts when typing in inputs
+    if (isInputElement(e.target)) return
+
+    const key = e.key.toLowerCase()
+    const { actionRegistry, buildActionContext } = opts
+
+    // Escape - try UI-local handlers first, then action
+    if (key === 'escape') {
+      e.preventDefault()
+      // 1. Try closing context menu
+      if (opts.onContextMenuClose?.()) return
+      // 2. Try canceling drawing
+      if (opts.onDrawingCancel?.()) return
+      // 3. Fall through to action registry (clear selection)
+      const ctx = buildActionContext()
+      actionRegistry.execute('selection.clear', ctx)
+      return
+    }
+
+    // Delete / Backspace - delete widget or element
+    if (key === 'delete' || key === 'backspace') {
+      e.preventDefault()
+      const ctx = buildActionContext()
+      if (ctx.selectedWidgetId) {
+        actionRegistry.execute('widget.delete', ctx)
+      } else if (ctx.selectedElementId) {
+        actionRegistry.execute('element.delete', ctx)
+      }
+      return
+    }
+
+    // Cmd/Ctrl + D - duplicate widget or element
+    if (key === 'd' && hasCmdOrCtrl(e)) {
+      e.preventDefault()
+      const ctx = buildActionContext()
+      if (ctx.selectedWidgetId) {
+        actionRegistry.execute('widget.duplicate', ctx)
+      } else if (ctx.selectedElementId) {
+        actionRegistry.execute('element.duplicate', ctx)
+      }
+      return
+    }
+
+    // Cmd/Ctrl + 0 - reset view
+    if ((key === '0' || e.code === 'Digit0') && hasCmdOrCtrl(e)) {
+      e.preventDefault()
+      const ctx = buildActionContext()
+      actionRegistry.execute('view.reset', ctx)
+      return
+    }
+
+    // Cmd/Ctrl + K - command palette (UI-local, emitted to parent)
+    if (key === 'k' && hasCmdOrCtrl(e)) {
+      e.preventDefault()
+      opts.onCommandPalette?.()
+      return
+    }
+
+    // Arrow keys - nudge widget or element
+    if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(key)) {
+      e.preventDefault()
+      const ctx = buildActionContext(e.shiftKey)
+
+      // Determine direction
+      const direction = key.replace('arrow', '') as 'up' | 'down' | 'left' | 'right'
+
+      if (ctx.selectedWidgetId) {
+        actionRegistry.execute(`widget.nudge.${direction}`, ctx)
+      } else if (ctx.selectedElementId) {
+        actionRegistry.execute(`element.nudge.${direction}`, ctx)
+      }
+      return
+    }
+
+    // Tool shortcuts (V, H, R, O, L, A, P, T) - single key, no modifiers
+    if (!e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+      const tool = KEY_TO_TOOL[key]
+      if (tool) {
+        e.preventDefault()
+        const ctx = buildActionContext()
+        actionRegistry.execute(`tool.${tool}`, ctx)
+        return
+      }
+    }
+  }
+
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (isLegacyOptions(options)) {
+      handleKeyDownLegacy(e, options)
+    } else {
+      handleKeyDownWithRegistry(e, options)
     }
   }
 

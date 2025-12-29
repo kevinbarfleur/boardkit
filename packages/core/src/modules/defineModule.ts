@@ -1,4 +1,6 @@
 import type { ModuleDefinition } from '../types/module'
+import { consumerRegistry } from '../data/ConsumerRegistry'
+import { dataContractRegistry } from '../data/DataContractRegistry'
 
 /**
  * Define a Boardkit module.
@@ -38,6 +40,28 @@ export function defineModule<TState>(
   }
   if (!definition.deserialize) {
     throw new Error('Module must have a deserialize function')
+  }
+
+  // Auto-register consumers
+  if (definition.consumes) {
+    for (const config of definition.consumes) {
+      consumerRegistry.register({
+        moduleId: definition.moduleId,
+        contractId: config.contract.id,
+        multiSelect: config.multi ?? false,
+        stateKey: config.stateKey,
+        sourceLabel: config.sourceLabel,
+      })
+    }
+  }
+
+  // Auto-register provided contracts
+  if (definition.provides) {
+    for (const contract of definition.provides) {
+      if (!dataContractRegistry.has(contract.id)) {
+        dataContractRegistry.register(contract)
+      }
+    }
   }
 
   return {

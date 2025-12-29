@@ -9,11 +9,20 @@
     "build": "pnpm -r build",
     "lint": "eslint . --ext .ts,.tsx,.vue",
     "typecheck": "pnpm -r typecheck",
-    "desktop": "pnpm --filter @boardkit/desktop tauri dev"
+    "desktop": "pnpm --filter @boardkit/desktop tauri dev",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
-    "typescript": "^5.3.0"
+    "@vitest/coverage-v8": "^2.1.0",
+    "@vitest/ui": "^2.1.0",
+    "@vue/test-utils": "^2.4.0",
+    "happy-dom": "^15.0.0",
+    "typescript": "^5.3.0",
+    "vitest": "^2.1.0"
   },
   "engines": {
     "node": ">=18.0.0",

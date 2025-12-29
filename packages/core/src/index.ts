@@ -29,7 +29,16 @@ export {
 
 // Composables
 export { useKeyboardShortcuts } from './composables/useKeyboardShortcuts'
-export type { ShortcutHandler, KeyboardShortcutsOptions } from './composables/useKeyboardShortcuts'
+export type {
+  KeyboardShortcutsOptions,
+  LegacyKeyboardShortcutsOptions,
+} from './composables/useKeyboardShortcuts'
+
+// Data sharing composables (simplified API - recommended)
+export { useProvideData } from './composables/useProvideData'
+export { useConsumeData } from './composables/useConsumeData'
+
+// Data sharing composables (legacy - full control)
 export { useDataProvider } from './composables/useDataProvider'
 export { useDataConsumer } from './composables/useDataConsumer'
 

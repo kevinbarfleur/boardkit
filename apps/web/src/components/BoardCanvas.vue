@@ -220,19 +220,32 @@ const textEditorStyle = computed(() => {
 })
 
 // Build action context
-const buildActionContext = (pointerPosition?: { x: number; y: number }): ActionContext => ({
-  selectedWidget: boardStore.selectedWidget,
-  selectedWidgetId: boardStore.selectedWidgetId,
-  selectedElement: boardStore.selectedElement,
-  selectedElementId: boardStore.selectedElementId,
-  activeTool: toolStore.activeTool,
-  viewport: boardStore.viewport,
-  widgets: boardStore.widgets,
-  elements: boardStore.elements,
-  platform: 'web',
-  isDirty: boardStore.isDirty,
-  pointerPosition,
-})
+const buildActionContext = (
+  pointerPositionOrShiftKey?: { x: number; y: number } | boolean,
+  shiftKey?: boolean
+): ActionContext => {
+  // Handle both signatures:
+  // buildActionContext(shiftKey?: boolean) - for keyboard shortcuts
+  // buildActionContext(pointerPosition?: {x, y}) - for context menus
+  const isShiftKey = typeof pointerPositionOrShiftKey === 'boolean'
+  const pointerPosition = isShiftKey ? undefined : pointerPositionOrShiftKey
+  const shift = isShiftKey ? pointerPositionOrShiftKey : shiftKey
+
+  return {
+    selectedWidget: boardStore.selectedWidget,
+    selectedWidgetId: boardStore.selectedWidgetId,
+    selectedElement: boardStore.selectedElement,
+    selectedElementId: boardStore.selectedElementId,
+    activeTool: toolStore.activeTool,
+    viewport: boardStore.viewport,
+    widgets: boardStore.widgets,
+    elements: boardStore.elements,
+    platform: 'web',
+    isDirty: boardStore.isDirty,
+    pointerPosition,
+    shiftKey: shift,
+  }
+}
 
 // Convert screen coordinates to canvas coordinates
 const screenToCanvas = (screenX: number, screenY: number) => {
@@ -322,46 +335,26 @@ const closeContextMenu = () => {
   contextMenu.value.open = false
 }
 
-// Keyboard shortcuts
+// Keyboard shortcuts - routed through ActionRegistry
 const { isSpacePressed } = useKeyboardShortcuts({
-  onEscape: () => {
+  actionRegistry,
+  buildActionContext,
+  onContextMenuClose: () => {
     if (contextMenu.value.open) {
       closeContextMenu()
-    } else if (isDrawing.value) {
+      return true
+    }
+    return false
+  },
+  onDrawingCancel: () => {
+    if (isDrawing.value) {
       toolStore.cancelDrawing()
-    } else {
-      boardStore.clearSelection()
+      return true
     }
-  },
-  onDelete: () => {
-    if (selectedWidgetId.value) {
-      boardStore.removeWidget(selectedWidgetId.value)
-    } else if (selectedElementId.value) {
-      boardStore.removeElement(selectedElementId.value)
-    }
-  },
-  onDuplicate: () => {
-    if (selectedWidgetId.value) {
-      boardStore.duplicateWidget(selectedWidgetId.value)
-    } else if (selectedElementId.value) {
-      boardStore.duplicateElement(selectedElementId.value)
-    }
-  },
-  onResetView: () => {
-    boardStore.updateViewport({ x: 0, y: 0, zoom: 1 })
+    return false
   },
   onCommandPalette: () => {
     emit('openCommandPalette')
-  },
-  onNudge: (dx, dy) => {
-    if (selectedWidgetId.value) {
-      boardStore.nudgeWidget(selectedWidgetId.value, dx, dy)
-    } else if (selectedElementId.value) {
-      boardStore.nudgeElement(selectedElementId.value, dx, dy)
-    }
-  },
-  onToolSwitch: (tool) => {
-    toolStore.setTool(tool)
   },
 })
 
