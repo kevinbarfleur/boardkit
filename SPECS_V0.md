@@ -84,8 +84,53 @@ Full undo/redo support via history snapshots.
 ### To-do Module
 
 - List of tasks (checkbox + label)
-- Local state only
-- Fully serializable
+- Optional title and description
+- Priority levels (high/medium/low)
+- Due dates
+- Progress indicator (bar or counter)
+- Settings: auto-sort, strike completed, hide completed
+- **Data Provider**: Exposes `boardkit.todo.v1` contract
+
+### Task Radar Module
+
+- Aggregates tasks from multiple To-do widgets
+- Shows overview of all connected tasks
+- Displays combined progress statistics
+- **Data Consumer**: Consumes `boardkit.todo.v1` (multi-source)
+
+### Focus Lens Module
+
+- Focused view of a single To-do widget's tasks
+- Filtered display mode for deep work
+- **Data Consumer**: Consumes `boardkit.todo.v1` (single source)
+
+---
+
+## Data Sharing (V0)
+
+Inter-module communication system for read-only data flow.
+
+### Concepts
+
+- **Data Contract**: Versioned schema defining shared data structure
+- **Provider**: Module that exposes data via a contract
+- **Consumer**: Module that reads data from providers
+- **Permission**: User-granted link between consumer and provider
+
+### Current Contracts
+
+| Contract ID | Provider | Consumers |
+|-------------|----------|-----------|
+| `boardkit.todo.v1` | To-do | Task Radar, Focus Lens |
+
+### Rules
+
+- All data sharing is **read-only** in V0
+- Consumers must request permission to connect
+- Connections are persisted in document (`dataSharing` section)
+- Providers are unaware of their consumers
+
+See `docs/SPECS_DATA_SHARING_POC.md` for full specification.
 
 ---
 

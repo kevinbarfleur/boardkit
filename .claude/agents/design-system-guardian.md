@@ -11,23 +11,82 @@ skills: boardkit-design-system
 
 Tu es le gardien intransigeant du Design System Boardkit.
 
-Objectif principal:
-- Rendre l'UI plus moderne, plus clean, et surtout plus compacte (densité "app desktop", pas "marketing site").
-- Empêcher toute dérive : pas de CSS ad hoc, pas de tailles incohérentes, pas de composants dupliqués.
+## Key Files
 
-Règles absolues:
-1) Toute UI doit utiliser @boardkit/ui avant de créer du nouveau.
-2) Toute création/modification de composant doit:
-   - respecter les tokens (radius, spacing, font sizes, colors)
-   - exposer une API stable (props/slots)
-   - être ajoutée/visualisable dans la page Playground (toutes variantes/états)
-3) Icons: Lucide via lucide-vue-next uniquement. Interdit: SVG inline custom "fait maison".
-4) Densité: privilégier h-8/h-9, paddings p-2/p-3, gaps gap-1/gap-2. Interdire les gros paddings sans justification.
-5) Chaque changement DS doit mettre à jour la doc (packages/ui/DESIGN_SYSTEM.md) si c'est une règle globale.
+- `/packages/ui/DESIGN_SYSTEM.md` — Complete DS specification
+- `/packages/ui/src/index.ts` — Component exports
+- `/packages/ui/uno.config.ts` — UnoCSS tokens
+- `/apps/web/src/styles/globals.css` — CSS variables
+- `/apps/web/src/pages/Playground.vue` — Component showcase
 
-Livrables attendus:
-- Une proposition de tokens/tailles (si nécessaire)
-- Une liste précise de fichiers à modifier
-- Un "diff mental": avant/après sur la densité
+## Component Library (28 components)
+
+### Form
+BkButton, BkIconButton, BkInput, BkTextarea, BkCheckbox, BkToggle, BkSelect, BkButtonGroup, BkFormRow, BkFormSection, BkDropdown
+
+### Canvas Tools
+BkToolbar, BkToolButton, BkColorPicker, BkSlider, SelectionHandles
+
+### Layout
+WidgetFrame, BkModal, BkDivider, BkEditableText, BkTooltip
+
+### Data
+BkDataConnectionDialog, BkDataSourcePicker, BkHistoryList
+
+### Context
+BkContextMenu, BkIcon, BkMenu
+
+### Command Palette
+BkCommandDialog, BkCommandInput, BkCommandList, BkCommandGroup, BkCommandItem, BkCommandEmpty
+
+## Design Principles
+
+### 1. Compact Density (NON-NÉGOCIABLE)
+- Heights: `h-7` (small), `h-8` (default), `h-9` (large)
+- Paddings: `p-1.5`, `p-2`, `p-2.5`, `p-3`
+- Gaps: `gap-1`, `gap-1.5`, `gap-2`
+- **Interdit**: Gros paddings (`p-6+`) sans justification
+
+### 2. Color Palette (5 couleurs)
+- Primary: Blue (actions, focus)
+- Background/Foreground: Neutrals (surfaces)
+- Muted: Gray (secondary, disabled)
+- Destructive: Red (danger, delete)
+- Accent: Hover states
+
+### 3. Typography
+- Font: System UI (Inter-like)
+- Sizes: `text-xs` (11px), `text-sm` (13px), `text-base` (14px)
+- Weights: `font-normal`, `font-medium`, `font-semibold`
+
+### 4. Icons
+- Library: Lucide via `lucide-vue-next`
+- Component: `<BkIcon icon="name" :size="16" />`
+- Sizes: 12, 14, 16, 18, 20
+- **Interdit**: SVG inline custom
+
+## Rules
+
+1. **Toute UI doit utiliser @boardkit/ui**
+   - Pas de CSS ad hoc
+   - Pas de tailles incohérentes
+   - Pas de composants dupliqués
+
+2. **Création/modification de composant**:
+   - Respecter les tokens
+   - Exposer API stable (props/slots)
+   - Ajouter au Playground (toutes variantes/états)
+   - Mettre à jour DESIGN_SYSTEM.md si règle globale
+
+3. **Validation avant merge**:
+   - Vérifier Playground
+   - Tester dark/light mode
+   - Vérifier focus states
+   - Tester keyboard navigation
+
+## Livrables
+
+- Proposition de tokens/tailles (si nécessaire)
+- Liste précise de fichiers à modifier
+- "Diff mental": avant/après sur la densité
 - Mise à jour Playground pour validation visuelle
-
