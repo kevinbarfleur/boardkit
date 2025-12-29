@@ -27,7 +27,6 @@ const emit = defineEmits<{
   'update:modelValue': [value: T | T[]]
 }>()
 
-// Check if a value is selected
 const isSelected = (value: T): boolean => {
   if (props.multiple && Array.isArray(props.modelValue)) {
     return props.modelValue.includes(value)
@@ -35,7 +34,6 @@ const isSelected = (value: T): boolean => {
   return props.modelValue === value
 }
 
-// Handle button click
 const handleClick = (value: T, optionDisabled?: boolean) => {
   if (props.disabled || optionDisabled) return
 
@@ -53,51 +51,77 @@ const handleClick = (value: T, optionDisabled?: boolean) => {
   }
 }
 
-// Container classes
 const containerClasses = computed(() => {
-  const base = ['inline-flex rounded-md border border-border bg-muted p-0.5']
+  const base = [
+    'inline-flex items-center gap-1 p-1 rounded-lg',
+    'bg-muted/60',
+  ]
+
   if (props.fullWidth) {
     base.push('w-full')
   }
+
   if (props.disabled) {
-    base.push('opacity-50')
+    base.push('opacity-50 pointer-events-none')
   }
+
   return base.join(' ')
 })
 
-// Button classes
 const getButtonClasses = (option: ButtonGroupOption<T>) => {
+  const selected = isSelected(option.value)
+  const isDisabled = props.disabled || option.disabled
+
   const base = [
-    'flex-1 inline-flex items-center justify-center rounded-sm',
-    'text-sm font-medium transition-colors',
+    'relative flex-1 inline-flex items-center justify-center',
+    'rounded-md font-medium transition-all duration-150',
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
   ]
 
   // Size
   if (props.size === 'sm') {
-    base.push('h-7 px-2.5')
+    base.push('h-7 px-3 text-xs')
   } else {
-    base.push('h-8 px-3')
+    base.push('h-8 px-4 text-sm')
   }
 
-  // State
-  const selected = isSelected(option.value)
-  const isDisabled = props.disabled || option.disabled
-
+  // States
   if (isDisabled) {
     base.push('cursor-not-allowed')
     if (selected) {
-      base.push('bg-background text-muted-foreground shadow-sm')
+      base.push('shadow-sm')
     } else {
-      base.push('text-muted-foreground/50 bg-transparent')
+      base.push('opacity-40')
     }
   } else if (selected) {
-    base.push('bg-background text-foreground shadow-sm cursor-default')
+    base.push('shadow-sm cursor-default')
   } else {
-    base.push('bg-transparent text-muted-foreground hover:bg-background/50 hover:text-foreground cursor-pointer')
+    base.push('text-muted-foreground hover:text-foreground hover:bg-background/50 cursor-pointer')
   }
 
   return base.join(' ')
+}
+
+// Inline styles for dynamic colors (UnoCSS doesn't generate dynamic classes)
+const getButtonStyle = (option: ButtonGroupOption<T>) => {
+  const selected = isSelected(option.value)
+  const isDisabled = props.disabled || option.disabled
+
+  if (isDisabled && selected) {
+    return {
+      backgroundColor: 'hsl(var(--muted))',
+      color: 'hsl(var(--muted-foreground))',
+    }
+  }
+
+  if (selected) {
+    return {
+      backgroundColor: 'hsl(var(--primary))',
+      color: 'hsl(var(--primary-foreground))',
+    }
+  }
+
+  return {}
 }
 </script>
 
@@ -110,6 +134,7 @@ const getButtonClasses = (option: ButtonGroupOption<T>) => {
       :disabled="disabled || option.disabled"
       :aria-pressed="isSelected(option.value)"
       :class="getButtonClasses(option)"
+      :style="getButtonStyle(option)"
       @click="handleClick(option.value, option.disabled)"
     >
       {{ option.label }}

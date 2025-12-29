@@ -553,7 +553,7 @@ const visibilityOptions = [
           </BkFormSection>
 
           <BkFormSection title="Behavior">
-            <BkFormRow label="Strike completed" icon="list-checks">
+            <BkFormRow label="Strike completed" icon="strikethrough">
               <BkToggle
                 :model-value="todoStrikeCompleted"
                 @update:model-value="(v) => updateModuleState({ strikeCompleted: v })"
@@ -565,7 +565,7 @@ const visibilityOptions = [
                 @update:model-value="(v) => updateModuleState({ hideCompleted: v })"
               />
             </BkFormRow>
-            <BkFormRow label="Auto sort" icon="arrow-down-up">
+            <BkFormRow label="Auto sort" icon="arrow-up-down">
               <BkToggle
                 :model-value="todoAutoSort"
                 @update:model-value="(v) => updateModuleState({ autoSort: v })"
