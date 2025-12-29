@@ -4,6 +4,7 @@ import { moduleRegistry } from '../modules/ModuleRegistry'
 import { useBoardStore } from '../stores/boardStore'
 import { createToolActions } from './toolActions'
 import { createElementActions } from './elementActions'
+import { createDataActions } from './dataActions'
 
 /**
  * Core actions for Boardkit.
@@ -173,6 +174,11 @@ function createCoreActions(): ActionDefinition[] {
     // ELEMENT ACTIONS
     // ============================================
     ...createElementActions(),
+
+    // ============================================
+    // DATA SHARING ACTIONS
+    // ============================================
+    ...createDataActions(),
   ]
 }
 

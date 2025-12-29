@@ -1,12 +1,17 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { nanoid } from 'nanoid'
-import type { BoardkitDocument, Widget, Viewport } from '../types/document'
+import type { BoardkitDocument, Widget, Viewport, WidgetVisibilitySettings } from '../types/document'
+import { DEFAULT_WIDGET_VISIBILITY } from '../types/document'
 import type { CanvasElement, BoardBackground, LineElement, DrawElement } from '../types/element'
+import type { DataSharingState, DataPermission, DataLink } from '../types/dataContract'
 import { createEmptyDocument } from '../types/document'
+import { createEmptyDataSharingState } from '../types/dataContract'
 import { DEFAULT_BACKGROUND, isLineElement, isDrawElement } from '../types/element'
 import { moduleRegistry } from '../modules/ModuleRegistry'
 import { migrateDocument } from '../migrations'
+import { dataBus } from '../data/DataBus'
+import { dataAccessController } from '../data/DataAccessController'
 
 // ============================================================================
 // Selection Types
@@ -54,6 +59,13 @@ export const useBoardStore = defineStore('board', () => {
   const background = computed(() => document.value?.board.background ?? { ...DEFAULT_BACKGROUND })
   const moduleStates = computed(() => document.value?.modules ?? {})
   const title = computed(() => document.value?.meta.title ?? '')
+
+  // Data Sharing Getters
+  const dataSharing = computed(
+    (): DataSharingState => document.value?.dataSharing ?? createEmptyDataSharingState()
+  )
+  const permissions = computed(() => dataSharing.value.permissions)
+  const dataLinks = computed(() => dataSharing.value.links)
 
   // ============================================================================
   // Internal Maps for O(1) Lookups
@@ -291,6 +303,9 @@ export const useBoardStore = defineStore('board', () => {
     const moduleDef = widget ? moduleRegistry.get(widget.moduleId) : null
     const moduleName = moduleDef?.displayName ?? 'widget'
 
+    // Clean up data sharing BEFORE removing widget
+    cleanupWidgetDataSharing(widgetId)
+
     document.value.board.widgets.splice(index, 1)
     delete document.value.modules[widgetId]
 
@@ -348,6 +363,8 @@ export const useBoardStore = defineStore('board', () => {
         height: widget.rect.height,
       },
       zIndex: maxZIndex.value + 1,
+      // Copy visibility settings if they exist
+      visibility: widget.visibility ? { ...widget.visibility } : undefined,
     }
 
     // Deep clone the module state
@@ -369,6 +386,29 @@ export const useBoardStore = defineStore('board', () => {
     widget.rect.x += dx
     widget.rect.y += dy
     markDirty('Moved widget')
+  }
+
+  function updateWidgetVisibility(
+    widgetId: string,
+    updates: Partial<WidgetVisibilitySettings>
+  ) {
+    if (!document.value) return
+
+    const widget = widgetMap.value.get(widgetId)
+    if (!widget) return
+
+    // Initialize visibility if it doesn't exist
+    if (!widget.visibility) {
+      widget.visibility = { ...DEFAULT_WIDGET_VISIBILITY }
+    }
+
+    Object.assign(widget.visibility, updates)
+    markDirty('Updated widget visibility')
+  }
+
+  function getWidgetVisibility(widgetId: string): WidgetVisibilitySettings {
+    const widget = widgetMap.value.get(widgetId)
+    return widget?.visibility ?? { ...DEFAULT_WIDGET_VISIBILITY }
   }
 
   // ============================================================================
@@ -734,6 +774,8 @@ export const useBoardStore = defineStore('board', () => {
               height: widget.rect.height,
             },
             zIndex: maxZIndex.value + 1,
+            // Copy visibility settings if they exist
+            visibility: widget.visibility ? { ...widget.visibility } : undefined,
           }
           document.value.board.widgets.push(newWidget)
           document.value.modules[newId] = JSON.parse(JSON.stringify(document.value.modules[item.id]))
@@ -863,6 +905,139 @@ export const useBoardStore = defineStore('board', () => {
   }
 
   // ============================================================================
+  // Actions - Data Sharing
+  // ============================================================================
+
+  /**
+   * Grant permission for a consumer to read from a provider.
+   */
+  function grantDataPermission(
+    consumerWidgetId: string,
+    providerWidgetId: string,
+    contractId: string
+  ): DataPermission | null {
+    if (!document.value) return null
+
+    // Check if permission already exists
+    const existing = dataAccessController.checkAccess(
+      permissions.value,
+      consumerWidgetId,
+      providerWidgetId,
+      contractId
+    )
+    if (existing) return null
+
+    // Ensure dataSharing exists
+    if (!document.value.dataSharing) {
+      document.value.dataSharing = createEmptyDataSharingState()
+    }
+
+    const permission = dataAccessController.createPermission(
+      consumerWidgetId,
+      providerWidgetId,
+      contractId
+    )
+    const link = dataAccessController.createLink(permission)
+
+    document.value.dataSharing.permissions.push(permission)
+    document.value.dataSharing.links.push(link)
+
+    markDirty('Connected data source')
+    return permission
+  }
+
+  /**
+   * Revoke a data permission by ID.
+   */
+  function revokeDataPermission(permissionId: string): boolean {
+    if (!document.value?.dataSharing) return false
+
+    const index = document.value.dataSharing.permissions.findIndex((p) => p.id === permissionId)
+    if (index === -1) return false
+
+    const permission = document.value.dataSharing.permissions[index]
+
+    // Remove permission
+    document.value.dataSharing.permissions.splice(index, 1)
+
+    // Remove corresponding link
+    const linkIndex = document.value.dataSharing.links.findIndex(
+      (l) =>
+        l.consumerWidgetId === permission.consumerWidgetId &&
+        l.providerWidgetId === permission.providerWidgetId &&
+        l.contractId === permission.contractId
+    )
+    if (linkIndex >= 0) {
+      document.value.dataSharing.links.splice(linkIndex, 1)
+    }
+
+    markDirty('Disconnected data source')
+    return true
+  }
+
+  /**
+   * Revoke permission by consumer, provider, and contract IDs.
+   */
+  function revokeDataPermissionByLink(
+    consumerWidgetId: string,
+    providerWidgetId: string,
+    contractId: string
+  ): boolean {
+    if (!document.value?.dataSharing) return false
+
+    const permission = dataAccessController.findPermission(
+      permissions.value,
+      consumerWidgetId,
+      providerWidgetId,
+      contractId
+    )
+
+    if (!permission) return false
+    return revokeDataPermission(permission.id)
+  }
+
+  /**
+   * Clean up data sharing state when a widget is deleted.
+   */
+  function cleanupWidgetDataSharing(widgetId: string): void {
+    if (!document.value?.dataSharing) return
+
+    // Remove all permissions where widget is consumer or provider
+    document.value.dataSharing.permissions = document.value.dataSharing.permissions.filter(
+      (p) => p.consumerWidgetId !== widgetId && p.providerWidgetId !== widgetId
+    )
+
+    // Remove all links
+    document.value.dataSharing.links = document.value.dataSharing.links.filter(
+      (l) => l.consumerWidgetId !== widgetId && l.providerWidgetId !== widgetId
+    )
+
+    // Clean up DataBus subscriptions
+    dataBus.removeWidget(widgetId)
+  }
+
+  /**
+   * Get all permissions for a consumer widget.
+   */
+  function getConsumerPermissions(consumerWidgetId: string): DataPermission[] {
+    return dataAccessController.getConsumerPermissions(permissions.value, consumerWidgetId)
+  }
+
+  /**
+   * Get all permissions for a provider widget.
+   */
+  function getProviderPermissions(providerWidgetId: string): DataPermission[] {
+    return dataAccessController.getProviderPermissions(permissions.value, providerWidgetId)
+  }
+
+  /**
+   * Get all widgets that can provide a specific contract.
+   */
+  function getAvailableProviders(contractId: string): Array<{ id: string; moduleId: string }> {
+    return dataAccessController.getAvailableProviders(widgets.value, contractId)
+  }
+
+  // ============================================================================
   // Return
   // ============================================================================
 
@@ -914,6 +1089,8 @@ export const useBoardStore = defineStore('board', () => {
     resizeWidget,
     duplicateWidget,
     nudgeWidget,
+    updateWidgetVisibility,
+    getWidgetVisibility,
 
     // Actions - Element
     addElement,
@@ -950,5 +1127,18 @@ export const useBoardStore = defineStore('board', () => {
     // Actions - Dirty State
     markDirty,
     markClean,
+
+    // Data Sharing - Getters
+    dataSharing,
+    permissions,
+    dataLinks,
+
+    // Data Sharing - Actions
+    grantDataPermission,
+    revokeDataPermission,
+    revokeDataPermissionByLink,
+    getConsumerPermissions,
+    getProviderPermissions,
+    getAvailableProviders,
   }
 })

@@ -5,6 +5,8 @@
 
 import type { CanvasElement, BoardBackground } from './element'
 import { DEFAULT_BACKGROUND } from './element'
+import type { DataSharingState } from './dataContract'
+import { createEmptyDataSharingState } from './dataContract'
 
 // ============================================================================
 // Current Document Version
@@ -13,8 +15,12 @@ import { DEFAULT_BACKGROUND } from './element'
 /**
  * Current document format version.
  * Increment this when making breaking changes to the document structure.
+ *
+ * Version history:
+ * - v1: Initial version with widgets, elements, and background
+ * - v2: Added dataSharing for inter-module data sharing
  */
-export const CURRENT_DOCUMENT_VERSION = 1
+export const CURRENT_DOCUMENT_VERSION = 2
 
 // ============================================================================
 // Geometry Types
@@ -37,11 +43,30 @@ export interface Viewport {
 // Widget Types
 // ============================================================================
 
+/** How the widget frame appears visually */
+export type WidgetVisibilityMode = 'transparent' | 'subtle' | 'visible'
+
+/** Per-widget visibility settings */
+export interface WidgetVisibilitySettings {
+  /** Appearance when widget is at rest (not hovered, not selected) */
+  restMode: WidgetVisibilityMode
+  /** Appearance when widget is hovered */
+  hoverMode: WidgetVisibilityMode
+}
+
+/** Default visibility settings for new widgets */
+export const DEFAULT_WIDGET_VISIBILITY: WidgetVisibilitySettings = {
+  restMode: 'transparent',
+  hoverMode: 'subtle',
+}
+
 export interface Widget {
   id: string
   moduleId: string
   rect: Rect
   zIndex: number
+  /** Widget frame visibility settings (optional, defaults applied if missing) */
+  visibility?: WidgetVisibilitySettings
 }
 
 // ============================================================================
@@ -72,6 +97,8 @@ export interface BoardkitDocument {
   meta: DocumentMeta
   board: BoardState
   modules: Record<string, unknown>
+  /** Data sharing state (permissions and links) - added in v2 */
+  dataSharing?: DataSharingState
 }
 
 // ============================================================================
@@ -97,5 +124,6 @@ export function createEmptyDocument(title: string): BoardkitDocument {
       background: { ...DEFAULT_BACKGROUND },
     },
     modules: {},
+    dataSharing: createEmptyDataSharingState(),
   }
 }

@@ -47,6 +47,7 @@ export default {
           foreground: 'hsl(var(--widget-foreground) / <alpha-value>)',
           border: 'hsl(var(--widget-border) / <alpha-value>)',
         },
+        overlay: 'hsl(var(--overlay) / <alpha-value>)',
       },
       borderRadius: {
         lg: 'var(--radius)',           // 8px

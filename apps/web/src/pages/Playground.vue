@@ -8,6 +8,11 @@ import {
   BkColorPicker,
   BkSlider,
   SelectionHandles,
+  BkToggle,
+  BkSelect,
+  BkButtonGroup,
+  BkFormRow,
+  BkFormSection,
 } from "@boardkit/ui";
 import { RouterLink } from "vue-router";
 
@@ -51,6 +56,61 @@ const tools = [
   { id: "pencil", icon: "pencil", label: "Pencil" },
   { id: "text", icon: "type", label: "Text" },
 ];
+
+// Form Components state
+const toggleDefault = ref(false);
+const toggleOn = ref(true);
+const toggleDisabled = ref(false);
+const toggleSmall = ref(true);
+
+const selectTheme = ref<string>("system");
+const selectSize = ref<string>("medium");
+const themeOptions = [
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+  { value: "system", label: "System" },
+];
+const sizeOptions = [
+  { value: "small", label: "Small" },
+  { value: "medium", label: "Medium" },
+  { value: "large", label: "Large" },
+];
+
+const buttonGroupSize = ref<string>("M");
+const buttonGroupMultiple = ref<string[]>(["B"]);
+const sizeButtonOptions = [
+  { value: "S", label: "S" },
+  { value: "M", label: "M" },
+  { value: "L", label: "L" },
+];
+const formatButtonOptions = [
+  { value: "B", label: "B" },
+  { value: "I", label: "I" },
+  { value: "U", label: "U" },
+];
+
+// Module Settings examples state
+const textSettings = ref({
+  autoSave: true,
+  fontSize: "medium",
+  enableShortcuts: true,
+  autoLinks: false,
+});
+
+const todoSettings = ref({
+  showCompleted: true,
+  sortBy: "date",
+  groupByPriority: false,
+});
+
+const radarSettings = ref({
+  title: "Task Radar",
+  refreshInterval: "30",
+});
+
+const focusSettings = ref({
+  showMode: "next",
+});
 </script>
 
 <template>
@@ -123,7 +183,7 @@ const tools = [
           >
             <!-- Backdrop -->
             <div
-              class="fixed inset-0 bg-black/80 backdrop-blur-sm"
+              class="fixed inset-0 bg-overlay/80 backdrop-blur-sm"
               @click="isCommandOpen = false"
             />
 
@@ -259,7 +319,7 @@ const tools = [
               <p>
                 <strong>Dialog:</strong>
                 <code class="text-xs bg-muted px-2 py-1 rounded ml-2">
-                  fixed inset-0 z-50 pt-[15vh] bg-black/80 backdrop-blur-sm
+                  fixed inset-0 z-50 pt-[15vh] bg-overlay/80 backdrop-blur-sm
                 </code>
               </p>
               <p>
@@ -558,7 +618,7 @@ const tools = [
             style="
               background: radial-gradient(
                 circle,
-                rgba(255, 255, 255, 0.1) 1px,
+                rgba(var(--grid-color), 0.1) 1px,
                 transparent 1px
               );
               background-size: 20px 20px;
@@ -575,7 +635,7 @@ const tools = [
           <div class="text-sm text-muted-foreground">
             <p>Style CSS utilisé:</p>
             <code class="text-xs bg-muted px-2 py-1 rounded block mt-1">
-              background: radial-gradient(circle, rgba(255,255,255,0.1) 1px,
+              background: radial-gradient(circle, rgba(var(--grid-color),0.1) 1px,
               transparent 1px)
             </code>
             <code class="text-xs bg-muted px-2 py-1 rounded block mt-1"
@@ -617,7 +677,7 @@ const tools = [
             Barre d'outils flottante avec boutons de sélection d'outils
           </p>
 
-          <div class="relative bg-neutral-900 rounded-lg p-8 min-h-[120px] flex items-center justify-center">
+          <div class="relative bg-muted rounded-lg p-8 min-h-[120px] flex items-center justify-center">
             <BkToolbar position="bottom-center" class="relative transform-none">
               <template v-for="(tool, index) in tools" :key="tool.id">
                 <div v-if="index === 2" class="w-px h-6 bg-border mx-1" />
@@ -703,13 +763,13 @@ const tools = [
           <div class="flex gap-8">
             <div class="space-y-2">
               <p class="text-xs font-medium">All handles (shapes)</p>
-              <svg width="160" height="100" class="bg-neutral-900 rounded">
+              <svg width="160" height="100" class="bg-muted rounded text-foreground">
                 <g transform="translate(20, 10)">
                   <rect
                     width="120"
                     height="80"
                     fill="none"
-                    stroke="#ffffff"
+                    stroke="currentColor"
                     stroke-width="2"
                   />
                   <SelectionHandles :width="120" :height="80" />
@@ -718,14 +778,14 @@ const tools = [
             </div>
             <div class="space-y-2">
               <p class="text-xs font-medium">Corners only (lines/draw)</p>
-              <svg width="160" height="100" class="bg-neutral-900 rounded">
+              <svg width="160" height="100" class="bg-muted rounded text-foreground">
                 <g transform="translate(20, 10)">
                   <line
                     x1="0"
                     y1="80"
                     x2="120"
                     y2="0"
-                    stroke="#ffffff"
+                    stroke="currentColor"
                     stroke-width="2"
                   />
                   <SelectionHandles :width="120" :height="80" corners-only />
@@ -1874,7 +1934,7 @@ const tools = [
               <li>
                 <strong>Overlay:</strong>
                 <code class="bg-muted px-1.5 py-0.5 rounded ml-2">
-                  fixed inset-0 z-50 bg-black/80 backdrop-blur-sm
+                  fixed inset-0 z-50 bg-overlay/80 backdrop-blur-sm
                 </code>
               </li>
               <li>
@@ -1938,7 +1998,7 @@ const tools = [
         <div v-if="isModalOpen">
           <!-- Overlay -->
           <div
-            class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm"
+            class="fixed inset-0 z-50 bg-overlay/80 backdrop-blur-sm"
             @click="isModalOpen = false"
           />
 
@@ -3440,6 +3500,433 @@ const tools = [
           <code class="text-xs bg-muted px-2 py-1 rounded block">
             border border-primary bg-primary/10 p-4 | flex items-start gap-3
           </code>
+        </div>
+      </section>
+
+      <!-- Form Components Section -->
+      <section class="space-y-6">
+        <div class="space-y-2">
+          <h2 class="text-2xl font-medium text-foreground">Form Components</h2>
+          <p class="text-sm text-muted-foreground">
+            Composants de formulaires pour settings, modals de configuration, et
+            interfaces utilisateur
+          </p>
+        </div>
+
+        <!-- Toggle -->
+        <div class="space-y-4">
+          <h3 class="text-lg font-medium text-foreground">BkToggle</h3>
+          <p class="text-sm text-muted-foreground">
+            Toggle switch pour options on/off
+          </p>
+
+          <div class="grid grid-cols-2 gap-8">
+            <!-- Default Size -->
+            <div class="space-y-3">
+              <h4 class="text-sm font-medium text-foreground">Default Size</h4>
+              <div class="flex items-center gap-6">
+                <div class="flex items-center gap-2">
+                  <BkToggle v-model="toggleDefault" />
+                  <span class="text-sm text-muted-foreground">Off</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <BkToggle v-model="toggleOn" />
+                  <span class="text-sm text-muted-foreground">On</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <BkToggle v-model="toggleDisabled" disabled />
+                  <span class="text-sm text-muted-foreground">Disabled</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Small Size -->
+            <div class="space-y-3">
+              <h4 class="text-sm font-medium text-foreground">Small Size</h4>
+              <div class="flex items-center gap-6">
+                <div class="flex items-center gap-2">
+                  <BkToggle v-model="toggleDefault" size="sm" />
+                  <span class="text-sm text-muted-foreground">Off</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <BkToggle v-model="toggleSmall" size="sm" />
+                  <span class="text-sm text-muted-foreground">On</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <code class="text-xs bg-muted px-2 py-1 rounded block">
+            &lt;BkToggle v-model="value" /&gt; | size="sm" | disabled
+          </code>
+        </div>
+
+        <!-- Select -->
+        <div class="space-y-4">
+          <h3 class="text-lg font-medium text-foreground">BkSelect</h3>
+          <p class="text-sm text-muted-foreground">
+            Dropdown select stylisé avec options
+          </p>
+
+          <div class="grid grid-cols-2 gap-8">
+            <!-- Default Size -->
+            <div class="space-y-3">
+              <h4 class="text-sm font-medium text-foreground">Default Size</h4>
+              <div class="flex items-center gap-4">
+                <BkSelect v-model="selectTheme" :options="themeOptions" />
+                <span class="text-sm text-muted-foreground">
+                  Selected: {{ selectTheme }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Small Size -->
+            <div class="space-y-3">
+              <h4 class="text-sm font-medium text-foreground">Small Size</h4>
+              <div class="flex items-center gap-4">
+                <BkSelect
+                  v-model="selectSize"
+                  :options="sizeOptions"
+                  size="sm"
+                />
+                <span class="text-sm text-muted-foreground">
+                  Selected: {{ selectSize }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <code class="text-xs bg-muted px-2 py-1 rounded block">
+            &lt;BkSelect v-model="value" :options="[{value, label}]" /&gt; |
+            size="sm" | placeholder="..."
+          </code>
+        </div>
+
+        <!-- ButtonGroup -->
+        <div class="space-y-4">
+          <h3 class="text-lg font-medium text-foreground">BkButtonGroup</h3>
+          <p class="text-sm text-muted-foreground">
+            Contrôle segmenté pour options mutuellement exclusives ou multiples
+          </p>
+
+          <div class="grid grid-cols-2 gap-8">
+            <!-- Single Select -->
+            <div class="space-y-3">
+              <h4 class="text-sm font-medium text-foreground">
+                Single Select
+              </h4>
+              <div class="flex items-center gap-4">
+                <BkButtonGroup
+                  v-model="buttonGroupSize"
+                  :options="sizeButtonOptions"
+                />
+                <span class="text-sm text-muted-foreground">
+                  Selected: {{ buttonGroupSize }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Multiple Select -->
+            <div class="space-y-3">
+              <h4 class="text-sm font-medium text-foreground">
+                Multiple Select
+              </h4>
+              <div class="flex items-center gap-4">
+                <BkButtonGroup
+                  v-model="buttonGroupMultiple"
+                  :options="formatButtonOptions"
+                  multiple
+                />
+                <span class="text-sm text-muted-foreground">
+                  Selected: {{ buttonGroupMultiple.join(", ") }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Full Width -->
+          <div class="space-y-3">
+            <h4 class="text-sm font-medium text-foreground">Full Width</h4>
+            <div class="max-w-xs">
+              <BkButtonGroup
+                v-model="buttonGroupSize"
+                :options="sizeButtonOptions"
+                full-width
+              />
+            </div>
+          </div>
+
+          <code class="text-xs bg-muted px-2 py-1 rounded block">
+            &lt;BkButtonGroup v-model="value" :options="[{value, label}]" /&gt;
+            | multiple | full-width | size="sm"
+          </code>
+        </div>
+
+        <!-- FormRow -->
+        <div class="space-y-4">
+          <h3 class="text-lg font-medium text-foreground">BkFormRow</h3>
+          <p class="text-sm text-muted-foreground">
+            Container pour label + contrôle + hint
+          </p>
+
+          <div class="space-y-6">
+            <!-- Inline Layout -->
+            <div class="space-y-3">
+              <h4 class="text-sm font-medium text-foreground">
+                Inline Layout (default)
+              </h4>
+              <div
+                class="max-w-md rounded-lg border border-border bg-card divide-y divide-border"
+              >
+                <BkFormRow label="Auto-save" icon="save">
+                  <BkToggle v-model="textSettings.autoSave" />
+                </BkFormRow>
+                <BkFormRow label="Theme" hint="Choose your preferred theme">
+                  <BkSelect v-model="selectTheme" :options="themeOptions" />
+                </BkFormRow>
+                <BkFormRow label="Enable shortcuts" icon="keyboard" required>
+                  <BkToggle v-model="textSettings.enableShortcuts" />
+                </BkFormRow>
+              </div>
+            </div>
+
+            <!-- Stacked Layout -->
+            <div class="space-y-3">
+              <h4 class="text-sm font-medium text-foreground">Stacked Layout</h4>
+              <div
+                class="max-w-md rounded-lg border border-border bg-card divide-y divide-border"
+              >
+                <BkFormRow
+                  label="Font Size"
+                  layout="stacked"
+                  icon="type"
+                  hint="Select your preferred text size"
+                >
+                  <BkButtonGroup
+                    v-model="textSettings.fontSize"
+                    :options="sizeOptions"
+                    full-width
+                  />
+                </BkFormRow>
+              </div>
+            </div>
+          </div>
+
+          <code class="text-xs bg-muted px-2 py-1 rounded block">
+            &lt;BkFormRow label="..." layout="inline|stacked" icon="..." hint="..."
+            required&gt; &lt;slot /&gt; &lt;/BkFormRow&gt;
+          </code>
+        </div>
+
+        <!-- FormSection -->
+        <div class="space-y-4">
+          <h3 class="text-lg font-medium text-foreground">BkFormSection</h3>
+          <p class="text-sm text-muted-foreground">
+            Groupe de form rows avec titre et séparateurs
+          </p>
+
+          <div class="grid grid-cols-2 gap-8">
+            <!-- Basic Section -->
+            <div class="space-y-3">
+              <h4 class="text-sm font-medium text-foreground">Basic Section</h4>
+              <BkFormSection title="Appearance">
+                <BkFormRow label="Theme">
+                  <BkSelect v-model="selectTheme" :options="themeOptions" />
+                </BkFormRow>
+                <BkFormRow label="Auto-save" icon="save">
+                  <BkToggle v-model="textSettings.autoSave" />
+                </BkFormRow>
+              </BkFormSection>
+            </div>
+
+            <!-- Collapsible Section -->
+            <div class="space-y-3">
+              <h4 class="text-sm font-medium text-foreground">
+                Collapsible Section
+              </h4>
+              <BkFormSection title="Advanced" collapsible>
+                <BkFormRow label="Enable shortcuts">
+                  <BkToggle v-model="textSettings.enableShortcuts" />
+                </BkFormRow>
+                <BkFormRow label="Auto-links" icon="link">
+                  <BkToggle v-model="textSettings.autoLinks" />
+                </BkFormRow>
+              </BkFormSection>
+            </div>
+          </div>
+
+          <code class="text-xs bg-muted px-2 py-1 rounded block">
+            &lt;BkFormSection title="..." collapsible defaultCollapsed
+            noDividers&gt; &lt;BkFormRow&gt;...&lt;/BkFormRow&gt;
+            &lt;/BkFormSection&gt;
+          </code>
+        </div>
+      </section>
+
+      <!-- Module Settings Examples -->
+      <section class="space-y-6">
+        <div class="space-y-2">
+          <h2 class="text-2xl font-medium text-foreground">
+            Module Settings Examples
+          </h2>
+          <p class="text-sm text-muted-foreground">
+            Exemples complets de panels de settings utilisant les form
+            components
+          </p>
+        </div>
+
+        <div class="grid grid-cols-2 gap-8">
+          <!-- Text Widget Settings -->
+          <div class="space-y-3">
+            <h3 class="text-lg font-medium text-foreground">
+              Text Widget Settings
+            </h3>
+            <div class="space-y-4">
+              <BkFormSection title="Comportement">
+                <BkFormRow
+                  label="Auto-save"
+                  icon="save"
+                  hint="Sauvegarder automatiquement les modifications"
+                >
+                  <BkToggle v-model="textSettings.autoSave" />
+                </BkFormRow>
+              </BkFormSection>
+
+              <BkFormSection title="Texte">
+                <BkFormRow label="Taille de police" layout="stacked" icon="type">
+                  <BkButtonGroup
+                    v-model="textSettings.fontSize"
+                    :options="sizeOptions"
+                    full-width
+                  />
+                </BkFormRow>
+              </BkFormSection>
+
+              <BkFormSection title="Fonctionnalités">
+                <BkFormRow label="Raccourcis clavier" icon="keyboard">
+                  <BkToggle v-model="textSettings.enableShortcuts" />
+                </BkFormRow>
+                <BkFormRow
+                  label="Liens automatiques"
+                  icon="link"
+                  hint="Convertir les URLs en liens cliquables"
+                >
+                  <BkToggle v-model="textSettings.autoLinks" />
+                </BkFormRow>
+              </BkFormSection>
+            </div>
+          </div>
+
+          <!-- Todo Widget Settings -->
+          <div class="space-y-3">
+            <h3 class="text-lg font-medium text-foreground">
+              Todo Widget Settings
+            </h3>
+            <div class="space-y-4">
+              <BkFormSection title="Affichage">
+                <BkFormRow
+                  label="Afficher les tâches complétées"
+                  icon="check-circle"
+                >
+                  <BkToggle v-model="todoSettings.showCompleted" />
+                </BkFormRow>
+                <BkFormRow label="Grouper par priorité" icon="layers">
+                  <BkToggle v-model="todoSettings.groupByPriority" />
+                </BkFormRow>
+              </BkFormSection>
+
+              <BkFormSection title="Tri">
+                <BkFormRow label="Trier par" layout="stacked">
+                  <BkSelect
+                    v-model="todoSettings.sortBy"
+                    :options="[
+                      { value: 'date', label: 'Date de création' },
+                      { value: 'priority', label: 'Priorité' },
+                      { value: 'alphabetical', label: 'Alphabétique' },
+                    ]"
+                  />
+                </BkFormRow>
+              </BkFormSection>
+            </div>
+          </div>
+
+          <!-- Task Radar Settings -->
+          <div class="space-y-3">
+            <h3 class="text-lg font-medium text-foreground">
+              Task Radar Settings
+            </h3>
+            <div class="space-y-4">
+              <BkFormSection title="Général">
+                <BkFormRow label="Titre" layout="stacked">
+                  <input
+                    v-model="radarSettings.title"
+                    type="text"
+                    class="w-full h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </BkFormRow>
+              </BkFormSection>
+
+              <BkFormSection title="Sources de données">
+                <BkFormRow label="Intervalle de rafraîchissement" icon="clock">
+                  <BkSelect
+                    v-model="radarSettings.refreshInterval"
+                    :options="[
+                      { value: '15', label: '15 sec' },
+                      { value: '30', label: '30 sec' },
+                      { value: '60', label: '1 min' },
+                    ]"
+                  />
+                </BkFormRow>
+              </BkFormSection>
+            </div>
+          </div>
+
+          <!-- Focus Lens Settings -->
+          <div class="space-y-3">
+            <h3 class="text-lg font-medium text-foreground">
+              Focus Lens Settings
+            </h3>
+            <div class="space-y-4">
+              <BkFormSection title="Affichage">
+                <BkFormRow
+                  label="Mode d'affichage"
+                  layout="stacked"
+                  hint="Choisir quelle tâche afficher"
+                >
+                  <BkButtonGroup
+                    v-model="focusSettings.showMode"
+                    :options="[
+                      { value: 'next', label: 'Suivante' },
+                      { value: 'random', label: 'Aléatoire' },
+                    ]"
+                    full-width
+                  />
+                </BkFormRow>
+              </BkFormSection>
+
+              <BkFormSection title="Source de données">
+                <div class="p-3">
+                  <div
+                    class="flex flex-col items-center justify-center text-center py-4"
+                  >
+                    <BkIcon
+                      icon="link"
+                      :size="24"
+                      class="text-muted-foreground mb-2"
+                    />
+                    <p class="text-sm text-muted-foreground mb-1">
+                      Aucune source connectée
+                    </p>
+                    <button
+                      class="text-xs text-primary hover:underline"
+                    >
+                      Connecter une liste Todo
+                    </button>
+                  </div>
+                </div>
+              </BkFormSection>
+            </div>
+          </div>
         </div>
       </section>
     </div>

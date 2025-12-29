@@ -51,6 +51,12 @@
 
     /* Radius */
     --radius: 0.5rem;                 /* 8px */
+
+    /* Overlay (for modals, dialogs) */
+    --overlay: 0 0% 0%;               /* black overlay */
+
+    /* Canvas grid pattern color */
+    --grid-color: 255, 255, 255;      /* white for dark mode */
   }
 
   /* Light mode */
@@ -89,6 +95,12 @@
     --widget: 0 0% 100%;
     --widget-foreground: 0 0% 4%;
     --widget-border: 0 0% 88%;
+
+    /* Overlay (for modals, dialogs) */
+    --overlay: 0 0% 0%;               /* still black for light mode */
+
+    /* Canvas grid pattern color */
+    --grid-color: 0, 0, 0;            /* black for light mode */
   }
 }
 
@@ -106,6 +118,6 @@
 /* Canvas background pattern - 20px grid */
 .canvas-grid {
   background-image:
-    radial-gradient(circle, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+    radial-gradient(circle, rgba(var(--grid-color), 0.1) 1px, transparent 1px);
   background-size: 20px 20px;
 }

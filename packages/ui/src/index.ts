@@ -9,11 +9,23 @@ export { default as BkDropdown } from './components/BkDropdown.vue'
 export { default as BkMenu } from './components/BkMenu.vue'
 export { default as BkHistoryList } from './components/BkHistoryList.vue'
 export { default as BkModal } from './components/BkModal.vue'
+export { default as BkDataConnectionDialog } from './components/BkDataConnectionDialog.vue'
+export { default as BkDataSourcePicker } from './components/BkDataSourcePicker.vue'
+export type { ProviderInfo } from './components/BkDataSourcePicker.vue'
 export { default as BkTooltip } from './components/BkTooltip.vue'
 export { default as BkDivider } from './components/BkDivider.vue'
 export { default as BkEditableText } from './components/BkEditableText.vue'
 export { default as WidgetFrame } from './components/WidgetFrame.vue'
 export { default as BkContextMenu } from './components/BkContextMenu.vue'
+
+// Form Components
+export { default as BkToggle } from './components/BkToggle.vue'
+export { default as BkSelect } from './components/BkSelect.vue'
+export type { SelectOption } from './components/BkSelect.vue'
+export { default as BkButtonGroup } from './components/BkButtonGroup.vue'
+export type { ButtonGroupOption } from './components/BkButtonGroup.vue'
+export { default as BkFormRow } from './components/BkFormRow.vue'
+export { default as BkFormSection } from './components/BkFormSection.vue'
 
 // Canvas Tool Components
 export { default as BkToolbar } from './components/BkToolbar.vue'

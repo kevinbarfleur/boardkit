@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { watch, onBeforeUnmount } from 'vue'
+import { watch, onBeforeUnmount, computed } from 'vue'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import { Markdown } from 'tiptap-markdown'
@@ -18,11 +18,33 @@ interface Props {
   modelValue: string
   placeholder?: string
   editable?: boolean
+  fontSize?: 'small' | 'medium' | 'large'
+  lineHeight?: 'compact' | 'normal' | 'spacious'
 }
 
 const props = withDefaults(defineProps<Props>(), {
   placeholder: 'Start typing...',
   editable: true,
+  fontSize: 'medium',
+  lineHeight: 'normal',
+})
+
+// Compute font size class
+const fontSizeClass = computed(() => {
+  switch (props.fontSize) {
+    case 'small': return 'text-size-small'
+    case 'large': return 'text-size-large'
+    default: return 'text-size-medium'
+  }
+})
+
+// Compute line height class
+const lineHeightClass = computed(() => {
+  switch (props.lineHeight) {
+    case 'compact': return 'line-height-compact'
+    case 'spacious': return 'line-height-spacious'
+    default: return 'line-height-normal'
+  }
 })
 
 const emit = defineEmits<{
@@ -114,7 +136,7 @@ defineExpose({
 </script>
 
 <template>
-  <div class="tiptap-wrapper h-full">
+  <div class="tiptap-wrapper h-full" :class="[fontSizeClass, lineHeightClass]">
     <EditorContent :editor="editor" class="h-full" />
   </div>
 </template>
@@ -123,6 +145,32 @@ defineExpose({
 /* Editor container */
 .tiptap-wrapper {
   height: 100%;
+}
+
+/* Font size variants */
+.tiptap-wrapper.text-size-small .tiptap {
+  font-size: 0.8125rem; /* 13px */
+}
+
+.tiptap-wrapper.text-size-medium .tiptap {
+  font-size: 0.875rem; /* 14px */
+}
+
+.tiptap-wrapper.text-size-large .tiptap {
+  font-size: 1rem; /* 16px */
+}
+
+/* Line height variants */
+.tiptap-wrapper.line-height-compact .tiptap {
+  line-height: 1.4;
+}
+
+.tiptap-wrapper.line-height-normal .tiptap {
+  line-height: 1.6;
+}
+
+.tiptap-wrapper.line-height-spacious .tiptap {
+  line-height: 1.8;
 }
 
 .tiptap-wrapper .tiptap {

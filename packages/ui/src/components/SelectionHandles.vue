@@ -79,7 +79,6 @@ function handleMouseDown(handle: string, event: MouseEvent) {
       :width="handleSize"
       :height="handleSize"
       rx="2"
-      fill="white"
       stroke="hsl(217 91% 60%)"
       stroke-width="1"
       :style="{ cursor: handle.cursor }"
@@ -91,6 +90,7 @@ function handleMouseDown(handle: string, event: MouseEvent) {
 <style scoped>
 .handle {
   pointer-events: auto;
+  fill: hsl(var(--popover));
 }
 
 .handle:hover {

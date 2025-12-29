@@ -201,7 +201,7 @@ export const DEFAULT_ELEMENT_STYLE: ElementStyle = {
 
 export const DEFAULT_BACKGROUND: BoardBackground = {
   pattern: 'dots',
-  color: '#0a0a0a',
+  color: 'auto', // 'auto' = use theme background color
 }
 
 export const DEFAULT_FONT_SIZE = 16

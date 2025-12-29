@@ -54,6 +54,22 @@ const migrations: Migration[] = [
       }
     },
   },
+  {
+    fromVersion: 1,
+    toVersion: 2,
+    migrate: (doc: LegacyDocument): LegacyDocument => {
+      // Migration v1 -> v2:
+      // - Add dataSharing for inter-module data sharing
+      return {
+        ...doc,
+        version: 2,
+        dataSharing: doc.dataSharing ?? {
+          permissions: [],
+          links: [],
+        },
+      }
+    },
+  },
 ]
 
 // ============================================================================

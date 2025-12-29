@@ -194,7 +194,7 @@ watch(
       >
         <!-- Backdrop -->
         <div
-          class="fixed inset-0 bg-black/80 backdrop-blur-sm"
+          class="fixed inset-0 bg-overlay/80 backdrop-blur-sm"
           aria-hidden="true"
           @click="close"
         />

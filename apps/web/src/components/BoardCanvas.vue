@@ -7,22 +7,26 @@ import {
   useKeyboardShortcuts,
   actionRegistry,
   FONT_FAMILY_CSS,
+  DEFAULT_WIDGET_VISIBILITY,
   type ActionContext,
   type ActionContextType,
   type CanvasElement,
   type TextElement,
+  type Widget,
   isDrawingTool,
 } from '@boardkit/core'
 import {
   WidgetFrame,
   BkContextMenu,
+  BkDataSourcePicker,
+  useTheme,
   type ContextMenuItem,
   type ContextMenuItemOrSeparator,
 } from '@boardkit/ui'
 import WidgetRenderer from './WidgetRenderer.vue'
 import CanvasElementsLayer from './CanvasElementsLayer.vue'
 import ToolToolbar from './ToolToolbar.vue'
-import { useWidgetSettings } from '../composables/useWidgetSettings'
+import { useDataSharingUI } from '../composables/useDataSharingUI'
 
 const emit = defineEmits<{
   openCommandPalette: []
@@ -30,7 +34,23 @@ const emit = defineEmits<{
 
 const boardStore = useBoardStore()
 const toolStore = useToolStore()
-const { visibility } = useWidgetSettings()
+const dataSharingUI = useDataSharingUI()
+const { theme } = useTheme()
+
+// Grid color based on theme (white for dark, black for light)
+const gridColor = computed(() => {
+  // Get the effective theme (considering 'system' option)
+  const effectiveTheme = theme.value === 'system'
+    ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+    : theme.value
+  return effectiveTheme === 'light' ? '0, 0, 0' : '255, 255, 255'
+})
+
+// Helper to get widget visibility with defaults
+const getWidgetVisibility = (widget: Widget) => ({
+  restMode: widget.visibility?.restMode ?? DEFAULT_WIDGET_VISIBILITY.restMode,
+  hoverMode: widget.visibility?.hoverMode ?? DEFAULT_WIDGET_VISIBILITY.hoverMode,
+})
 
 const canvasRef = ref<HTMLElement | null>(null)
 const isPanning = ref(false)
@@ -134,16 +154,20 @@ const backgroundStyle = computed(() => {
 
   let backgroundImage = 'none'
   if (bg.pattern === 'dots') {
-    backgroundImage = `radial-gradient(circle, rgba(255, 255, 255, 0.1) 1px, transparent 1px)`
+    backgroundImage = `radial-gradient(circle, rgba(${gridColor.value}, 0.1) 1px, transparent 1px)`
   } else if (bg.pattern === 'grid') {
     backgroundImage = `
-      linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px)
+      linear-gradient(rgba(${gridColor.value}, 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(${gridColor.value}, 0.05) 1px, transparent 1px)
     `
   }
 
+  // Use theme background when color is 'auto' or matches old default dark color
+  const isAutoColor = bg.color === 'auto' || bg.color === '#0a0a0a'
+  const bgColor = isAutoColor ? 'hsl(var(--background))' : bg.color
+
   return {
-    backgroundColor: bg.color,
+    backgroundColor: bgColor,
     backgroundImage,
     backgroundPosition: `${viewport.value.x}px ${viewport.value.y}px`,
     backgroundSize: `${baseSize}px ${baseSize}px`,
@@ -1016,8 +1040,8 @@ onUnmounted(() => {
         :is-multi-selected="isMultiSelection && selectedWidgetIds.includes(widget.id)"
         :is-dragging="draggingWidgetIds.includes(widget.id)"
         :drag-offset="draggingWidgetIds.includes(widget.id) ? dragOffset : { x: 0, y: 0 }"
-        :rest-mode="visibility.restMode"
-        :hover-mode="visibility.hoverMode"
+        :rest-mode="getWidgetVisibility(widget).restMode"
+        :hover-mode="getWidgetVisibility(widget).hoverMode"
         @select="(id, event) => handleWidgetSelect(id, event)"
         @move="handleWidgetMove"
         @resize="handleWidgetResize"
@@ -1068,6 +1092,20 @@ onUnmounted(() => {
       :items="contextMenuItems"
       @close="closeContextMenu"
       @select="handleContextMenuSelect"
+    />
+
+    <!-- Data Source Picker Modal -->
+    <BkDataSourcePicker
+      :open="dataSharingUI.pickerOpen.value"
+      :providers="dataSharingUI.availableProviders.value"
+      :current-connections="dataSharingUI.currentConnections.value"
+      :multi-select="dataSharingUI.pickerConfig.value?.multiSelect ?? false"
+      title="Connect Data Source"
+      description="Select a data source to connect:"
+      empty-text="No data sources available"
+      empty-hint="Add a Todo widget first, then you can connect to it"
+      @close="dataSharingUI.closePicker"
+      @update:connections="dataSharingUI.handleConnectionsUpdate"
     />
   </div>
 </template>
