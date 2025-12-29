@@ -22,7 +22,7 @@ No ad-hoc paddings, font sizes, radii, or random colors. Every value used repeat
 
 ## Implementation Rules (Non-negotiable)
 
-- **All spacing must use Tailwind's spacing scale** (multiples of 4px: `p-2`, `gap-4`, etc.)
+- **All spacing must use the spacing scale** (multiples of 4px: `p-2`, `gap-4`, etc.)
 - **No inline styles** except for dynamic positioning (widget coordinates)
 - **No arbitrary values** (e.g. `p-[13px]`, `text-[15px]`) unless documented
 - **Default density is Compact** - h-9 buttons, h-9 icon buttons, compact padding
@@ -111,7 +111,7 @@ Goal: Modern and clean, not overly rounded.
 
 **Token:** `--radius: 0.5rem` (8px)
 
-**Tailwind Mapping:**
+**Utility Class Mapping:**
 - `rounded-lg` → `0.5rem` (8px) - topbar, large surfaces, widgets
 - `rounded-md` → `0.375rem` (6px) - inputs, small buttons
 - `rounded-sm` → `0.25rem` (4px) - small elements
@@ -131,7 +131,7 @@ Goal: Modern and clean, not overly rounded.
 **Sans Serif:** Inter (or Geist fallback)
 **Monospace:** Geist Mono (for code elements)
 
-**Application:** Fonts applied via `font-sans` and `font-mono` Tailwind classes.
+**Application:** Fonts applied via `font-sans` and `font-mono` utility classes.
 
 ### Font Sizes
 
@@ -156,17 +156,17 @@ Goal: Modern and clean, not overly rounded.
 
 - Body text: `leading-relaxed` (1.625) for readability
 - Compact elements: `leading-none` (1) for icons
-- Default: Tailwind's default leading based on font size
+- Default: UnoCSS default leading based on font size
 
 ---
 
 ## Spacing & Density
 
-Base spacing grid: **4px** (Tailwind default: `1` = 0.25rem = 4px)
+Base spacing grid: **4px** (UnoCSS default: `1` = 0.25rem = 4px)
 
 ### Component Heights (Compact Default)
 
-| Component | Height | Tailwind Class |
+| Component | Height | Class |
 |-----------|--------|----------------|
 | Topbar | 56px | `h-14` |
 | Button (default) | 36px | `h-9` |
@@ -328,7 +328,7 @@ hover:bg-accent hover:text-accent-foreground
 - Menu items: Subtle background highlight
 
 **Transition:**
-- Duration: 150ms (Tailwind default)
+- Duration: 150ms (default)
 - Property: `transition-colors`
 
 ### Focus

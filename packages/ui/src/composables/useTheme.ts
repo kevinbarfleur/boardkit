@@ -1,54 +1,51 @@
-import { ref, watch } from 'vue'
-
-const THEME_KEY = 'boardkit-theme'
+import { computed, watch } from 'vue'
+import { useStorage, usePreferredDark } from '@vueuse/core'
 
 export type Theme = 'light' | 'dark' | 'system'
 
-const currentTheme = ref<Theme>('system')
+const THEME_KEY = 'boardkit-theme'
+
+// Persistent theme preference with VueUse
+const storedTheme = useStorage<Theme>(THEME_KEY, 'system')
+
+// System preference detection with VueUse
+const prefersDark = usePreferredDark()
 
 export function useTheme() {
-  const initTheme = () => {
-    const saved = localStorage.getItem(THEME_KEY) as Theme | null
-    if (saved) {
-      currentTheme.value = saved
+  // Computed actual theme (resolved from 'system')
+  const resolvedTheme = computed(() => {
+    if (storedTheme.value === 'system') {
+      return prefersDark.value ? 'dark' : 'light'
     }
-    applyTheme(currentTheme.value)
+    return storedTheme.value
+  })
+
+  // Apply theme to document
+  const applyTheme = () => {
+    const root = document.documentElement
+    root.classList.remove('light', 'dark')
+    root.classList.add(resolvedTheme.value)
   }
 
+  // Watch for changes and apply automatically
+  watch(resolvedTheme, applyTheme, { immediate: true })
+
   const setTheme = (theme: Theme) => {
-    currentTheme.value = theme
-    localStorage.setItem(THEME_KEY, theme)
-    applyTheme(theme)
+    storedTheme.value = theme
   }
 
   const toggleTheme = () => {
-    const next = currentTheme.value === 'dark' ? 'light' : 'dark'
-    setTheme(next)
+    const current = storedTheme.value === 'system' ? resolvedTheme.value : storedTheme.value
+    setTheme(current === 'dark' ? 'light' : 'dark')
   }
 
-  const applyTheme = (theme: Theme) => {
-    const root = document.documentElement
-    root.classList.remove('light', 'dark')
-
-    if (theme === 'system') {
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-      root.classList.add(prefersDark ? 'dark' : 'light')
-    } else {
-      root.classList.add(theme)
-    }
-  }
-
-  // Watch for system preference changes
-  if (typeof window !== 'undefined') {
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-      if (currentTheme.value === 'system') {
-        applyTheme('system')
-      }
-    })
+  const initTheme = () => {
+    applyTheme()
   }
 
   return {
-    theme: currentTheme,
+    theme: storedTheme,
+    resolvedTheme,
     initTheme,
     setTheme,
     toggleTheme,

@@ -258,13 +258,13 @@ watch(isOpen, (value) => {
 const triggerClasses = computed(() => {
   const base = [
     'inline-flex items-center justify-between gap-2',
-    'rounded-md border border-input bg-background',
+    'rounded-lg border border-border bg-background',
     'text-sm transition-colors',
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
   ]
 
   if (props.size === 'sm') {
-    base.push('h-8 px-2.5 min-w-32')
+    base.push('h-8 px-3 min-w-32')
   } else {
     base.push('h-9 px-3 min-w-36')
   }
@@ -282,7 +282,7 @@ const triggerClasses = computed(() => {
 const getOptionClasses = (index: number) => {
   const option = props.options[index]
   const base = [
-    'relative flex cursor-pointer items-center px-3 py-2 text-sm rounded-sm',
+    'relative flex cursor-pointer items-center mx-1.5 px-2.5 py-2 text-sm rounded-md',
     'transition-colors outline-none',
   ]
 
@@ -335,7 +335,7 @@ const getOptionClasses = (index: number) => {
           ref="listRef"
           role="listbox"
           :aria-activedescendant="highlightedIndex >= 0 ? `option-${highlightedIndex}` : undefined"
-          class="rounded-lg border border-border bg-popover py-1 shadow-lg max-h-52 overflow-auto"
+          class="rounded-lg border border-border bg-popover py-1.5 shadow-lg max-h-52 overflow-auto"
         >
           <div
             v-for="(option, index) in options"

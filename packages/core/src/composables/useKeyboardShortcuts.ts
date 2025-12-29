@@ -1,4 +1,5 @@
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref } from 'vue'
+import { useEventListener } from '@vueuse/core'
 import type { ToolType } from '../types/tool'
 import type { ActionContext } from '../types/action'
 import type { ActionRegistry } from '../actions/ActionRegistry'
@@ -266,15 +267,9 @@ export function useKeyboardShortcuts(
     }
   }
 
-  onMounted(() => {
-    window.addEventListener('keydown', handleKeyDown)
-    window.addEventListener('keyup', handleKeyUp)
-  })
-
-  onUnmounted(() => {
-    window.removeEventListener('keydown', handleKeyDown)
-    window.removeEventListener('keyup', handleKeyUp)
-  })
+  // Use VueUse's useEventListener for automatic cleanup
+  useEventListener(window, 'keydown', handleKeyDown)
+  useEventListener(window, 'keyup', handleKeyUp)
 
   return {
     isSpacePressed,

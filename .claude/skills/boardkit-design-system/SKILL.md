@@ -10,7 +10,7 @@ allowed-tools: Read, Grep, Glob
 
 ## Non-negotiables
 - Compact density by default (h-8/h-9, small gaps)
-- Tailwind tokens + CSS variables only (no ad hoc pixel soup)
+- UnoCSS tokens + CSS variables only (no ad hoc pixel soup)
 - Lucide icons only
 - Every new component must be represented in the Playground
 

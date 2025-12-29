@@ -34,6 +34,15 @@ export type {
   LegacyKeyboardShortcutsOptions,
 } from './composables/useKeyboardShortcuts'
 
+// Canvas helpers (VueUse-based utilities)
+export {
+  useCanvasSize,
+  useElementSize,
+  useCanvasMouse,
+  useElementResize,
+  useVisibility,
+} from './composables/useCanvasHelpers'
+
 // Data sharing composables (simplified API - recommended)
 export { useProvideData } from './composables/useProvideData'
 export { useConsumeData } from './composables/useConsumeData'

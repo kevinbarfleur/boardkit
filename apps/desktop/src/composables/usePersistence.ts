@@ -1,4 +1,5 @@
-import { ref, computed, watch, onUnmounted } from 'vue'
+import { ref, computed, watch } from 'vue'
+import { useDebounceFn, useDocumentVisibility, useStorage } from '@vueuse/core'
 import { useBoardStore } from '@boardkit/core'
 import { mkdir, exists } from '@tauri-apps/plugin-fs'
 import type { BoardkitDocument } from '@boardkit/core'
@@ -20,8 +21,8 @@ import {
 const AUTOSAVE_DELAY = 500 // 500ms debounce for fast saving
 const CURRENT_DOC_KEY = 'boardkit:current-document-id'
 
-// Shared state
-const currentDocumentId = ref<string | null>(null)
+// Shared state - using VueUse's useStorage for localStorage persistence
+const currentDocumentId = useStorage<string | null>(CURRENT_DOC_KEY, null)
 const isLoading = ref(false)
 const isSaving = ref(false)
 const lastSaved = ref<number | null>(null)
@@ -32,8 +33,17 @@ const currentHistoryIndex = ref<number>(-1) // -1 means we're at the latest vers
 
 export function usePersistence() {
   const boardStore = useBoardStore()
-  let autosaveTimeout: ReturnType<typeof setTimeout> | null = null
   let stopWatch: (() => void) | null = null
+
+  // Track document visibility to pause autosave when window is not visible
+  const visibility = useDocumentVisibility()
+
+  // Debounced autosave function using VueUse
+  const debouncedSave = useDebounceFn(async () => {
+    if (boardStore.isDirty && currentDocumentId.value && visibility.value === 'visible') {
+      await saveDocument(true)
+    }
+  }, AUTOSAVE_DELAY)
 
   // Actions to hide from history display (low-value, high-frequency)
   const hiddenActions = ['initial state', 'moved widget', 'resized widget']
@@ -238,8 +248,7 @@ export function usePersistence() {
     await saveDocument(true)
     await refreshHistoryEntries()
 
-    // Remember current document
-    localStorage.setItem(CURRENT_DOC_KEY, id)
+    // currentDocumentId is already synced to localStorage via useStorage
 
     return id
   }
@@ -263,8 +272,7 @@ export function usePersistence() {
       await refreshHistoryEntries()
       currentHistoryIndex.value = -1 // Reset to latest
 
-      // Remember current document
-      localStorage.setItem(CURRENT_DOC_KEY, id)
+      // currentDocumentId is already synced to localStorage via useStorage
 
       return true
     } catch (error) {
@@ -336,10 +344,9 @@ export function usePersistence() {
     try {
       await ensureAutosaveDir()
 
-      // Try to restore last document
-      const lastDocId = localStorage.getItem(CURRENT_DOC_KEY)
-      if (lastDocId) {
-        const loaded = await openDocument(lastDocId)
+      // Try to restore last document (currentDocumentId is synced from localStorage via useStorage)
+      if (currentDocumentId.value) {
+        const loaded = await openDocument(currentDocumentId.value)
         if (loaded) return
       }
 
@@ -350,19 +357,6 @@ export function usePersistence() {
     }
   }
 
-  // Schedule autosave
-  function scheduleAutosave() {
-    if (autosaveTimeout) {
-      clearTimeout(autosaveTimeout)
-    }
-
-    autosaveTimeout = setTimeout(async () => {
-      if (boardStore.isDirty && currentDocumentId.value) {
-        await saveDocument(true)
-      }
-    }, AUTOSAVE_DELAY)
-  }
-
   // Setup autosave watcher
   function setupAutosave() {
     if (stopWatch) {
@@ -370,24 +364,20 @@ export function usePersistence() {
     }
 
     // Watch dirty state instead of deep watching the entire document (performance)
+    // Using VueUse's useDebounceFn for automatic debouncing
     stopWatch = watch(
       () => boardStore.isDirty,
       (isDirty) => {
         if (isDirty && currentDocumentId.value) {
-          scheduleAutosave()
+          debouncedSave()
         }
       }
     )
 
     // Save immediately if already dirty
     if (boardStore.isDirty && currentDocumentId.value) {
-      scheduleAutosave()
+      debouncedSave()
     }
-
-    onUnmounted(() => {
-      if (stopWatch) stopWatch()
-      if (autosaveTimeout) clearTimeout(autosaveTimeout)
-    })
   }
 
   // Export current document as .boardkit file using native dialog
@@ -419,8 +409,7 @@ export function usePersistence() {
       await saveDocument(true)
       await refreshHistoryEntries()
 
-      // Remember current document
-      localStorage.setItem(CURRENT_DOC_KEY, id)
+      // currentDocumentId is already synced to localStorage via useStorage
 
       return true
     } catch (error) {

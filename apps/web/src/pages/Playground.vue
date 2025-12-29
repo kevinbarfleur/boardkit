@@ -125,7 +125,7 @@ const focusSettings = ref({
             </h1>
             <p class="text-sm text-muted-foreground">
               Collection complète de tous les composants, variations et patterns
-              - Tailwind CSS pur
+              - UnoCSS
             </p>
           </div>
           <div class="flex items-center gap-4">

@@ -60,7 +60,7 @@ watch(
               <h3 class="text-lg font-medium text-foreground">{{ props.title }}</h3>
             </slot>
             <button
-              class="inline-flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-transparent transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               @click="close"
             >
               <BkIcon icon="x" />

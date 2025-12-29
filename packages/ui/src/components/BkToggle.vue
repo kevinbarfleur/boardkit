@@ -42,18 +42,19 @@ const trackClasses = computed(() => {
     base.push('cursor-not-allowed opacity-50')
   }
 
-  if (props.modelValue) {
-    base.push('bg-primary')
-  } else {
-    base.push('bg-muted')
-  }
-
   return base.join(' ')
 })
 
+// Use inline style for background to ensure dynamic class works
+const trackStyle = computed(() => ({
+  backgroundColor: props.modelValue
+    ? 'hsl(var(--primary))'
+    : 'hsl(var(--muted))'
+}))
+
 const thumbClasses = computed(() => {
   const base = [
-    'pointer-events-none inline-block rounded-full bg-background shadow-sm',
+    'pointer-events-none inline-block rounded-full bg-white shadow-sm',
     'ring-0 transition-transform duration-200 ease-in-out',
   ]
 
@@ -88,6 +89,7 @@ const thumbClasses = computed(() => {
     :aria-checked="modelValue"
     :disabled="disabled"
     :class="trackClasses"
+    :style="trackStyle"
     @click="toggle"
     @keydown.space.prevent="toggle"
     @keydown.enter.prevent="toggle"

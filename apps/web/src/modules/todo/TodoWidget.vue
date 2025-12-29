@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import { nanoid } from 'nanoid'
 import type { ModuleContext } from '@boardkit/core'
 import { useProvideData, todoContractV1, type PublicTodoList } from '@boardkit/core'
-import { BkCheckbox, BkInput, BkIcon } from '@boardkit/ui'
+import { BkCheckbox, BkIcon } from '@boardkit/ui'
 import type { TodoState, TodoItem, TodoPriority } from './types'
 import { defaultTodoSettings } from './types'
 
@@ -251,15 +251,16 @@ const isOverdue = (dateStr?: string) => {
     </div>
 
     <!-- Add new todo (only when selected) -->
-    <div v-if="isSelected" class="flex gap-2">
-      <BkInput
+    <div v-if="isSelected" class="flex">
+      <input
         v-model="newTodoLabel"
+        type="text"
         placeholder="Add a task..."
-        class="flex-1"
+        class="flex-1 h-9 px-3 text-sm bg-background border border-border rounded-l-lg focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-0 placeholder:text-muted-foreground"
         @keydown="handleKeydown"
       />
       <button
-        class="shrink-0 h-9 w-9 rounded-md border border-input bg-transparent hover:bg-accent flex items-center justify-center"
+        class="shrink-0 h-9 px-3 rounded-r-lg border border-l-0 border-border bg-muted hover:bg-accent flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
         @click="addTodo"
       >
         <BkIcon icon="plus" :size="16" />

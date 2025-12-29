@@ -20,7 +20,7 @@ const sizeClasses: Record<IconButtonSize, string> = {
 
 <template>
   <button
-    class="inline-flex items-center justify-center transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+    class="inline-flex items-center justify-center bg-transparent transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
     :class="[sizeClasses[props.size]]"
     :disabled="props.disabled"
     :aria-label="props.ariaLabel"

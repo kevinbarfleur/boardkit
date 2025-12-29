@@ -292,7 +292,7 @@ const allTodos = computed(() =>
 
 ## Design System
 
-Boardkit uses a design system based on Tailwind CSS with CSS custom properties.
+Boardkit uses a design system based on UnoCSS with CSS custom properties.
 
 ### Theme Support
 
@@ -339,7 +339,7 @@ Visit `/playground` in the web app to see all UI components in action.
 | Frontend | Vue 3 + TypeScript + Vite |
 | Desktop | Tauri (macOS) |
 | State | Pinia |
-| Styling | Tailwind CSS |
+| Styling | UnoCSS |
 | Editor | Tiptap |
 | Drawing | rough.js + perfect-freehand |
 | Storage (Web) | IndexedDB |

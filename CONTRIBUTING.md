@@ -186,7 +186,7 @@ const displayTitle = computed(() => `${props.title} (${props.count})`)
 
 ### Styling
 
-- Use Tailwind CSS utility classes
+- Use UnoCSS utility classes
 - Use design system tokens (see `packages/ui/DESIGN_SYSTEM.md`)
 - Avoid inline styles except for dynamic values
 - Use `@boardkit/ui` components when available

@@ -89,12 +89,12 @@ const getButtonClasses = (option: ButtonGroupOption<T>) => {
     if (selected) {
       base.push('bg-background text-muted-foreground shadow-sm')
     } else {
-      base.push('text-muted-foreground/50')
+      base.push('text-muted-foreground/50 bg-transparent')
     }
   } else if (selected) {
     base.push('bg-background text-foreground shadow-sm cursor-default')
   } else {
-    base.push('text-muted-foreground hover:text-foreground cursor-pointer')
+    base.push('bg-transparent text-muted-foreground hover:bg-background/50 hover:text-foreground cursor-pointer')
   }
 
   return base.join(' ')

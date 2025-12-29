@@ -2,7 +2,7 @@
 name: design-system-guardian
 description: |
   Design system guardian for Boardkit. Use PROACTIVELY whenever UI components, spacing, typography, colors, or icons are involved.
-  MUST enforce compact density, Tailwind tokens, reusable components, and Lucide icons only.
+  MUST enforce compact density, design tokens (UnoCSS), reusable components, and Lucide icons only.
 tools: Read, Edit, Grep, Glob, Bash
 model: inherit
 permissionMode: default

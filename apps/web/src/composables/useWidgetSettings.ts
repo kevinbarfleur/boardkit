@@ -1,4 +1,5 @@
-import { ref, computed, watch } from 'vue'
+import { computed } from 'vue'
+import { useLocalStorage } from '@vueuse/core'
 
 /**
  * useWidgetSettings
@@ -29,33 +30,14 @@ const defaultSettings: WidgetVisibilitySettings = {
 }
 
 // ============================================
-// STATE
+// STATE - Using VueUse's useLocalStorage for automatic persistence
 // ============================================
 
-const settings = ref<WidgetVisibilitySettings>(loadSettings())
-
-function loadSettings(): WidgetVisibilitySettings {
-  try {
-    const saved = localStorage.getItem('boardkit:visibility-settings')
-    if (saved) {
-      return { ...defaultSettings, ...JSON.parse(saved) }
-    }
-  } catch (e) {
-    console.warn('Failed to load visibility settings:', e)
-  }
-  return { ...defaultSettings }
-}
-
-function saveSettings() {
-  try {
-    localStorage.setItem('boardkit:visibility-settings', JSON.stringify(settings.value))
-  } catch (e) {
-    console.warn('Failed to save visibility settings:', e)
-  }
-}
-
-// Auto-save on changes
-watch(settings, saveSettings, { deep: true })
+const settings = useLocalStorage<WidgetVisibilitySettings>(
+  'boardkit:visibility-settings',
+  defaultSettings,
+  { mergeDefaults: true }
+)
 
 // ============================================
 // COMPOSABLE

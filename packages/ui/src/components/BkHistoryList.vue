@@ -135,7 +135,7 @@ const handleSelect = (id: string) => {
           <!-- Single item (no grouping needed) -->
           <button
             v-if="group.items.length === 1"
-            class="w-full mx-1.5 px-2.5 py-2 text-left rounded-md flex flex-col gap-0.5 transition-colors hover:bg-accent"
+            class="w-full mx-1.5 px-2.5 py-2 text-left rounded-md flex flex-col gap-0.5 bg-transparent transition-colors hover:bg-accent"
             :style="{ width: 'calc(100% - 12px)' }"
             @click="handleSelect(group.items[0].id)"
           >
@@ -146,7 +146,7 @@ const handleSelect = (id: string) => {
           <!-- Group header (multiple items) -->
           <template v-else>
             <button
-              class="w-full mx-1.5 px-2.5 py-2 text-left rounded-md flex items-center gap-2 transition-colors hover:bg-accent"
+              class="w-full mx-1.5 px-2.5 py-2 text-left rounded-md flex items-center gap-2 bg-transparent transition-colors hover:bg-accent"
               :style="{ width: 'calc(100% - 12px)' }"
               @click="toggleGroup(groupIndex)"
             >
@@ -171,7 +171,7 @@ const handleSelect = (id: string) => {
               <button
                 v-for="(item, itemIndex) in group.items"
                 :key="item.id"
-                class="w-full mx-1.5 pl-3 pr-2.5 py-1.5 text-left rounded-md flex flex-col gap-0.5 transition-colors hover:bg-accent"
+                class="w-full mx-1.5 pl-3 pr-2.5 py-1.5 text-left rounded-md flex flex-col gap-0.5 bg-transparent transition-colors hover:bg-accent"
                 :style="{ width: 'calc(100% - 12px)' }"
                 @click="handleSelect(item.id)"
               >

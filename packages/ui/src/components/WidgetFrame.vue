@@ -246,7 +246,7 @@ const handleOpenMenu = (e: MouseEvent) => {
       </span>
       <button
         v-if="selected || isMultiSelected"
-        class="inline-flex h-5 w-5 items-center justify-center rounded hover:bg-accent"
+        class="inline-flex h-5 w-5 items-center justify-center rounded bg-transparent hover:bg-accent"
         @mousedown.stop
         @click="handleOpenMenu"
       >

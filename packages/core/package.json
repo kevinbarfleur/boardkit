@@ -17,9 +17,10 @@
     "test:run": "vitest run"
   },
   "dependencies": {
+    "@vueuse/core": "^10.7.0",
+    "nanoid": "^5.0.4",
     "pinia": "^2.1.7",
-    "vue": "^3.4.0",
-    "nanoid": "^5.0.4"
+    "vue": "^3.4.0"
   },
   "devDependencies": {
     "typescript": "^5.3.0",
