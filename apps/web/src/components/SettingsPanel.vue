@@ -6,6 +6,9 @@ import {
   useConfigurationProviders,
   isModuleConfigured,
   DEFAULT_WIDGET_VISIBILITY,
+  MIN_WIDGET_SCALE,
+  MAX_WIDGET_SCALE,
+  DEFAULT_WIDGET_SCALE,
   type WidgetVisibilityMode,
   type ModuleContext,
 } from '@boardkit/core'
@@ -14,6 +17,7 @@ import {
   BkIcon,
   BkToggle,
   BkSelect,
+  BkSlider,
   BkFormSection,
   BkModuleSettingsPanel,
   type ConfigPanelProvider,
@@ -229,6 +233,18 @@ function updateWidgetVisibility(updates: {
 }
 
 // =============================================================================
+// Widget Scale
+// =============================================================================
+
+const widgetScale = computed(() => widget.value?.scale ?? DEFAULT_WIDGET_SCALE)
+const scalePercentage = computed(() => Math.round(widgetScale.value * 100))
+
+function updateWidgetScale(scale: number) {
+  if (!widgetId.value) return
+  boardStore.updateWidgetScale(widgetId.value, scale)
+}
+
+// =============================================================================
 // Options
 // =============================================================================
 
@@ -329,8 +345,29 @@ const visibilityOptions = [
         </div>
       </div>
 
-      <!-- Footer with visibility settings -->
+      <!-- Footer with visibility and scale settings -->
       <div class="shrink-0 border-t border-border">
+        <!-- Scale Control -->
+        <div class="p-3 pb-2 border-b border-border/50">
+          <div class="flex items-center gap-2 mb-2">
+            <BkIcon icon="zoom-in" :size="12" class="text-muted-foreground" />
+            <span class="text-xs text-muted-foreground">Scale</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <BkSlider
+              :model-value="widgetScale"
+              :min="MIN_WIDGET_SCALE"
+              :max="MAX_WIDGET_SCALE"
+              :step="0.1"
+              class="flex-1"
+              @update:model-value="updateWidgetScale"
+            />
+            <span class="text-xs text-muted-foreground w-10 text-right tabular-nums">
+              {{ scalePercentage }}%
+            </span>
+          </div>
+        </div>
+
         <!-- Visibility Controls -->
         <div class="p-3 space-y-3">
           <div class="flex items-center gap-2">

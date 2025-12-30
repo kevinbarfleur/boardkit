@@ -466,6 +466,13 @@ const { isSpacePressed } = useKeyboardShortcuts({
   onCommandPalette: () => {
     emit('openCommandPalette')
   },
+  onWidgetScaleChange: (delta: number) => {
+    const selectedId = selectedWidgetIds.value[0]
+    if (selectedId) {
+      const currentScale = boardStore.getWidgetScale(selectedId)
+      boardStore.updateWidgetScale(selectedId, currentScale + delta)
+    }
+  },
 })
 
 // Cursor style based on tool and state
@@ -1051,6 +1058,11 @@ const handleWidgetDelete = (id: string) => {
   boardStore.removeWidget(id)
 }
 
+const handleWidgetScaleChange = (id: string, delta: number) => {
+  const currentScale = boardStore.getWidgetScale(id)
+  boardStore.updateWidgetScale(id, currentScale + delta)
+}
+
 const handleWidgetDragStart = () => {
   closeContextMenu()
 }
@@ -1155,6 +1167,7 @@ onUnmounted(() => {
         :height="widget.rect.height"
         :z-index="widget.zIndex"
         :zoom="viewport.zoom"
+        :scale="widget.scale ?? 1"
         :selected="selectedWidgetIds.includes(widget.id)"
         :is-multi-selected="isMultiSelection && selectedWidgetIds.includes(widget.id)"
         :is-dragging="draggingWidgetIds.includes(widget.id)"
@@ -1168,6 +1181,7 @@ onUnmounted(() => {
         @dragstart="handleWidgetDragStart"
         @move-start="handleWidgetMoveStart"
         @open-menu="handleWidgetOpenMenu"
+        @scale-change="handleWidgetScaleChange"
         @contextmenu.native="(e: MouseEvent) => handleWidgetContextMenu(widget.id, e)"
       >
         <WidgetRenderer :widget-id="widget.id" :module-id="widget.moduleId" />

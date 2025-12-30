@@ -22,6 +22,8 @@ import { KEY_TO_TOOL } from '../types/tool'
  * - Cmd/Ctrl + K: Open command palette
  * - Arrow keys: Nudge selected widget/element (1px)
  * - Shift + Arrow keys: Nudge selected widget/element (10px)
+ * - Shift + Plus/=: Scale widget up (10%)
+ * - Shift + Minus: Scale widget down (10%)
  * - V, H, R, O, L, A, P, T: Switch tools
  */
 
@@ -36,6 +38,8 @@ export interface KeyboardShortcutsOptions {
   onDrawingCancel?: () => boolean // Returns true if drawing was canceled
   /** Callback for opening command palette (emitted to parent) */
   onCommandPalette?: () => void
+  /** Callback for widget scale change (delta: +0.1 or -0.1) */
+  onWidgetScaleChange?: (delta: number) => void
 }
 
 /**
@@ -264,6 +268,26 @@ export function useKeyboardShortcuts(
         actionRegistry.execute(`widget.nudge.${direction}`, ctx)
       } else if (ctx.selectedElementId) {
         actionRegistry.execute(`element.nudge.${direction}`, ctx)
+      }
+      return
+    }
+
+    // Shift + Plus/Equal - scale widget up
+    if (e.shiftKey && !hasCmdOrCtrl(e) && (key === '+' || key === '=')) {
+      e.preventDefault()
+      const ctx = buildActionContext()
+      if (ctx.selectedWidgetId && opts.onWidgetScaleChange) {
+        opts.onWidgetScaleChange(0.1)
+      }
+      return
+    }
+
+    // Shift + Minus - scale widget down
+    if (e.shiftKey && !hasCmdOrCtrl(e) && key === '-') {
+      e.preventDefault()
+      const ctx = buildActionContext()
+      if (ctx.selectedWidgetId && opts.onWidgetScaleChange) {
+        opts.onWidgetScaleChange(-0.1)
       }
       return
     }

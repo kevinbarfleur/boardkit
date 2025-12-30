@@ -3,7 +3,12 @@ import { ref, computed } from 'vue'
 import { nanoid } from 'nanoid'
 import type { BoardkitDocument, Widget, Viewport, WidgetVisibilitySettings } from '../types/document'
 import type { HistoryOptions } from '../types/module'
-import { DEFAULT_WIDGET_VISIBILITY } from '../types/document'
+import {
+  DEFAULT_WIDGET_VISIBILITY,
+  MIN_WIDGET_SCALE,
+  MAX_WIDGET_SCALE,
+  DEFAULT_WIDGET_SCALE,
+} from '../types/document'
 import type { CanvasElement, BoardBackground, LineElement, DrawElement } from '../types/element'
 import type { DataSharingState, DataPermission, DataLink } from '../types/dataContract'
 import { createEmptyDocument } from '../types/document'
@@ -454,6 +459,8 @@ export const useBoardStore = defineStore('board', () => {
       zIndex: maxZIndex.value + 1,
       // Copy visibility settings if they exist
       visibility: widget.visibility ? { ...widget.visibility } : undefined,
+      // Copy scale if set
+      scale: widget.scale,
     }
 
     // Deep clone the module state
@@ -498,6 +505,24 @@ export const useBoardStore = defineStore('board', () => {
   function getWidgetVisibility(widgetId: string): WidgetVisibilitySettings {
     const widget = widgetMap.value.get(widgetId)
     return widget?.visibility ?? { ...DEFAULT_WIDGET_VISIBILITY }
+  }
+
+  function updateWidgetScale(widgetId: string, scale: number) {
+    if (!document.value) return
+
+    const widget = widgetMap.value.get(widgetId)
+    if (!widget) return
+
+    // Clamp scale to valid range
+    const clampedScale = Math.max(MIN_WIDGET_SCALE, Math.min(MAX_WIDGET_SCALE, scale))
+
+    widget.scale = clampedScale
+    markDirty('Updated widget scale')
+  }
+
+  function getWidgetScale(widgetId: string): number {
+    const widget = widgetMap.value.get(widgetId)
+    return widget?.scale ?? DEFAULT_WIDGET_SCALE
   }
 
   // ============================================================================
@@ -875,6 +900,8 @@ export const useBoardStore = defineStore('board', () => {
             zIndex: maxZIndex.value + 1,
             // Copy visibility settings if they exist
             visibility: widget.visibility ? { ...widget.visibility } : undefined,
+            // Copy scale if set
+            scale: widget.scale,
           }
           document.value.board.widgets.push(newWidget)
           document.value.modules[newId] = JSON.parse(JSON.stringify(document.value.modules[item.id]))
@@ -1395,6 +1422,8 @@ export const useBoardStore = defineStore('board', () => {
     nudgeWidget,
     updateWidgetVisibility,
     getWidgetVisibility,
+    updateWidgetScale,
+    getWidgetScale,
 
     // Actions - Element
     addElement,

@@ -60,6 +60,17 @@ export const DEFAULT_WIDGET_VISIBILITY: WidgetVisibilitySettings = {
   hoverMode: 'subtle',
 }
 
+// ============================================================================
+// Widget Scale Constants
+// ============================================================================
+
+/** Minimum widget content scale (100%) */
+export const MIN_WIDGET_SCALE = 1.0
+/** Maximum widget content scale (200%) */
+export const MAX_WIDGET_SCALE = 2.0
+/** Default widget content scale (100%) */
+export const DEFAULT_WIDGET_SCALE = 1.0
+
 export interface Widget {
   id: string
   moduleId: string
@@ -67,6 +78,8 @@ export interface Widget {
   zIndex: number
   /** Widget frame visibility settings (optional, defaults applied if missing) */
   visibility?: WidgetVisibilitySettings
+  /** Widget content scale (0.5 to 2.0, defaults to 1.0 if missing) */
+  scale?: number
 }
 
 // ============================================================================
