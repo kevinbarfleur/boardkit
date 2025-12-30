@@ -59,7 +59,7 @@ export { dataAccessController, DataAccessController } from './data/DataAccessCon
 export { consumerRegistry, ConsumerRegistry, type ConsumerDefinition } from './data/ConsumerRegistry'
 
 // Contracts
-export { todoContractV1, type PublicTodoList } from './contracts/todo.v1'
+export * from './contracts'
 
 // Validation
 export {
