@@ -53,6 +53,7 @@ export const ScratchpadModule = defineModule<ScratchpadState>({
   moduleId: 'scratchpad',
   version: '0.1.0',
   displayName: 'Quick Notes',
+  icon: 'sticky-note',
   component: ScratchpadWidget,
   defaultState: () => ({
     content: '',

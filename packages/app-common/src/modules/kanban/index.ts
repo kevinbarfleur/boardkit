@@ -47,6 +47,7 @@ export const KanbanModule = defineModule<KanbanState>({
   moduleId: 'kanban',
   version: '0.1.0',
   displayName: 'Kanban',
+  icon: 'columns',
   component: KanbanWidget,
   defaultState: () => ({
     title: 'Kanban',

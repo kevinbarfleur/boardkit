@@ -4,6 +4,12 @@
  *
  * Tab navigation component for switching between views.
  * Used in the settings panel to switch between Configure and Settings tabs.
+ *
+ * Variants:
+ * - default: Subtle segmented control
+ * - pills: Pill-shaped tabs in a container
+ * - underline: Underline indicator
+ * - card: Classic card tabs that merge with content below
  */
 import { computed } from 'vue'
 import BkIcon from './BkIcon.vue'
@@ -27,7 +33,7 @@ interface Props {
   /** Currently active tab ID */
   modelValue: string
   /** Visual variant */
-  variant?: 'default' | 'pills' | 'underline'
+  variant?: 'default' | 'pills' | 'underline' | 'card'
   /** Whether to stretch tabs to fill width */
   fullWidth?: boolean
 }
@@ -56,6 +62,10 @@ const containerClass = computed(() => {
       break
     case 'underline':
       base.push('border-b border-border')
+      break
+    case 'card':
+      // Card tabs: no container background, tabs sit above the content border
+      base.push('relative')
       break
     default:
       base.push('gap-1 p-1 bg-muted/50 rounded-lg')
@@ -95,6 +105,27 @@ function getTabClass(tab: Tab) {
         base.push('border-primary text-foreground')
       } else {
         base.push('border-transparent text-muted-foreground hover:text-foreground hover:border-border')
+      }
+      break
+    case 'card':
+      // Card tabs: active tab merges with content below
+      // All tabs have same size to prevent layout shift
+      base.push('px-4 py-2 rounded-t-lg')
+      if (isActive) {
+        // Active: visible border on 3 sides, overlaps content border
+        base.push(
+          'bg-popover text-foreground',
+          'border-t border-l border-r border-border',
+          'relative z-10',
+          'mb-[-1px]' // Overlap content's top border
+        )
+      } else {
+        // Inactive: transparent border to maintain same size
+        base.push(
+          'text-muted-foreground',
+          'hover:text-foreground',
+          'border-t border-l border-r border-transparent'
+        )
       }
       break
     default:

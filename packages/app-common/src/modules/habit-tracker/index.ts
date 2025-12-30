@@ -64,6 +64,7 @@ export const HabitTrackerModule = defineModule<HabitTrackerState>({
   moduleId: 'habit-tracker',
   version: '0.1.0',
   displayName: 'Habit Tracker',
+  icon: 'calendar-check',
   component: HabitTrackerWidget,
   defaultState: () => ({
     title: 'Habits',

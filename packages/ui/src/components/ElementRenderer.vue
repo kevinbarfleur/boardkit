@@ -73,6 +73,7 @@ const emit = defineEmits<{
   moveStart: [id: string, event: MouseEvent]
   resizeStart: [id: string, handle: string, event: MouseEvent]
   editStart: [id: string, type: 'text' | 'label']
+  contextMenu: [id: string, event: MouseEvent]
 }>()
 
 // Inject SVG ref from parent (CanvasElementsLayer)
@@ -336,6 +337,14 @@ function handleShapeLabelDoubleClick(event: MouseEvent) {
 function handleResizeStart(handle: string, event: MouseEvent) {
   emit('resizeStart', props.element.id, handle, event)
 }
+
+function handleContextMenu(event: MouseEvent) {
+  if (props.isPreview) return
+  event.preventDefault()
+  event.stopPropagation()
+  emit('select', props.element.id, event)
+  emit('contextMenu', props.element.id, event)
+}
 </script>
 
 <template>
@@ -364,6 +373,7 @@ function handleResizeStart(handle: string, event: MouseEvent) {
       stroke="transparent"
       :stroke-width="HIT_STROKE_WIDTH"
       @mousedown="handleMouseDown"
+      @contextmenu="handleContextMenu"
     />
 
     <!-- Hit target: Ellipse -->
@@ -378,6 +388,7 @@ function handleResizeStart(handle: string, event: MouseEvent) {
       stroke="transparent"
       :stroke-width="HIT_STROKE_WIDTH"
       @mousedown="handleMouseDown"
+      @contextmenu="handleContextMenu"
     />
 
     <!-- Hit target: Line -->
@@ -392,6 +403,7 @@ function handleResizeStart(handle: string, event: MouseEvent) {
       :stroke-width="HIT_STROKE_WIDTH"
       stroke-linecap="round"
       @mousedown="handleMouseDown"
+      @contextmenu="handleContextMenu"
     />
 
     <!-- Hit target: Arrow -->
@@ -406,6 +418,7 @@ function handleResizeStart(handle: string, event: MouseEvent) {
       :stroke-width="HIT_STROKE_WIDTH"
       stroke-linecap="round"
       @mousedown="handleMouseDown"
+      @contextmenu="handleContextMenu"
     />
 
     <!-- Hit target: Freehand Draw -->
@@ -419,6 +432,7 @@ function handleResizeStart(handle: string, event: MouseEvent) {
       stroke-linejoin="round"
       fill="none"
       @mousedown="handleMouseDown"
+      @contextmenu="handleContextMenu"
     />
 
     <!-- Hit target: Text (using rect for bounding box) -->
@@ -432,6 +446,7 @@ function handleResizeStart(handle: string, event: MouseEvent) {
       fill="transparent"
       @mousedown="handleMouseDown"
       @dblclick="handleDoubleClick"
+      @contextmenu="handleContextMenu"
     />
 
     <!-- ============================================================ -->

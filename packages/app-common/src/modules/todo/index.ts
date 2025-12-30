@@ -90,6 +90,7 @@ export const TodoModule = defineModule<TodoState>({
   moduleId: 'todo',
   version: '0.1.0',
   displayName: 'To-Do',
+  icon: 'list-todo',
   component: TodoWidget,
   defaultState: () => ({
     title: '',

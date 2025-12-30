@@ -8,6 +8,7 @@ import {
 } from '@boardkit/core'
 import type { ConfigurationSchema, SettingsSchema } from '@boardkit/core'
 import StatsCardWidget from './StatsCardWidget.vue'
+import StatsCardMetricsConfig from './StatsCardMetricsConfig.vue'
 import type { StatsCardState } from './types'
 import { defaultStatsCardSettings } from './types'
 
@@ -83,6 +84,7 @@ export const StatsCardModule = defineModule<StatsCardState>({
   moduleId: 'stats-card',
   version: '0.1.0',
   displayName: 'Stats Card',
+  icon: 'bar-chart-2',
   component: StatsCardWidget,
   defaultState: () => ({
     title: 'Stats',
@@ -123,3 +125,4 @@ export const StatsCardModule = defineModule<StatsCardState>({
 
 export type { StatsCardState, StatMetricConfig, StatSourceType, MetricFormat, LayoutMode } from './types'
 export { defaultStatsCardSettings, metricTemplates } from './types'
+export { StatsCardMetricsConfig }

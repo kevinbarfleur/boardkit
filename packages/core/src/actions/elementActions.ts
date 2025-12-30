@@ -41,16 +41,19 @@ export function createElementActions(): ActionDefinition[] {
     {
       id: 'element.delete',
       title: 'Delete Element',
-      subtitle: 'Remove the selected element',
+      subtitle: 'Remove selected elements',
       keywords: ['remove', 'trash', 'delete', 'element'],
       icon: 'trash-2',
       group: 'element',
       contexts: ['global', 'canvas'],
       shortcutHint: '⌫',
       priority: 80,
-      when: (ctx) => ctx.selectedElementId !== null,
+      when: (ctx) => ctx.selectedElementIds.length > 0,
       run: (ctx) => {
-        if (ctx.selectedElementId) {
+        // For multi-selection with only elements, use removeSelection
+        if (ctx.selectedElementIds.length > 1) {
+          boardStore.removeSelection()
+        } else if (ctx.selectedElementId) {
           boardStore.removeElement(ctx.selectedElementId)
         }
       },

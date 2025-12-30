@@ -33,6 +33,9 @@ export interface ModuleDefinition<TState = unknown> {
   /** Display name for UI */
   displayName: string
 
+  /** Icon name (Lucide icon) for UI */
+  icon?: string
+
   /** Vue component to render the module content */
   component: Component
 
@@ -74,6 +77,31 @@ export interface ModuleDefinition<TState = unknown> {
   settingsSchema?: SettingsSchema
 }
 
+/**
+ * Options for controlling history capture when updating module state.
+ * Allows modules to provide contextual labels and control debouncing.
+ */
+export interface HistoryOptions {
+  /**
+   * Contextual label for the history entry (e.g., "Checked: Buy groceries").
+   * Should be descriptive of what action was performed.
+   */
+  historyLabel?: string
+
+  /**
+   * If true, captures a history snapshot before the mutation.
+   * Default: false (no automatic capture for module state changes)
+   */
+  captureHistory?: boolean
+
+  /**
+   * Debounce delay in milliseconds before capturing the history snapshot.
+   * Useful for high-frequency actions like text input.
+   * Default: 0 (immediate capture)
+   */
+  debounceMs?: number
+}
+
 export interface ModuleContext<TState = unknown> {
   /** Widget ID */
   widgetId: string
@@ -84,11 +112,19 @@ export interface ModuleContext<TState = unknown> {
   /** Current module state */
   state: TState
 
-  /** Update module state */
-  updateState: (partial: Partial<TState>) => void
+  /**
+   * Update module state (partial merge).
+   * @param partial - Partial state to merge
+   * @param options - History options for controlling snapshot capture
+   */
+  updateState: (partial: Partial<TState>, options?: HistoryOptions) => void
 
-  /** Replace entire module state */
-  setState: (state: TState) => void
+  /**
+   * Replace entire module state.
+   * @param state - New complete state
+   * @param options - History options for controlling snapshot capture
+   */
+  setState: (state: TState, options?: HistoryOptions) => void
 
   /** Whether the widget is currently selected */
   isSelected: boolean

@@ -69,6 +69,7 @@ export const CounterModule = defineModule<CounterState>({
   moduleId: 'counter',
   version: '0.1.0',
   displayName: 'Counter',
+  icon: 'hash',
   component: CounterWidget,
   defaultState: () => ({
     label: 'Counter',

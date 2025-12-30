@@ -23,6 +23,8 @@ interface Props {
   zIndex?: number;
   restMode?: VisibilityMode;
   hoverMode?: VisibilityMode;
+  /** Canvas zoom level for proper drag/resize calculations */
+  zoom?: number;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -36,6 +38,7 @@ const props = withDefaults(defineProps<Props>(), {
   zIndex: 1,
   restMode: "transparent",
   hoverMode: "subtle",
+  zoom: 1,
 });
 
 const emit = defineEmits<{
@@ -170,8 +173,9 @@ const startDrag = (e: MouseEvent) => {
 
 const onDrag = (e: MouseEvent) => {
   if (!isDragging.value) return;
-  const dx = e.clientX - dragStart.value.x;
-  const dy = e.clientY - dragStart.value.y;
+  // Divide by zoom to keep movement synchronized with cursor
+  const dx = (e.clientX - dragStart.value.x) / props.zoom;
+  const dy = (e.clientY - dragStart.value.y) / props.zoom;
   emit("move", props.id, initialPos.value.x + dx, initialPos.value.y + dy);
 };
 
@@ -198,8 +202,9 @@ const startResize = (e: MouseEvent) => {
 
 const onResize = (e: MouseEvent) => {
   if (!isResizing.value) return;
-  const dx = e.clientX - dragStart.value.x;
-  const dy = e.clientY - dragStart.value.y;
+  // Divide by zoom to keep resize synchronized with cursor
+  const dx = (e.clientX - dragStart.value.x) / props.zoom;
+  const dy = (e.clientY - dragStart.value.y) / props.zoom;
   emit(
     "resize",
     props.id,

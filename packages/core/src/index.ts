@@ -35,12 +35,19 @@ export type {
   LegacyKeyboardShortcutsOptions,
 } from './composables/useKeyboardShortcuts'
 
+export { useHistory, type HistoryEntry, type HistoryManager } from './composables/useHistory'
+
 export {
   useModuleConfiguration,
   isModuleConfigured,
   getModuleConfigurationSchema,
   getModuleSettingsSchema,
 } from './composables/useModuleConfiguration'
+
+export {
+  useConfigurationProviders,
+  type ConfigurationProvider,
+} from './composables/useConfigurationProviders'
 
 // Canvas helpers (VueUse-based utilities)
 export {
@@ -74,3 +81,6 @@ export {
   safeValidateDocument,
   DocumentValidationError,
 } from './validation/documentValidator'
+
+// Utils
+export { truncate } from './utils'

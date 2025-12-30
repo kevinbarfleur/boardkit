@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import type { ModuleContext } from '@boardkit/core'
-import { useProvideData, kanbanContractV1, kanbanStatsContractV1 } from '@boardkit/core'
+import { useProvideData, kanbanContractV1, kanbanStatsContractV1, truncate } from '@boardkit/core'
 import { BkButton, BkIcon, BkInput } from '@boardkit/ui'
 import type { KanbanState, KanbanItem, KanbanColumn } from './types'
 import type { PublicKanbanBoard, PublicKanbanStats } from '@boardkit/core'
@@ -87,6 +87,10 @@ function handleDrop(e: DragEvent, targetColumnId: string) {
     return
   }
 
+  // Get target column name for history label
+  const targetColumn = columns.value.find((c) => c.id === targetColumnId)
+  const columnName = targetColumn?.title ?? 'column'
+
   // Get max order in target column
   const targetItems = getColumnItems(targetColumnId)
   const maxOrder = targetItems.length > 0
@@ -100,7 +104,13 @@ function handleDrop(e: DragEvent, targetColumnId: string) {
     order: maxOrder + 1,
   }
 
-  props.context.updateState({ items: newItems })
+  props.context.updateState(
+    { items: newItems },
+    {
+      captureHistory: true,
+      historyLabel: `Moved: ${truncate(item.title, 20)} → ${columnName}`,
+    }
+  )
   draggedItemId.value = null
 }
 
@@ -113,6 +123,10 @@ function handleDragEnd() {
 function addItem(columnId: string) {
   if (!newItemTitle.value.trim()) return
 
+  const title = newItemTitle.value.trim()
+  const column = columns.value.find((c) => c.id === columnId)
+  const columnName = column?.title ?? 'column'
+
   const columnItems = getColumnItems(columnId)
   const maxOrder = columnItems.length > 0
     ? Math.max(...columnItems.map((i) => i.order))
@@ -120,25 +134,35 @@ function addItem(columnId: string) {
 
   const newItem: KanbanItem = {
     id: crypto.randomUUID(),
-    title: newItemTitle.value.trim(),
+    title,
     description: '',
     columnId,
     order: maxOrder + 1,
     createdAt: new Date().toISOString(),
   }
 
-  props.context.updateState({
-    items: [...items.value, newItem],
-  })
+  props.context.updateState(
+    { items: [...items.value, newItem] },
+    {
+      captureHistory: true,
+      historyLabel: `Added card: ${truncate(title, 20)} to ${columnName}`,
+    }
+  )
 
   newItemTitle.value = ''
   addingToColumn.value = null
 }
 
 function removeItem(itemId: string) {
-  props.context.updateState({
-    items: items.value.filter((item) => item.id !== itemId),
-  })
+  const item = items.value.find((i) => i.id === itemId)
+
+  props.context.updateState(
+    { items: items.value.filter((i) => i.id !== itemId) },
+    {
+      captureHistory: true,
+      historyLabel: `Deleted card: ${truncate(item?.title, 25)}`,
+    }
+  )
 }
 
 // Data sharing - Board contract

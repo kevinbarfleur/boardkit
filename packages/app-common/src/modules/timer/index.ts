@@ -136,6 +136,7 @@ export const TimerModule = defineModule<TimerState>({
   moduleId: 'timer',
   version: '0.1.0',
   displayName: 'Timer',
+  icon: 'timer',
   component: TimerWidget,
   defaultState: () => ({
     mode: 'pomodoro',

@@ -34,6 +34,7 @@ const emit = defineEmits<{
   elementMoveStart: [id: string, event: MouseEvent]
   elementResizeStart: [id: string, handle: string, event: MouseEvent]
   elementEditStart: [id: string, type: 'text' | 'label']
+  elementContextMenu: [id: string, event: MouseEvent]
 }>()
 
 const boardStore = useBoardStore()
@@ -83,6 +84,10 @@ function handleElementResizeStart(id: string, handle: string, event: MouseEvent)
 function handleElementEditStart(id: string, type: 'text' | 'label') {
   emit('elementEditStart', id, type)
 }
+
+function handleElementContextMenu(id: string, event: MouseEvent) {
+  emit('elementContextMenu', id, event)
+}
 </script>
 
 <template>
@@ -104,6 +109,7 @@ function handleElementEditStart(id: string, type: 'text' | 'label') {
       @move-start="handleElementMoveStart"
       @resize-start="handleElementResizeStart"
       @edit-start="handleElementEditStart"
+      @context-menu="handleElementContextMenu"
     />
 
     <!-- Render preview element during drawing -->

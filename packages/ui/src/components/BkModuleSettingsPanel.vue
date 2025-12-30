@@ -27,11 +27,20 @@ interface Props {
   providers?: ConfigPanelProvider[]
   /** Whether the module is configured */
   isConfigured?: boolean
+  /** Initial tab to display (overrides default behavior) */
+  initialTab?: string | null
+  /** Custom components for configuration sections */
+  customComponents?: Record<string, unknown>
+  /** Module context (passed to custom components) */
+  moduleContext?: unknown
 }
 
 const props = withDefaults(defineProps<Props>(), {
   providers: () => [],
   isConfigured: true,
+  initialTab: null,
+  customComponents: () => ({}),
+  moduleContext: undefined,
 })
 
 const emit = defineEmits<{
@@ -65,16 +74,31 @@ const tabs = computed<Tab[]>(() => {
   return result
 })
 
+// Determine initial tab: prioritize initialTab prop, then check isConfigured
+function getInitialTab(): string {
+  if (props.initialTab) return props.initialTab
+  return !props.isConfigured ? 'configure' : 'settings'
+}
+
 // Active tab
-const activeTab = ref<string>(
-  !props.isConfigured ? 'configure' : 'settings'
+const activeTab = ref<string>(getInitialTab())
+
+// Watch for initialTab prop changes (e.g., when opening panel with specific tab)
+watch(
+  () => props.initialTab,
+  (newTab) => {
+    if (newTab) {
+      activeTab.value = newTab
+    }
+  }
 )
 
 // Auto-switch to configure tab if module needs setup
 watch(
   () => props.isConfigured,
   (isConfigured) => {
-    if (!isConfigured && activeTab.value !== 'configure') {
+    // Only auto-switch if no explicit initialTab was provided
+    if (!isConfigured && activeTab.value !== 'configure' && !props.initialTab) {
       activeTab.value = 'configure'
     }
   },
@@ -85,66 +109,99 @@ watch(
 function handleUpdate(key: string, value: unknown) {
   emit('update', key, value)
 }
+
+// Compute content wrapper class based on active tab
+// Only the corner under the active tab loses its radius
+const contentWrapperClass = computed(() => {
+  const base = ['border', 'border-border', 'bg-popover']
+
+  const tabIds = tabs.value.map(t => t.id)
+  const activeIndex = tabIds.indexOf(activeTab.value)
+  const isFirstActive = activeIndex === 0
+
+  // Bottom corners always rounded
+  base.push('rounded-b-lg')
+
+  // Top-right: always rounded (tabs are not full-width)
+  base.push('rounded-tr-lg')
+
+  // Top-left: rounded only if first tab is NOT active
+  if (!isFirstActive) {
+    base.push('rounded-tl-lg')
+  }
+
+  return base.join(' ')
+})
 </script>
 
 <template>
   <div class="bk-module-settings-panel">
     <!-- With tabs (module has configuration requirements) -->
     <template v-if="hasTabs">
-      <!-- Tab navigation -->
-      <div class="px-3 pt-3 pb-2">
+      <!-- Card tabs container -->
+      <div class="px-3 pt-3">
+        <!-- Tab navigation -->
         <BkTabs
           v-model="activeTab"
           :tabs="tabs"
-          variant="pills"
+          variant="card"
+          :full-width="false"
         />
-      </div>
 
-      <!-- Configure tab content -->
-      <div v-show="activeTab === 'configure'" class="px-3 pb-3">
-        <!-- Configuration status indicator -->
-        <div
-          class="mb-3 flex items-center gap-2 px-3 py-2 rounded-md text-sm"
-          :class="[
-            isConfigured
-              ? 'bg-green-500/10 text-green-600'
-              : 'bg-amber-500/10 text-amber-600',
-          ]"
-        >
-          <BkIcon :icon="isConfigured ? 'check-circle' : 'alert-circle'" :size="14" />
-          <span>
-            {{ isConfigured ? 'Configured' : 'Setup required' }}
-          </span>
+        <!-- Content area with border that connects to active tab -->
+        <div :class="contentWrapperClass">
+          <!-- Configure tab content -->
+          <div v-show="activeTab === 'configure'" class="p-3">
+            <!-- Configuration status indicator -->
+            <div
+              class="mb-3 flex items-center gap-2 px-3 py-2 rounded-md text-sm"
+              :class="[
+                isConfigured
+                  ? 'bg-green-500/10 text-green-600 dark:text-green-400'
+                  : 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+              ]"
+            >
+              <BkIcon :icon="isConfigured ? 'check-circle' : 'alert-circle'" :size="14" />
+              <span>
+                {{ isConfigured ? 'Configured' : 'Setup required' }}
+              </span>
+            </div>
+
+            <!-- Configuration panel -->
+            <BkConfigurationPanel
+              v-if="configurationSchema"
+              :schema="configurationSchema"
+              :state="state"
+              :providers="providers"
+              :custom-components="customComponents"
+              :module-context="moduleContext"
+              @update="handleUpdate"
+            />
+          </div>
+
+          <!-- Settings tab content -->
+          <div v-show="activeTab === 'settings'" class="p-3">
+            <BkSettingsPanelGeneric
+              v-if="settingsSchema"
+              :schema="settingsSchema"
+              :state="state"
+              @update="handleUpdate"
+            />
+
+            <!-- No settings available -->
+            <div
+              v-else
+              class="py-8 text-center text-sm text-muted-foreground"
+            >
+              <BkIcon icon="settings" :size="24" class="mx-auto mb-2 opacity-50" />
+              <p>No settings available</p>
+            </div>
+          </div>
         </div>
-
-        <!-- Configuration panel -->
-        <BkConfigurationPanel
-          v-if="configurationSchema"
-          :schema="configurationSchema"
-          :state="state"
-          :providers="providers"
-          @update="handleUpdate"
-        />
       </div>
 
-      <!-- Settings tab content -->
-      <div v-show="activeTab === 'settings'" class="px-3 pb-3">
-        <BkSettingsPanelGeneric
-          v-if="settingsSchema"
-          :schema="settingsSchema"
-          :state="state"
-          @update="handleUpdate"
-        />
-
-        <!-- No settings available -->
-        <div
-          v-else
-          class="py-8 text-center text-sm text-muted-foreground"
-        >
-          <BkIcon icon="settings" :size="24" class="mx-auto mb-2 opacity-50" />
-          <p>No settings available</p>
-        </div>
-      </div>
+      <!-- Bottom spacing -->
+      <div class="h-3" />
     </template>
 
     <!-- Without tabs (only settings, no configuration) -->

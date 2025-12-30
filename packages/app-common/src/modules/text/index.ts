@@ -83,6 +83,7 @@ export const TextModule = defineModule<TextState>({
   moduleId: 'text',
   version: '0.1.0',
   displayName: 'Text',
+  icon: 'file-text',
   component: TextWidget,
   defaultState: () => ({
     content: '',

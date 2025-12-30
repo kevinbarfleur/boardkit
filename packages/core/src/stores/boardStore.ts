@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { nanoid } from 'nanoid'
 import type { BoardkitDocument, Widget, Viewport, WidgetVisibilitySettings } from '../types/document'
+import type { HistoryOptions } from '../types/module'
 import { DEFAULT_WIDGET_VISIBILITY } from '../types/document'
 import type { CanvasElement, BoardBackground, LineElement, DrawElement } from '../types/element'
 import type { DataSharingState, DataPermission, DataLink } from '../types/dataContract'
@@ -12,6 +13,7 @@ import { moduleRegistry } from '../modules/ModuleRegistry'
 import { migrateDocument } from '../migrations'
 import { dataBus } from '../data/DataBus'
 import { dataAccessController } from '../data/DataAccessController'
+import { useHistory, type HistoryEntry } from '../composables/useHistory'
 
 // ============================================================================
 // Selection Types
@@ -48,6 +50,30 @@ export const useBoardStore = defineStore('board', () => {
   const selection = ref<MultiSelection>([])
   const isDirty = ref(false)
   const lastAction = ref<string>('Initial state')
+
+  // Flag to prevent history captures during document restoration (undo/redo/goToEntry)
+  const isRestoring = ref(false)
+
+  // ============================================================================
+  // History (Undo/Redo)
+  // ============================================================================
+
+  const history = useHistory({ maxSize: 50 })
+
+  // Debounce timers for module state history captures (per widget)
+  const historyDebounceTimers = new Map<string, ReturnType<typeof setTimeout>>()
+
+  /**
+   * Clear all pending history debounce timers.
+   * Called before document restoration to prevent stale timers from creating history entries.
+   */
+  function clearHistoryDebounceTimers(): void {
+    for (const timer of historyDebounceTimers.values()) {
+      clearTimeout(timer)
+    }
+    historyDebounceTimers.clear()
+    console.log('[BoardStore] Cleared all history debounce timers')
+  }
 
   // ============================================================================
   // Getters - Document
@@ -272,6 +298,9 @@ export const useBoardStore = defineStore('board', () => {
       return null
     }
 
+    // Capture snapshot BEFORE mutation for undo
+    captureHistorySnapshot(`Added ${moduleDef.displayName}`)
+
     const id = nanoid()
     const widget: Widget = {
       id,
@@ -288,7 +317,7 @@ export const useBoardStore = defineStore('board', () => {
     document.value.board.widgets.push(widget)
     document.value.modules[id] = moduleDef.serialize(moduleDef.defaultState())
     selectWidget(id)
-    markDirty(`Added ${moduleDef.displayName} widget`)
+    markDirty(`Added ${moduleDef.displayName}`)
 
     return id
   }
@@ -303,6 +332,9 @@ export const useBoardStore = defineStore('board', () => {
     const moduleDef = widget ? moduleRegistry.get(widget.moduleId) : null
     const moduleName = moduleDef?.displayName ?? 'widget'
 
+    // Capture snapshot BEFORE mutation for undo
+    captureHistorySnapshot(`Deleted ${moduleName}`)
+
     // Clean up data sharing BEFORE removing widget
     cleanupWidgetDataSharing(widgetId)
 
@@ -315,22 +347,76 @@ export const useBoardStore = defineStore('board', () => {
     markDirty(`Deleted ${moduleName}`)
   }
 
-  function moveWidget(widgetId: string, x: number, y: number) {
+  /**
+   * Remove all selected widgets and elements.
+   * Used for multi-selection delete.
+   */
+  function removeSelection() {
+    if (!document.value) return
+
+    const widgetCount = selectedWidgetIds.value.length
+    const elementCount = selectedElementIds.value.length
+    const totalCount = widgetCount + elementCount
+
+    if (totalCount === 0) return
+
+    // Build message first for history label
+    const parts: string[] = []
+    if (widgetCount > 0) parts.push(`${widgetCount} module${widgetCount > 1 ? 's' : ''}`)
+    if (elementCount > 0) parts.push(`${elementCount} element${elementCount > 1 ? 's' : ''}`)
+    const label = `Deleted ${parts.join(' and ')}`
+
+    // Capture snapshot BEFORE mutation for undo
+    captureHistorySnapshot(label)
+
+    // Remove widgets
+    for (const widgetId of selectedWidgetIds.value) {
+      const index = document.value.board.widgets.findIndex((w) => w.id === widgetId)
+      if (index !== -1) {
+        cleanupWidgetDataSharing(widgetId)
+        document.value.board.widgets.splice(index, 1)
+        delete document.value.modules[widgetId]
+      }
+    }
+
+    // Remove elements
+    for (const elementId of selectedElementIds.value) {
+      const index = document.value.board.elements.findIndex((e) => e.id === elementId)
+      if (index !== -1) {
+        document.value.board.elements.splice(index, 1)
+      }
+    }
+
+    clearSelection()
+    markDirty(label)
+  }
+
+  function moveWidget(widgetId: string, x: number, y: number, captureHistory = false) {
     if (!document.value) return
 
     const widget = widgetMap.value.get(widgetId)
     if (!widget) return
+
+    // Only capture history at the START of a drag, not during
+    if (captureHistory) {
+      captureHistorySnapshot('Moved widget')
+    }
 
     widget.rect.x = x
     widget.rect.y = y
     markDirty('Moved widget')
   }
 
-  function resizeWidget(widgetId: string, width: number, height: number) {
+  function resizeWidget(widgetId: string, width: number, height: number, captureHistory = false) {
     if (!document.value) return
 
     const widget = widgetMap.value.get(widgetId)
     if (!widget) return
+
+    // Only capture history at the START of a resize, not during
+    if (captureHistory) {
+      captureHistorySnapshot('Resized widget')
+    }
 
     const moduleDef = moduleRegistry.get(widget.moduleId)
     const minWidth = moduleDef?.minWidth ?? 100
@@ -349,6 +435,9 @@ export const useBoardStore = defineStore('board', () => {
 
     const moduleDef = moduleRegistry.get(widget.moduleId)
     const moduleName = moduleDef?.displayName ?? 'widget'
+
+    // Capture snapshot BEFORE mutation for undo
+    captureHistorySnapshot(`Duplicated ${moduleName}`)
 
     const newId = nanoid()
     const offset = 20
@@ -418,6 +507,9 @@ export const useBoardStore = defineStore('board', () => {
   function addElement(element: Omit<CanvasElement, 'id' | 'zIndex'>): string {
     if (!document.value) return ''
 
+    // Capture snapshot BEFORE mutation for undo
+    captureHistorySnapshot(`Added ${element.type}`)
+
     const id = nanoid()
     const newElement = {
       ...element,
@@ -439,6 +531,10 @@ export const useBoardStore = defineStore('board', () => {
     if (index === -1) return
 
     const element = document.value.board.elements[index]
+
+    // Capture snapshot BEFORE mutation for undo
+    captureHistorySnapshot(`Deleted ${element.type}`)
+
     document.value.board.elements.splice(index, 1)
 
     if (selectedElementId.value === elementId) {
@@ -510,6 +606,9 @@ export const useBoardStore = defineStore('board', () => {
 
     const element = elementMap.value.get(elementId)
     if (!element) return null
+
+    // Capture snapshot BEFORE mutation for undo
+    captureHistorySnapshot(`Duplicated ${element.type}`)
 
     const newId = nanoid()
     const offset = 20
@@ -858,7 +957,11 @@ export const useBoardStore = defineStore('board', () => {
     return moduleDef.deserialize(serialized) as T
   }
 
-  function updateModuleState<T extends object>(widgetId: string, partial: Partial<T>) {
+  function updateModuleState<T extends object>(
+    widgetId: string,
+    partial: Partial<T>,
+    options?: HistoryOptions
+  ) {
     if (!document.value) return
 
     const widget = widgetMap.value.get(widgetId)
@@ -867,13 +970,40 @@ export const useBoardStore = defineStore('board', () => {
     const moduleDef = moduleRegistry.get(widget.moduleId)
     if (!moduleDef) return
 
+    // Handle history capture if requested (skip during restoration)
+    if (options?.captureHistory && options?.historyLabel && !isRestoring.value) {
+      const label = options.historyLabel
+
+      if (options.debounceMs && options.debounceMs > 0) {
+        // Debounced capture: cancel previous timer and set a new one
+        const existingTimer = historyDebounceTimers.get(widgetId)
+        if (existingTimer) {
+          clearTimeout(existingTimer)
+        }
+
+        historyDebounceTimers.set(
+          widgetId,
+          setTimeout(() => {
+            captureHistorySnapshot(label)
+            historyDebounceTimers.delete(widgetId)
+          }, options.debounceMs)
+        )
+      } else {
+        // Immediate capture
+        captureHistorySnapshot(label)
+      }
+    } else if (options?.captureHistory && isRestoring.value) {
+      console.log('[BoardStore] Skipping history capture setup during restoration:', options?.historyLabel)
+    }
+
+    // Perform the mutation
     const current = moduleDef.deserialize(document.value.modules[widgetId]) as T
     const updated = { ...current, ...partial }
     document.value.modules[widgetId] = moduleDef.serialize(updated)
-    markDirty(`Updated ${moduleDef.displayName}`)
+    markDirty(options?.historyLabel ?? `Updated ${moduleDef.displayName}`)
   }
 
-  function setModuleState<T>(widgetId: string, state: T) {
+  function setModuleState<T>(widgetId: string, state: T, options?: HistoryOptions) {
     if (!document.value) return
 
     const widget = widgetMap.value.get(widgetId)
@@ -882,13 +1012,55 @@ export const useBoardStore = defineStore('board', () => {
     const moduleDef = moduleRegistry.get(widget.moduleId)
     if (!moduleDef) return
 
+    // Handle history capture if requested (skip during restoration)
+    if (options?.captureHistory && options?.historyLabel && !isRestoring.value) {
+      const label = options.historyLabel
+
+      if (options.debounceMs && options.debounceMs > 0) {
+        // Debounced capture: cancel previous timer and set a new one
+        const existingTimer = historyDebounceTimers.get(widgetId)
+        if (existingTimer) {
+          clearTimeout(existingTimer)
+        }
+
+        historyDebounceTimers.set(
+          widgetId,
+          setTimeout(() => {
+            captureHistorySnapshot(label)
+            historyDebounceTimers.delete(widgetId)
+          }, options.debounceMs)
+        )
+      } else {
+        // Immediate capture
+        captureHistorySnapshot(label)
+      }
+    } else if (options?.captureHistory && isRestoring.value) {
+      console.log('[BoardStore] Skipping history capture setup during restoration:', options?.historyLabel)
+    }
+
     document.value.modules[widgetId] = moduleDef.serialize(state)
-    markDirty(`Updated ${moduleDef.displayName}`)
+    markDirty(options?.historyLabel ?? `Updated ${moduleDef.displayName}`)
   }
 
   // ============================================================================
   // Actions - Dirty State
   // ============================================================================
+
+  /**
+   * Capture the current document state BEFORE making a change.
+   * This should be called at the start of any mutating action.
+   * Skipped during document restoration (undo/redo/goToEntry) to prevent
+   * module watchers from accidentally creating new history entries.
+   */
+  function captureHistorySnapshot(label: string): void {
+    if (isRestoring.value) {
+      console.log('[BoardStore] Skipping history capture during restoration:', label)
+      return
+    }
+    if (document.value) {
+      history.pushState(label, document.value)
+    }
+  }
 
   function markDirty(action?: string) {
     isDirty.value = true
@@ -903,6 +1075,137 @@ export const useBoardStore = defineStore('board', () => {
   function markClean() {
     isDirty.value = false
   }
+
+  // ============================================================================
+  // Actions - Undo/Redo
+  // ============================================================================
+
+  /**
+   * Undo the last action by restoring the previous document state.
+   */
+  function undo(): boolean {
+    console.log('[BoardStore] undo called, hasDocument:', !!document.value)
+    if (!document.value) return false
+
+    // Clear any pending debounce timers before restoration
+    clearHistoryDebounceTimers()
+
+    // Pass current document to save as liveSnapshot on first undo
+    const entry = history.undo(document.value)
+    console.log('[BoardStore] undo result:', { hasEntry: !!entry, label: entry?.label })
+    if (entry) {
+      // Set restoring flag to prevent module watchers from creating history entries
+      isRestoring.value = true
+      document.value = JSON.parse(JSON.stringify(entry.snapshot))
+      // Use nextTick equivalent: clear flag after Vue's reactivity system settles
+      setTimeout(() => {
+        isRestoring.value = false
+        console.log('[BoardStore] Restoration complete, isRestoring reset to false')
+      }, 0)
+      isDirty.value = true
+      lastAction.value = `Undid: ${entry.label}`
+      console.log('[BoardStore] After undo - canRedo:', history.canRedo.value)
+      return true
+    }
+    return false
+  }
+
+  /**
+   * Redo a previously undone action.
+   */
+  function redo(): boolean {
+    console.log('[BoardStore] redo called, canRedo:', history.canRedo.value)
+
+    // Clear any pending debounce timers before restoration
+    clearHistoryDebounceTimers()
+
+    const entry = history.redo()
+    console.log('[BoardStore] redo result:', { hasEntry: !!entry, label: entry?.label, id: entry?.id })
+    if (entry) {
+      // Set restoring flag to prevent module watchers from creating history entries
+      isRestoring.value = true
+      document.value = JSON.parse(JSON.stringify(entry.snapshot))
+      setTimeout(() => {
+        isRestoring.value = false
+        console.log('[BoardStore] Restoration complete, isRestoring reset to false')
+      }, 0)
+      isDirty.value = true
+      lastAction.value = entry.id === 'live' ? 'Returned to current state' : `Redid: ${entry.label}`
+      return true
+    }
+    console.log('[BoardStore] redo failed - no entry returned')
+    return false
+  }
+
+  /**
+   * Jump to a specific history entry by ID.
+   * Useful for clicking on entries in a history dropdown.
+   */
+  function goToHistoryEntry(entryId: string): boolean {
+    if (!document.value) return false
+
+    // Clear any pending debounce timers before restoration
+    clearHistoryDebounceTimers()
+
+    const entry = history.goToEntry(entryId, document.value)
+    if (entry) {
+      // Set restoring flag to prevent module watchers from creating history entries
+      isRestoring.value = true
+      document.value = JSON.parse(JSON.stringify(entry.snapshot))
+      setTimeout(() => {
+        isRestoring.value = false
+        console.log('[BoardStore] Restoration complete, isRestoring reset to false')
+      }, 0)
+      isDirty.value = true
+      lastAction.value = `Jumped to: ${entry.label}`
+      return true
+    }
+    return false
+  }
+
+  /**
+   * Return to the live (most recent) state.
+   */
+  function goToLiveState(): boolean {
+    // Clear any pending debounce timers before restoration
+    clearHistoryDebounceTimers()
+
+    const entry = history.goToLive()
+    if (entry) {
+      // Set restoring flag to prevent module watchers from creating history entries
+      isRestoring.value = true
+      document.value = JSON.parse(JSON.stringify(entry.snapshot))
+      setTimeout(() => {
+        isRestoring.value = false
+        console.log('[BoardStore] Restoration complete, isRestoring reset to false')
+      }, 0)
+      isDirty.value = true
+      lastAction.value = 'Returned to current state'
+      return true
+    }
+    return false
+  }
+
+  /** Whether undo is available */
+  const canUndo = computed(() => history.canUndo.value)
+
+  /** Whether redo is available */
+  const canRedo = computed(() => history.canRedo.value)
+
+  /** Label of the action that would be undone */
+  const undoLabel = computed(() => history.undoLabel.value)
+
+  /** Label of the action that would be redone */
+  const redoLabel = computed(() => history.redoLabel.value)
+
+  /** Full history stack for debugging/UI */
+  const historyStack = computed(() => history.stack.value)
+
+  /** Whether we're at the live state (not in undo mode) */
+  const isAtLive = computed(() => history.isAtLive.value)
+
+  /** Current history index (-1 = live, 0+ = historical) */
+  const historyIndex = computed(() => history.currentIndex.value)
 
   // ============================================================================
   // Actions - Data Sharing
@@ -1085,6 +1388,7 @@ export const useBoardStore = defineStore('board', () => {
     // Actions - Widget
     addWidget,
     removeWidget,
+    removeSelection,
     moveWidget,
     resizeWidget,
     duplicateWidget,
@@ -1127,6 +1431,20 @@ export const useBoardStore = defineStore('board', () => {
     // Actions - Dirty State
     markDirty,
     markClean,
+    captureHistorySnapshot,
+
+    // Actions - Undo/Redo
+    undo,
+    redo,
+    goToHistoryEntry,
+    goToLiveState,
+    canUndo,
+    canRedo,
+    undoLabel,
+    redoLabel,
+    historyStack,
+    historyIndex,
+    isAtLive,
 
     // Data Sharing - Getters
     dataSharing,

@@ -37,6 +37,10 @@ interface Props {
   state: Record<string, unknown>
   /** Available providers for data source sections */
   providers: ConfigPanelProvider[]
+  /** Custom components for 'custom' type sections */
+  customComponents?: Record<string, unknown>
+  /** Module context (passed to custom components) */
+  moduleContext?: unknown
 }
 
 const props = defineProps<Props>()
@@ -186,6 +190,11 @@ function isSourcePicker(section: ConfigurationSection): section is SourcePickerS
 function isItemBuilder(section: ConfigurationSection): section is ItemBuilderSection {
   return section.type === 'item-builder'
 }
+
+// Get custom component for a section
+function getCustomComponent(componentName: string): unknown | undefined {
+  return props.customComponents?.[componentName]
+}
 </script>
 
 <template>
@@ -227,21 +236,31 @@ function isItemBuilder(section: ConfigurationSection): section is ItemBuilderSec
       </template>
 
       <!-- Custom Section -->
-      <BkFormSection
-        v-else-if="section.type === 'custom'"
-        :title="section.title"
-        no-dividers
-      >
-        <template #title>
-          <span class="flex items-center gap-1.5">
-            <BkIcon :icon="section.icon" :size="12" />
-            {{ section.title }}
-          </span>
-        </template>
-        <div class="p-3 text-sm text-muted-foreground">
-          Custom component: {{ (section as any).component }}
-        </div>
-      </BkFormSection>
+      <template v-else-if="section.type === 'custom'">
+        <!-- Render custom component if available -->
+        <component
+          v-if="getCustomComponent((section as any).component)"
+          :is="getCustomComponent((section as any).component)"
+          :context="moduleContext"
+          @update="(key: string, value: unknown) => emit('update', key, value)"
+        />
+        <!-- Fallback if custom component not provided -->
+        <BkFormSection
+          v-else
+          :title="section.title"
+          no-dividers
+        >
+          <template #title>
+            <span class="flex items-center gap-1.5">
+              <BkIcon :icon="section.icon" :size="12" />
+              {{ section.title }}
+            </span>
+          </template>
+          <div class="p-3 text-sm text-muted-foreground">
+            Custom component: {{ (section as any).component }}
+          </div>
+        </BkFormSection>
+      </template>
     </template>
   </div>
 </template>

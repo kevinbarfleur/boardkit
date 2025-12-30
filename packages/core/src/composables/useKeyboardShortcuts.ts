@@ -14,6 +14,9 @@ import { KEY_TO_TOOL } from '../types/tool'
  * Registered shortcuts:
  * - Escape: Close context menu / Cancel drawing / Clear selection
  * - Delete/Backspace: Remove selected widget/element
+ * - Cmd/Ctrl + Z: Undo last action
+ * - Cmd/Ctrl + Shift + Z: Redo (Mac style)
+ * - Ctrl + Y: Redo (Windows style)
  * - Cmd/Ctrl + D: Duplicate selected widget/element
  * - Cmd/Ctrl + 0: Reset view
  * - Cmd/Ctrl + K: Open command palette
@@ -222,6 +225,30 @@ export function useKeyboardShortcuts(
     if (key === 'k' && hasCmdOrCtrl(e)) {
       e.preventDefault()
       opts.onCommandPalette?.()
+      return
+    }
+
+    // Cmd/Ctrl + Z - Undo
+    if (key === 'z' && hasCmdOrCtrl(e) && !e.shiftKey) {
+      e.preventDefault()
+      const ctx = buildActionContext()
+      actionRegistry.execute('board.undo', ctx)
+      return
+    }
+
+    // Cmd/Ctrl + Shift + Z - Redo (Mac style)
+    if (key === 'z' && hasCmdOrCtrl(e) && e.shiftKey) {
+      e.preventDefault()
+      const ctx = buildActionContext()
+      actionRegistry.execute('board.redo', ctx)
+      return
+    }
+
+    // Ctrl + Y - Redo (Windows style)
+    if (key === 'y' && e.ctrlKey && !isMac()) {
+      e.preventDefault()
+      const ctx = buildActionContext()
+      actionRegistry.execute('board.redo', ctx)
       return
     }
 

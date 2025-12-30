@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import { nanoid } from 'nanoid'
 import type { ModuleContext } from '@boardkit/core'
-import { useProvideData, todoContractV1, type PublicTodoList } from '@boardkit/core'
+import { useProvideData, todoContractV1, truncate, type PublicTodoList } from '@boardkit/core'
 import { BkCheckbox, BkIcon } from '@boardkit/ui'
 import type { TodoState, TodoItem, TodoPriority } from './types'
 import { defaultTodoSettings } from './types'
@@ -86,42 +86,90 @@ const items = computed(() => {
 const allItems = computed(() => props.context.state.items || [])
 
 const updateTitle = (value: string) => {
-  props.context.updateState({ title: value })
+  props.context.updateState(
+    { title: value },
+    {
+      captureHistory: true,
+      historyLabel: `Renamed list: ${truncate(value, 25)}`,
+      debounceMs: 1000,
+    }
+  )
 }
 
 const updateDescription = (value: string) => {
-  props.context.updateState({ description: value })
+  props.context.updateState(
+    { description: value },
+    {
+      captureHistory: true,
+      historyLabel: `Updated description`,
+      debounceMs: 1000,
+    }
+  )
 }
 
 const addTodo = () => {
   if (!newTodoLabel.value.trim()) return
 
+  const label = newTodoLabel.value.trim()
   const newItem: TodoItem = {
     id: nanoid(),
-    label: newTodoLabel.value.trim(),
+    label,
     completed: false,
   }
 
-  props.context.updateState({
-    items: [...allItems.value, newItem],
-  })
+  props.context.updateState(
+    { items: [...allItems.value, newItem] },
+    {
+      captureHistory: true,
+      historyLabel: `Added todo: ${truncate(label, 30)}`,
+    }
+  )
 
   newTodoLabel.value = ''
 }
 
 const toggleTodo = (id: string, completed: boolean) => {
-  const updated = allItems.value.map((item) => (item.id === id ? { ...item, completed } : item))
-  props.context.updateState({ items: updated })
+  const item = allItems.value.find((i) => i.id === id)
+  const updated = allItems.value.map((i) => (i.id === id ? { ...i, completed } : i))
+  const label = completed
+    ? `Checked: ${truncate(item?.label, 30)}`
+    : `Unchecked: ${truncate(item?.label, 30)}`
+
+  props.context.updateState(
+    { items: updated },
+    {
+      captureHistory: true,
+      historyLabel: label,
+    }
+  )
 }
 
 const updateTodoPriority = (id: string, priority: TodoPriority | undefined) => {
-  const updated = allItems.value.map((item) => (item.id === id ? { ...item, priority } : item))
-  props.context.updateState({ items: updated })
+  const item = allItems.value.find((i) => i.id === id)
+  const updated = allItems.value.map((i) => (i.id === id ? { ...i, priority } : i))
+  const priorityLabel = priority ? `${priority} priority` : 'no priority'
+
+  props.context.updateState(
+    { items: updated },
+    {
+      captureHistory: true,
+      historyLabel: `Set ${priorityLabel}: ${truncate(item?.label, 25)}`,
+    }
+  )
 }
 
 const updateTodoDueDate = (id: string, dueDate: string | undefined) => {
-  const updated = allItems.value.map((item) => (item.id === id ? { ...item, dueDate } : item))
-  props.context.updateState({ items: updated })
+  const item = allItems.value.find((i) => i.id === id)
+  const updated = allItems.value.map((i) => (i.id === id ? { ...i, dueDate } : i))
+  const dateLabel = dueDate ? `due ${dueDate}` : 'no due date'
+
+  props.context.updateState(
+    { items: updated },
+    {
+      captureHistory: true,
+      historyLabel: `Set ${dateLabel}: ${truncate(item?.label, 25)}`,
+    }
+  )
 }
 
 const requestDelete = (id: string) => {
@@ -144,8 +192,16 @@ const confirmDeleteAction = () => {
 }
 
 const removeTodo = (id: string) => {
-  const updated = allItems.value.filter((item) => item.id !== id)
-  props.context.updateState({ items: updated })
+  const item = allItems.value.find((i) => i.id === id)
+  const updated = allItems.value.filter((i) => i.id !== id)
+
+  props.context.updateState(
+    { items: updated },
+    {
+      captureHistory: true,
+      historyLabel: `Deleted todo: ${truncate(item?.label, 30)}`,
+    }
+  )
 }
 
 const handleKeydown = (e: KeyboardEvent) => {
