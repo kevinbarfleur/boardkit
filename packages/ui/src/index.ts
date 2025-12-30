@@ -26,6 +26,23 @@ export { default as BkButtonGroup } from './components/BkButtonGroup.vue'
 export type { ButtonGroupOption } from './components/BkButtonGroup.vue'
 export { default as BkFormRow } from './components/BkFormRow.vue'
 export { default as BkFormSection } from './components/BkFormSection.vue'
+export { default as BkTabs } from './components/BkTabs.vue'
+export type { Tab as BkTab } from './components/BkTabs.vue'
+
+// Configuration Components
+export { default as BkSetupRequired } from './components/BkSetupRequired.vue'
+export { default as BkSourcePicker } from './components/BkSourcePicker.vue'
+export type { SourcePickerProvider } from './components/BkSourcePicker.vue'
+export { default as BkSourcePickerGroup } from './components/BkSourcePickerGroup.vue'
+export type { ContractGroup } from './components/BkSourcePickerGroup.vue'
+export { default as BkConfiguredItemsList } from './components/BkConfiguredItemsList.vue'
+export type { ConfiguredItem } from './components/BkConfiguredItemsList.vue'
+export { default as BkAddItemWizard } from './components/BkAddItemWizard.vue'
+export type { WizardStep, WizardOption } from './components/BkAddItemWizard.vue'
+export { default as BkConfigurationPanel } from './components/BkConfigurationPanel.vue'
+export type { ConfigPanelProvider } from './components/BkConfigurationPanel.vue'
+export { default as BkSettingsPanelGeneric } from './components/BkSettingsPanelGeneric.vue'
+export { default as BkModuleSettingsPanel } from './components/BkModuleSettingsPanel.vue'
 
 // Canvas Tool Components
 export { default as BkToolbar } from './components/BkToolbar.vue'

@@ -21,6 +21,7 @@ const isSelected = computed(() => boardStore.selectedWidgetId === props.widgetId
 
 const context = computed<ModuleContext>(() => ({
   widgetId: props.widgetId,
+  moduleId: props.moduleId,
   state: moduleState.value ?? {},
   updateState: (partial) => boardStore.updateModuleState(props.widgetId, partial),
   setState: (state) => boardStore.setModuleState(props.widgetId, state),

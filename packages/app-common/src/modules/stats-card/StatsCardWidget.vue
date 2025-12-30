@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import type { ModuleContext } from '@boardkit/core'
 import {
   useConsumeData,
+  useModuleConfiguration,
   todoContractV1,
   counterContractV1,
   habitsStatsContractV1,
@@ -16,7 +17,7 @@ import type {
   PublicKanbanStats,
   PublicTimerHistory,
 } from '@boardkit/core'
-import { BkButton, BkIcon, BkSelect } from '@boardkit/ui'
+import { BkButton, BkIcon, BkSelect, BkSetupRequired } from '@boardkit/ui'
 import type { StatsCardState, StatMetricConfig, StatSourceType, LayoutMode } from './types'
 import { metricTemplates } from './types'
 
@@ -25,6 +26,17 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+
+const emit = defineEmits<{
+  'open-settings': [options?: { tab?: string }]
+}>()
+
+// Configuration check
+const { needsSetup, setupMessage, setupIcon } = useModuleConfiguration(props.context)
+
+function handleConfigure() {
+  emit('open-settings', { tab: 'configure' })
+}
 
 // Local state
 const isConfiguring = ref(false)
@@ -305,23 +317,12 @@ const sourceTypeOptions = [
       </div>
     </div>
 
-    <!-- Empty state -->
-    <div
+    <!-- Empty state - Setup Required -->
+    <BkSetupRequired
       v-else
-      class="flex-1 flex items-center justify-center"
-    >
-      <div class="text-center">
-        <BkIcon icon="bar-chart-2" :size="24" class="text-muted-foreground mx-auto mb-2" />
-        <div class="text-sm text-muted-foreground">No metrics configured</div>
-        <BkButton
-          variant="ghost"
-          size="sm"
-          class="mt-2"
-          @click="isConfiguring = true"
-        >
-          Add metrics
-        </BkButton>
-      </div>
-    </div>
+      :icon="setupIcon"
+      :message="setupMessage"
+      @configure="isConfiguring = true"
+    />
   </div>
 </template>

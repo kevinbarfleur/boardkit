@@ -1,0 +1,247 @@
+<script setup lang="ts">
+/**
+ * BkConfigurationPanel
+ *
+ * Renders configuration UI based on a ConfigurationSchema.
+ * Interprets the schema sections and renders the appropriate components.
+ */
+import { ref, computed } from 'vue'
+import type {
+  ConfigurationSchema,
+  ConfigurationSection,
+  SourcePickerSection,
+  ItemBuilderSection,
+} from '@boardkit/core'
+import BkSourcePicker, { type SourcePickerProvider } from './BkSourcePicker.vue'
+import BkConfiguredItemsList, { type ConfiguredItem } from './BkConfiguredItemsList.vue'
+import BkAddItemWizard, { type WizardStep } from './BkAddItemWizard.vue'
+import BkFormSection from './BkFormSection.vue'
+import BkIcon from './BkIcon.vue'
+
+/**
+ * Provider info needed for source pickers
+ */
+export interface ConfigPanelProvider {
+  id: string
+  moduleId: string
+  contractId: string
+  title: string
+  icon?: string
+  meta?: string
+}
+
+interface Props {
+  /** Configuration schema to render */
+  schema: ConfigurationSchema
+  /** Current module state */
+  state: Record<string, unknown>
+  /** Available providers for data source sections */
+  providers: ConfigPanelProvider[]
+}
+
+const props = defineProps<Props>()
+
+const emit = defineEmits<{
+  /** Emitted when a state field should be updated */
+  update: [key: string, value: unknown]
+}>()
+
+// Track which add wizard is open
+const openWizardSection = ref<string | null>(null)
+
+// Filter providers by contract ID
+function getProvidersForContract(contractId: string): SourcePickerProvider[] {
+  return props.providers
+    .filter((p) => p.contractId === contractId)
+    .map((p) => ({
+      id: p.id,
+      moduleId: p.moduleId,
+      title: p.title,
+      icon: p.icon,
+      meta: p.meta,
+    }))
+}
+
+// Get current value for a state key
+function getStateValue(key: string): unknown {
+  return props.state[key]
+}
+
+// Handle source picker update
+function handleSourceUpdate(stateKey: string, value: string | string[] | null) {
+  emit('update', stateKey, value)
+}
+
+// Convert state items to ConfiguredItems for display
+function getConfiguredItems(section: ItemBuilderSection): ConfiguredItem[] {
+  const items = props.state[section.stateKey] as Array<Record<string, unknown>> | undefined
+  if (!items) return []
+
+  return items.map((item) => ({
+    id: item.id as string,
+    label: item[section.itemDisplay.labelKey] as string,
+    meta: section.itemDisplay.metaKey
+      ? (item[section.itemDisplay.metaKey] as string)
+      : undefined,
+    icon: section.itemDisplay.iconKey
+      ? (item[section.itemDisplay.iconKey] as string)
+      : undefined,
+  }))
+}
+
+// Handle item removal
+function handleItemRemove(section: ItemBuilderSection, itemId: string) {
+  const items = props.state[section.stateKey] as Array<Record<string, unknown>> | undefined
+  if (!items) return
+
+  emit(
+    'update',
+    section.stateKey,
+    items.filter((item) => item.id !== itemId)
+  )
+}
+
+// Handle item reorder
+function handleItemReorder(section: ItemBuilderSection, newItems: ConfiguredItem[]) {
+  const currentItems = props.state[section.stateKey] as Array<Record<string, unknown>> | undefined
+  if (!currentItems) return
+
+  // Reorder based on new order
+  const reordered = newItems.map((newItem) =>
+    currentItems.find((item) => item.id === newItem.id)
+  ).filter(Boolean)
+
+  emit('update', section.stateKey, reordered)
+}
+
+// Handle wizard completion
+function handleWizardComplete(section: ItemBuilderSection, wizardState: Record<string, string>) {
+  const currentItems = (props.state[section.stateKey] as Array<Record<string, unknown>>) || []
+
+  // Create new item from wizard state
+  // This is a simplified version - in a full implementation,
+  // this would use the section's createItem function or template
+  const newItem = {
+    id: crypto.randomUUID(),
+    ...wizardState,
+    label: wizardState.label || wizardState.field || 'New Item',
+  }
+
+  emit('update', section.stateKey, [...currentItems, newItem])
+  openWizardSection.value = null
+}
+
+// Build wizard steps from section config
+function getWizardSteps(section: ItemBuilderSection): WizardStep[] {
+  // This is a simplified implementation
+  // In a full implementation, this would be built from section.addItemFlow.steps
+  return section.addItemFlow.steps.map((step) => {
+    if (step.type === 'select-source-type') {
+      return {
+        id: step.stateKey,
+        label: step.label,
+        type: 'button-group' as const,
+        options: step.options.map((o) => ({
+          value: o.value,
+          label: o.label,
+          icon: o.icon,
+        })),
+      }
+    }
+
+    if (step.type === 'select-source') {
+      return {
+        id: step.stateKey,
+        label: step.label,
+        type: 'select' as const,
+        options: [], // Will be populated dynamically
+        placeholder: 'Select a source...',
+      }
+    }
+
+    if (step.type === 'select-field') {
+      return {
+        id: step.stateKey,
+        label: step.label,
+        type: 'radio' as const,
+        options: [], // Will be populated based on source type
+      }
+    }
+
+    // Default
+    return {
+      id: 'unknown',
+      label: 'Unknown Step',
+      type: 'select' as const,
+      options: [],
+    }
+  })
+}
+
+// Type guard functions
+function isSourcePicker(section: ConfigurationSection): section is SourcePickerSection {
+  return section.type === 'source-picker'
+}
+
+function isItemBuilder(section: ConfigurationSection): section is ItemBuilderSection {
+  return section.type === 'item-builder'
+}
+</script>
+
+<template>
+  <div class="bk-configuration-panel space-y-4">
+    <template v-for="section in schema.sections" :key="section.title">
+      <!-- Source Picker Section -->
+      <BkSourcePicker
+        v-if="isSourcePicker(section)"
+        :title="section.title"
+        :icon="section.icon"
+        :description="section.description"
+        :providers="getProvidersForContract(section.contractId)"
+        :model-value="getStateValue(section.stateKey) as string | string[] | null"
+        :mode="section.mode"
+        @update:model-value="(v) => handleSourceUpdate(section.stateKey, v)"
+      />
+
+      <!-- Item Builder Section -->
+      <template v-else-if="isItemBuilder(section)">
+        <BkConfiguredItemsList
+          :title="section.title"
+          :icon="section.icon"
+          :items="getConfiguredItems(section)"
+          :draggable="section.draggable"
+          :add-button-label="section.addItemFlow.buttonLabel"
+          @remove="(id) => handleItemRemove(section, id)"
+          @reorder="(items) => handleItemReorder(section, items)"
+          @add="openWizardSection = section.stateKey"
+        />
+
+        <!-- Add Item Wizard -->
+        <BkAddItemWizard
+          :open="openWizardSection === section.stateKey"
+          :title="section.addItemFlow.buttonLabel"
+          :steps="getWizardSteps(section)"
+          @close="openWizardSection = null"
+          @complete="(state) => handleWizardComplete(section, state)"
+        />
+      </template>
+
+      <!-- Custom Section -->
+      <BkFormSection
+        v-else-if="section.type === 'custom'"
+        :title="section.title"
+        no-dividers
+      >
+        <template #title>
+          <span class="flex items-center gap-1.5">
+            <BkIcon :icon="section.icon" :size="12" />
+            {{ section.title }}
+          </span>
+        </template>
+        <div class="p-3 text-sm text-muted-foreground">
+          Custom component: {{ (section as any).component }}
+        </div>
+      </BkFormSection>
+    </template>
+  </div>
+</template>

@@ -1,5 +1,7 @@
 import type { Component } from 'vue'
 import type { DataContract } from './dataContract'
+import type { ConfigurationSchema } from './configurationSchema'
+import type { SettingsSchema } from './settingsSchema'
 
 /**
  * Module SDK Types
@@ -56,11 +58,28 @@ export interface ModuleDefinition<TState = unknown> {
 
   /** Data contracts this module provides (auto-registered) */
   provides?: DataContract[]
+
+  /**
+   * Configuration schema for modules that require setup before use.
+   * If defined, the module will show a "Setup Required" state until configured.
+   * Configuration is managed through the Configure tab in the Settings panel.
+   */
+  configurationSchema?: ConfigurationSchema
+
+  /**
+   * Settings schema for module preferences.
+   * Used to automatically generate the Settings panel UI.
+   * Settings are optional customizations for an already-functional module.
+   */
+  settingsSchema?: SettingsSchema
 }
 
 export interface ModuleContext<TState = unknown> {
   /** Widget ID */
   widgetId: string
+
+  /** Module ID */
+  moduleId: string
 
   /** Current module state */
   state: TState

@@ -35,6 +35,13 @@ export type {
   LegacyKeyboardShortcutsOptions,
 } from './composables/useKeyboardShortcuts'
 
+export {
+  useModuleConfiguration,
+  isModuleConfigured,
+  getModuleConfigurationSchema,
+  getModuleSettingsSchema,
+} from './composables/useModuleConfiguration'
+
 // Canvas helpers (VueUse-based utilities)
 export {
   useCanvasSize,

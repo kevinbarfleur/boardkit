@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { ModuleContext } from '@boardkit/core'
-import { useConsumeData, todoContractV1, type PublicTodoList } from '@boardkit/core'
-import { BkIcon } from '@boardkit/ui'
+import { useConsumeData, useModuleConfiguration, todoContractV1, type PublicTodoList } from '@boardkit/core'
+import { BkIcon, BkSetupRequired } from '@boardkit/ui'
 import type { TaskRadarState } from './types'
 import { defaultTaskRadarSettings } from './types'
 
@@ -11,6 +11,17 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+
+const emit = defineEmits<{
+  'open-settings': [options?: { tab?: string }]
+}>()
+
+// Configuration check
+const { needsSetup, setupMessage, setupIcon } = useModuleConfiguration(props.context)
+
+function handleConfigure() {
+  emit('open-settings', { tab: 'configure' })
+}
 
 // Settings with defaults
 const showEmptyLists = computed(
@@ -111,17 +122,13 @@ const _groupBySource = groupBySource
       </div>
     </div>
 
-    <!-- Empty state when no providers connected -->
-    <div
-      v-if="connections.length === 0"
-      class="flex-1 flex flex-col items-center justify-center text-center px-4"
-    >
-      <BkIcon icon="link" :size="32" class="text-muted-foreground mb-3" />
-      <p class="text-sm text-muted-foreground mb-1">No data sources connected</p>
-      <p class="text-xs text-muted-foreground/70">
-        Right-click or use header menu to connect Todo lists
-      </p>
-    </div>
+    <!-- Empty state when no providers connected - Setup Required -->
+    <BkSetupRequired
+      v-if="needsSetup"
+      :icon="setupIcon"
+      :message="setupMessage"
+      @configure="handleConfigure"
+    />
 
     <!-- Connected Sources (compact view when data is showing) -->
     <div v-if="connections.length > 0 && stats.total > 0" class="text-xs text-muted-foreground">

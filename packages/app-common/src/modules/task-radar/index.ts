@@ -6,9 +6,68 @@
  */
 
 import { defineModule, todoContractV1 } from '@boardkit/core'
+import type { ConfigurationSchema, SettingsSchema } from '@boardkit/core'
 import TaskRadarWidget from './TaskRadarWidget.vue'
 import type { TaskRadarState } from './types'
 import { defaultTaskRadarSettings } from './types'
+
+/**
+ * Configuration schema - defines what's needed before module is functional
+ */
+const configurationSchema: ConfigurationSchema = {
+  isConfigured: (state) => ((state as TaskRadarState).connectedProviders?.length ?? 0) > 0,
+  setupMessage: 'Connect Todo lists to aggregate your tasks',
+  setupIcon: 'radar',
+  sections: [
+    {
+      type: 'source-picker',
+      title: 'Data Sources',
+      icon: 'list-todo',
+      description: 'Select Todo lists to aggregate:',
+      contractId: 'boardkit.todo.v1',
+      stateKey: 'connectedProviders',
+      mode: 'multi',
+    },
+  ],
+}
+
+/**
+ * Settings schema - defines preferences for a configured module
+ */
+const settingsSchema: SettingsSchema = {
+  sections: [
+    {
+      id: 'display',
+      title: 'Display',
+      icon: 'eye',
+      fields: [
+        {
+          key: 'viewMode',
+          type: 'button-group',
+          label: 'View mode',
+          options: [
+            { value: 'summary', label: 'Summary' },
+            { value: 'detailed', label: 'Detailed' },
+          ],
+          fullWidth: true,
+        },
+        {
+          key: 'showEmptyLists',
+          type: 'toggle',
+          label: 'Show empty lists',
+          hint: 'Include lists with no tasks',
+        },
+        {
+          key: 'groupBySource',
+          type: 'toggle',
+          label: 'Group by source',
+          hint: 'Group tasks by their source list',
+          condition: "state.viewMode === 'detailed'",
+        },
+      ],
+    },
+  ],
+}
 
 export const TaskRadarModule = defineModule<TaskRadarState>({
   moduleId: 'task-radar',
@@ -40,6 +99,8 @@ export const TaskRadarModule = defineModule<TaskRadarState>({
     stateKey: 'connectedProviders',
     sourceLabel: 'Todo List',
   }],
+  configurationSchema,
+  settingsSchema,
 })
 
 export { defaultTaskRadarSettings }
