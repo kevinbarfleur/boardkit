@@ -7,11 +7,13 @@
     "dev": "vite",
     "build": "vue-tsc && vite build",
     "preview": "vite preview",
+    "typecheck": "vue-tsc --noEmit",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build"
   },
   "dependencies": {
+    "@boardkit/app-common": "workspace:*",
     "@boardkit/core": "workspace:*",
     "@boardkit/platform": "workspace:*",
     "@boardkit/ui": "workspace:*",

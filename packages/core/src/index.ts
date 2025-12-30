@@ -18,6 +18,7 @@ export {
   type MultiSelection,
 } from './stores/boardStore'
 export { useToolStore } from './stores/toolStore'
+export { useDataSharingStore } from './stores/dataSharingStore'
 
 // Migrations
 export {
@@ -59,3 +60,10 @@ export { consumerRegistry, ConsumerRegistry, type ConsumerDefinition } from './d
 
 // Contracts
 export { todoContractV1, type PublicTodoList } from './contracts/todo.v1'
+
+// Validation
+export {
+  validateDocument,
+  safeValidateDocument,
+  DocumentValidationError,
+} from './validation/documentValidator'

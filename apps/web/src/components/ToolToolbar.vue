@@ -10,6 +10,7 @@ import {
   TOOL_SHORTCUTS,
   type ElementStyle,
   type StrokeDashType,
+  isTextElement as isTextElementType,
 } from '@boardkit/core'
 import {
   BkToolbar,
@@ -51,29 +52,29 @@ const currentStyle = computed((): ElementStyle => {
 
 // Text-specific properties
 const currentFontSize = computed(() => {
-  if (selectedElement.value?.type === 'text') {
-    return (selectedElement.value as any).fontSize ?? 16
+  if (selectedElement.value && isTextElementType(selectedElement.value)) {
+    return selectedElement.value.fontSize ?? 16
   }
   return 16
 })
 
 const currentTextAlign = computed(() => {
-  if (selectedElement.value?.type === 'text') {
-    return (selectedElement.value as any).textAlign ?? 'left'
+  if (selectedElement.value && isTextElementType(selectedElement.value)) {
+    return selectedElement.value.textAlign ?? 'left'
   }
   return 'left'
 })
 
 const currentFontWeight = computed(() => {
-  if (selectedElement.value?.type === 'text') {
-    return (selectedElement.value as any).fontWeight ?? 'normal'
+  if (selectedElement.value && isTextElementType(selectedElement.value)) {
+    return selectedElement.value.fontWeight ?? 'normal'
   }
   return 'normal'
 })
 
 const currentFontFamily = computed((): FontFamily => {
-  if (selectedElement.value?.type === 'text') {
-    return (selectedElement.value as any).fontFamily ?? 'system'
+  if (selectedElement.value && isTextElementType(selectedElement.value)) {
+    return selectedElement.value.fontFamily ?? 'system'
   }
   return 'system'
 })

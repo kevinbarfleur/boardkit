@@ -18,14 +18,13 @@ import {
   BkFormRow,
   BkFormSection,
 } from '@boardkit/ui'
-import type { TextState } from '../modules/text/types'
-import { defaultTextSettings } from '../modules/text/types'
-import type { TodoState } from '../modules/todo/types'
-import { defaultTodoSettings } from '../modules/todo/types'
-import type { FocusLensState } from '../modules/focus-lens/types'
-import { defaultFocusLensSettings } from '../modules/focus-lens/types'
-import type { TaskRadarState } from '../modules/task-radar/types'
-import { defaultTaskRadarSettings } from '../modules/task-radar/types'
+import type { TextState, TodoState, FocusLensState, TaskRadarState } from '@boardkit/app-common'
+import {
+  defaultTextSettings,
+  defaultTodoSettings,
+  defaultFocusLensSettings,
+  defaultTaskRadarSettings,
+} from '@boardkit/app-common'
 
 const boardStore = useBoardStore()
 const { isOpen, widgetId, close } = useSettingsPanel()

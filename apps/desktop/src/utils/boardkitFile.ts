@@ -1,7 +1,11 @@
 import JSZip from 'jszip'
 import { save, open } from '@tauri-apps/plugin-dialog'
 import { readFile, writeFile, rename, remove, BaseDirectory, exists } from '@tauri-apps/plugin-fs'
-import type { BoardkitDocument } from '@boardkit/core'
+import {
+  type BoardkitDocument,
+  validateDocument,
+  DocumentValidationError,
+} from '@boardkit/core'
 
 const PACKAGE_JSON_NAME = 'package.json'
 const BOARD_JSON_NAME = 'board.json'
@@ -62,17 +66,23 @@ export async function importBoardkit(data: Uint8Array): Promise<BoardkitDocument
 
   // Parse board.json
   const boardJsonContent = await boardJsonFile.async('string')
-  const document = JSON.parse(boardJsonContent) as BoardkitDocument
+  let parsedData: unknown
 
-  // Validate basic structure
-  if (typeof document.version !== 'number') {
-    throw new Error('Invalid .boardkit file: missing version')
-  }
-  if (!document.meta || !document.board || !document.modules) {
-    throw new Error('Invalid .boardkit file: incomplete structure')
+  try {
+    parsedData = JSON.parse(boardJsonContent)
+  } catch {
+    throw new Error('Invalid .boardkit file: corrupted JSON')
   }
 
-  return document
+  // Validate document structure
+  try {
+    return validateDocument(parsedData)
+  } catch (error) {
+    if (error instanceof DocumentValidationError) {
+      throw new Error(`Invalid .boardkit file: ${error.message}`)
+    }
+    throw error
+  }
 }
 
 /**

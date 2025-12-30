@@ -14,6 +14,8 @@ import {
   type TextElement,
   type Widget,
   isDrawingTool,
+  isTextElement,
+  isShapeElement,
 } from '@boardkit/core'
 import {
   WidgetFrame,
@@ -786,10 +788,10 @@ const handleElementEditStart = (id: string, type: 'text' | 'label') => {
 
   // Get current content
   let content = ''
-  if (type === 'text' && element.type === 'text') {
-    content = (element as any).content ?? ''
-  } else if (type === 'label' && (element.type === 'rectangle' || element.type === 'ellipse')) {
-    content = (element as any).label ?? ''
+  if (type === 'text' && isTextElement(element)) {
+    content = element.content ?? ''
+  } else if (type === 'label' && isShapeElement(element)) {
+    content = element.label ?? ''
   }
 
   isEditingText.value = true

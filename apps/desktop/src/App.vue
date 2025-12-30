@@ -4,6 +4,7 @@ import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { useBoardStore, registerCoreActions } from '@boardkit/core'
 import { useTheme } from '@boardkit/ui'
 import { registerModules } from './modules'
+import { registerDesktopActions } from './actions/desktopActions'
 import { usePersistence } from './composables/usePersistence'
 import BoardCanvas from './components/BoardCanvas.vue'
 import Toolbar from './components/Toolbar.vue'
@@ -67,6 +68,9 @@ onMounted(async () => {
 
   // Register core actions after Pinia store is ready
   registerCoreActions()
+
+  // Register desktop-specific actions
+  registerDesktopActions()
 
   // Listen for Tauri menu events
   unlisteners.push(
