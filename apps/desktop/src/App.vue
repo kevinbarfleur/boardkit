@@ -1,15 +1,19 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
-import { useBoardStore, registerCoreActions } from '@boardkit/core'
+import { useBoardStore, registerCoreActions, type BoardkitDocument } from '@boardkit/core'
 import { useTheme } from '@boardkit/ui'
 import { registerModules } from './modules'
 import { registerDesktopActions } from './actions/desktopActions'
 import { usePersistence } from './composables/usePersistence'
+import { useVault } from './composables/useVault'
+import { useSettingsPanel } from './composables/useSettingsPanel'
 import BoardCanvas from './components/BoardCanvas.vue'
 import Toolbar from './components/Toolbar.vue'
 import CommandPalette from './components/CommandPalette.vue'
 import SettingsPanel from './components/SettingsPanel.vue'
+import VaultSetupModal from './components/VaultSetupModal.vue'
+import VaultSidebar from './components/VaultSidebar.vue'
 
 // Register all modules before using the store
 registerModules()
@@ -17,8 +21,12 @@ registerModules()
 const boardStore = useBoardStore()
 const { initTheme } = useTheme()
 const persistence = usePersistence()
+const vault = useVault()
+const { openAppSettings } = useSettingsPanel()
 
 const isCommandPaletteOpen = ref(false)
+const sidebarCollapsed = ref(false)
+const isInitialized = ref(false)
 const unlisteners: UnlistenFn[] = []
 
 const openCommandPalette = () => {
@@ -27,6 +35,10 @@ const openCommandPalette = () => {
 
 const closeCommandPalette = () => {
   isCommandPaletteOpen.value = false
+}
+
+const toggleSidebarCollapse = () => {
+  sidebarCollapsed.value = !sidebarCollapsed.value
 }
 
 const handleNewBoard = async () => {
@@ -57,14 +69,88 @@ const handleGoToLatest = async () => {
   await persistence.goToLatest()
 }
 
+// Vault handlers
+const handleVaultSetup = async () => {
+  await persistence.onVaultSetup()
+  isInitialized.value = true
+
+  // Setup autosave after vault is configured
+  persistence.setupAutosave()
+
+  // Setup file watching
+  persistence.setupFileWatching(handleExternalChange)
+}
+
+const handleSelectFile = async (path: string) => {
+  // Check for unsaved changes
+  if (boardStore.isDirty) {
+    // For now, save before switching
+    await persistence.saveDocument()
+  }
+  await persistence.openDocument(path)
+}
+
+const handleCreateFile = async () => {
+  await persistence.createDocument('Untitled Board')
+}
+
+const handleDeleteFile = async (path: string) => {
+  await persistence.deleteDocument(path)
+}
+
+const handleRenameFile = async (path: string, newName: string) => {
+  await persistence.renameDocument(path, newName)
+}
+
+const handleDuplicateFile = async (path: string) => {
+  await persistence.duplicateDocument(path)
+}
+
+const handleTitleChange = async (newTitle: string) => {
+  // Rename the file to match the new title
+  const currentPath = persistence.currentFilePath.value
+  if (currentPath && newTitle.trim()) {
+    await persistence.renameDocument(currentPath, newTitle.trim())
+  }
+}
+
+const handleOpenSettings = () => {
+  openAppSettings()
+}
+
+const handleChangeVault = async () => {
+  // Stop watching and select new vault
+  persistence.stopFileWatching()
+
+  const path = await vault.selectVaultFolder()
+  if (path) {
+    await persistence.onVaultSetup()
+    persistence.setupFileWatching(handleExternalChange)
+  }
+}
+
+const handleExternalChange = (doc: BoardkitDocument) => {
+  // For now, just reload the document (last-write-wins)
+  // In the future, we could show a notification and let user decide
+  boardStore.loadDocument(doc)
+  boardStore.markClean()
+}
+
 onMounted(async () => {
   initTheme()
 
-  // Initialize persistence (loads last document or creates new)
-  await persistence.initialize()
+  // Initialize persistence (returns false if vault not configured)
+  const initialized = await persistence.initialize()
 
-  // Setup autosave
-  persistence.setupAutosave()
+  if (initialized) {
+    isInitialized.value = true
+
+    // Setup autosave
+    persistence.setupAutosave()
+
+    // Setup file watching for external changes
+    persistence.setupFileWatching(handleExternalChange)
+  }
 
   // Register core actions after Pinia store is ready
   registerCoreActions()
@@ -121,33 +207,70 @@ onMounted(async () => {
       handleRedo()
     })
   )
+
+  unlisteners.push(
+    await listen('menu-toggle-sidebar', () => {
+      toggleSidebarCollapse()
+    })
+  )
 })
 
 onUnmounted(() => {
+  // Stop file watching
+  persistence.stopFileWatching()
+
   // Cleanup all listeners
   unlisteners.forEach((unlisten) => unlisten())
 })
 </script>
 
 <template>
-  <div class="h-screen w-screen overflow-hidden flex flex-col">
-    <Toolbar
-      :is-saving="persistence.isSaving.value"
-      :last-saved="persistence.lastSaved.value"
-      :can-undo="persistence.canUndo.value"
-      :can-redo="persistence.canRedo.value"
-      :undo-entries="persistence.undoEntries.value"
-      :redo-entries="persistence.redoEntries.value"
-      @new-board="handleNewBoard"
-      @export="handleExport"
-      @import="handleImport"
-      @open-command-palette="openCommandPalette"
-      @undo="handleUndo"
-      @redo="handleRedo"
-      @go-to-history="handleGoToHistory"
-      @go-to-latest="handleGoToLatest"
+  <!-- Vault Setup Modal (first launch) -->
+  <VaultSetupModal
+    v-if="!vault.isConfigured.value"
+    @setup="handleVaultSetup"
+  />
+
+  <!-- Main App (after vault is configured) -->
+  <div v-else class="h-screen w-screen overflow-hidden flex">
+    <!-- Vault Sidebar -->
+    <VaultSidebar
+      :files="vault.files.value"
+      :active-file-path="persistence.currentFilePath.value"
+      :vault-name="vault.vaultName.value"
+      :is-loading="persistence.isLoading.value"
+      :collapsed="sidebarCollapsed"
+      @select="handleSelectFile"
+      @create="handleCreateFile"
+      @delete="handleDeleteFile"
+      @rename="handleRenameFile"
+      @duplicate="handleDuplicateFile"
+      @open-settings="handleOpenSettings"
+      @toggle-collapse="toggleSidebarCollapse"
     />
-    <BoardCanvas @open-command-palette="openCommandPalette" />
+
+    <!-- Main Content -->
+    <div class="flex-1 flex flex-col min-w-0">
+      <Toolbar
+        :is-saving="persistence.isSaving.value"
+        :last-saved="persistence.lastSaved.value"
+        :can-undo="persistence.canUndo.value"
+        :can-redo="persistence.canRedo.value"
+        :undo-entries="persistence.undoEntries.value"
+        :redo-entries="persistence.redoEntries.value"
+        @new-board="handleNewBoard"
+        @export="handleExport"
+        @import="handleImport"
+        @open-command-palette="openCommandPalette"
+        @undo="handleUndo"
+        @redo="handleRedo"
+        @go-to-history="handleGoToHistory"
+        @go-to-latest="handleGoToLatest"
+        @title-change="handleTitleChange"
+      />
+      <BoardCanvas @open-command-palette="openCommandPalette" />
+    </div>
+
     <CommandPalette :open="isCommandPaletteOpen" @close="closeCommandPalette" />
     <SettingsPanel />
   </div>

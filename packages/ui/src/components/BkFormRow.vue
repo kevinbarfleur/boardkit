@@ -19,13 +19,13 @@ const isInline = computed(() => props.layout === 'inline')
 </script>
 
 <template>
-  <div class="p-3">
+  <div class="p-3 overflow-hidden">
     <!-- Inline layout: label left, control right -->
-    <div v-if="isInline" class="flex items-center justify-between gap-4">
+    <div v-if="isInline" class="flex items-center justify-between gap-3">
       <!-- Label section -->
       <label
         :for="htmlFor"
-        class="flex items-center gap-2 text-sm text-foreground"
+        class="flex items-center gap-2 text-sm text-foreground shrink-0"
       >
         <BkIcon
           v-if="icon"
@@ -40,7 +40,7 @@ const isInline = computed(() => props.layout === 'inline')
       </label>
 
       <!-- Control slot -->
-      <div class="shrink-0">
+      <div class="min-w-0">
         <slot />
       </div>
     </div>
@@ -65,7 +65,7 @@ const isInline = computed(() => props.layout === 'inline')
       </label>
 
       <!-- Control slot -->
-      <div>
+      <div class="min-w-0">
         <slot />
       </div>
     </div>

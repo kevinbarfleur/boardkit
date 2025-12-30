@@ -10,6 +10,7 @@ import {
 } from '@boardkit/core'
 import { useSettingsPanel } from '../composables/useSettingsPanel'
 import { useDataSharingUI } from '../composables/useDataSharingUI'
+import { useVault } from '../composables/useVault'
 import {
   BkIcon,
   BkToggle,
@@ -17,6 +18,7 @@ import {
   BkButtonGroup,
   BkFormRow,
   BkFormSection,
+  useTheme,
 } from '@boardkit/ui'
 import type { TextState, TodoState, FocusLensState, TaskRadarState } from '@boardkit/app-common'
 import {
@@ -27,8 +29,16 @@ import {
 } from '@boardkit/app-common'
 
 const boardStore = useBoardStore()
-const { isOpen, widgetId, close } = useSettingsPanel()
+const { isOpen, widgetId, isAppSettings, close } = useSettingsPanel()
 const dataSharingUI = useDataSharingUI()
+const vault = useVault()
+const { theme, setTheme } = useTheme()
+
+// App settings
+const handleChangeVault = async () => {
+  close()
+  await vault.selectVaultFolder()
+}
 
 // Get the widget from the composable's widgetId
 const widget = computed(() => {
@@ -363,6 +373,12 @@ const visibilityOptions = [
   { value: 'subtle', label: 'Subtle' },
   { value: 'visible', label: 'Visible' },
 ]
+
+const themeOptions = [
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+  { value: 'system', label: 'System' },
+]
 </script>
 
 <template>
@@ -382,8 +398,73 @@ const visibilityOptions = [
     leave-from-class="translate-x-0 opacity-100"
     leave-to-class="translate-x-4 opacity-0"
   >
+    <!-- App Settings Panel -->
     <aside
-      v-if="isOpen && widget"
+      v-if="isOpen && isAppSettings"
+      class="fixed right-4 top-[4.5rem] bottom-4 z-40 w-80 rounded-xl border border-border bg-popover flex flex-col shadow-2xl"
+    >
+      <!-- Header -->
+      <div class="flex items-center gap-3 px-4 py-3 border-b border-border">
+        <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-muted">
+          <BkIcon icon="settings" :size="14" class="text-muted-foreground" />
+        </div>
+        <div class="flex-1 min-w-0">
+          <h2 class="text-sm font-medium text-foreground">Settings</h2>
+        </div>
+        <button
+          class="inline-flex h-7 w-7 items-center justify-center rounded-lg transition-colors hover:bg-accent"
+          @click="close"
+        >
+          <BkIcon icon="x" :size="14" class="text-muted-foreground" />
+        </button>
+      </div>
+
+      <!-- Scrollable Content -->
+      <div class="flex-1 overflow-y-auto p-4 space-y-4">
+        <!-- Vault Section -->
+        <BkFormSection title="Vault">
+          <div class="p-3">
+            <div class="flex items-center gap-3 mb-3">
+              <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+                <BkIcon icon="folder" :size="16" class="text-primary" />
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-foreground truncate">{{ vault.vaultName.value || 'No vault' }}</p>
+                <p class="text-xs text-muted-foreground truncate">{{ vault.vaultPath.value || 'Not configured' }}</p>
+              </div>
+            </div>
+            <button
+              class="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm rounded-lg border border-border hover:bg-accent transition-colors"
+              @click="handleChangeVault"
+            >
+              <BkIcon icon="folder" :size="14" />
+              Change vault
+            </button>
+          </div>
+        </BkFormSection>
+
+        <!-- Appearance Section -->
+        <BkFormSection title="Appearance">
+          <BkFormRow label="Theme" icon="palette" layout="stacked">
+            <BkButtonGroup
+              :model-value="theme"
+              :options="themeOptions"
+              full-width
+              @update:model-value="(v) => setTheme(v as 'light' | 'dark' | 'system')"
+            />
+          </BkFormRow>
+        </BkFormSection>
+      </div>
+
+      <!-- Footer -->
+      <div class="shrink-0 border-t border-border p-3">
+        <p class="text-xs text-muted-foreground text-center">Boardkit v0.1.0</p>
+      </div>
+    </aside>
+
+    <!-- Widget Settings Panel -->
+    <aside
+      v-else-if="isOpen && widget"
       class="fixed right-4 top-[4.5rem] bottom-4 z-40 w-80 rounded-xl border border-border bg-popover flex flex-col shadow-2xl"
     >
       <!-- Header -->
@@ -642,7 +723,7 @@ const visibilityOptions = [
       </div>
 
       <!-- Footer with visibility settings -->
-      <div class="shrink-0 border-t border-border">
+      <div class="shrink-0 border-t border-border overflow-hidden">
         <!-- Visibility Controls -->
         <div class="p-3 space-y-3">
           <div class="flex items-center gap-2">
@@ -650,29 +731,29 @@ const visibilityOptions = [
             <span class="text-xs text-muted-foreground">Visibility</span>
           </div>
           <div class="space-y-2">
-            <div class="flex items-center justify-between">
-              <span class="text-xs text-muted-foreground">At rest</span>
+            <div class="flex items-center justify-between gap-3">
+              <span class="text-xs text-muted-foreground shrink-0">At rest</span>
               <BkSelect
                 :model-value="widgetRestMode"
                 :options="visibilityOptions"
                 size="sm"
-                class="w-28"
+                class="w-26"
                 @update:model-value="(v) => updateWidgetVisibility({ restMode: v as WidgetVisibilityMode })"
               />
             </div>
-            <div class="flex items-center justify-between">
-              <span class="text-xs text-muted-foreground">On hover</span>
+            <div class="flex items-center justify-between gap-3">
+              <span class="text-xs text-muted-foreground shrink-0">On hover</span>
               <BkSelect
                 :model-value="widgetHoverMode"
                 :options="visibilityOptions"
                 size="sm"
-                class="w-28"
+                class="w-26"
                 @update:model-value="(v) => updateWidgetVisibility({ hoverMode: v as WidgetVisibilityMode })"
               />
             </div>
           </div>
           <!-- Sync toggle -->
-          <div class="flex items-center justify-between pt-1">
+          <div class="flex items-center justify-between gap-3 pt-1">
             <span class="text-xs text-muted-foreground">Apply to all {{ moduleLabel }}s</span>
             <BkToggle :model-value="isSyncEnabled" size="sm" @update:model-value="toggleSync" />
           </div>

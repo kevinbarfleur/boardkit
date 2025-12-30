@@ -10,7 +10,18 @@
     "core:event:allow-listen",
     "shell:allow-open",
     "dialog:default",
+    "dialog:allow-open",
+    "dialog:allow-save",
     "fs:default",
+    "fs:read-all",
+    "fs:write-all",
+    {
+      "identifier": "fs:scope",
+      "allow": [
+        { "path": "$HOME" },
+        { "path": "$HOME/**" }
+      ]
+    },
     "global-shortcut:allow-register",
     "global-shortcut:allow-unregister",
     "global-shortcut:allow-is-registered"

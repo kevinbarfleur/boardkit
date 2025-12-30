@@ -1,15 +1,11 @@
 import { ref, computed, watch } from 'vue'
 import { useDebounceFn, useDocumentVisibility, useStorage } from '@vueuse/core'
-import { useBoardStore } from '@boardkit/core'
+import { useBoardStore, type BoardkitDocument } from '@boardkit/core'
 import { mkdir, exists } from '@tauri-apps/plugin-fs'
-import type { BoardkitDocument } from '@boardkit/core'
-import { nanoid } from 'nanoid'
+import { useVault } from './useVault'
 import {
   saveToFile,
   openFromFile,
-  saveToAutosave,
-  loadFromAutosave,
-  getAutosaveDir,
   getHistoryDir,
   saveToHistory,
   getHistoryEntries,
@@ -19,10 +15,10 @@ import {
 } from '../utils/boardkitFile'
 
 const AUTOSAVE_DELAY = 500 // 500ms debounce for fast saving
-const CURRENT_DOC_KEY = 'boardkit:current-document-id'
+const CURRENT_FILE_KEY = 'boardkit:current-file-path'
 
-// Shared state - using VueUse's useStorage for localStorage persistence
-const currentDocumentId = useStorage<string | null>(CURRENT_DOC_KEY, null)
+// Shared state
+const currentFilePath = useStorage<string | null>(CURRENT_FILE_KEY, null)
 const isLoading = ref(false)
 const isSaving = ref(false)
 const lastSaved = ref<number | null>(null)
@@ -33,6 +29,7 @@ const currentHistoryIndex = ref<number>(-1) // -1 means we're at the latest vers
 
 export function usePersistence() {
   const boardStore = useBoardStore()
+  const vault = useVault()
   let stopWatch: (() => void) | null = null
 
   // Track document visibility to pause autosave when window is not visible
@@ -40,7 +37,7 @@ export function usePersistence() {
 
   // Debounced autosave function using VueUse
   const debouncedSave = useDebounceFn(async () => {
-    if (boardStore.isDirty && currentDocumentId.value && visibility.value === 'visible') {
+    if (boardStore.isDirty && currentFilePath.value && visibility.value === 'visible') {
       await saveDocument(true)
     }
   }, AUTOSAVE_DELAY)
@@ -72,17 +69,12 @@ export function usePersistence() {
     return filterEntries(historyEntries.value.slice(0, currentHistoryIndex.value + 1).reverse())
   })
 
-  // Ensure autosave directory exists
-  async function ensureAutosaveDir(): Promise<void> {
-    const dir = getAutosaveDir()
-    try {
-      const dirExists = await exists(dir, { baseDir: 12 }) // AppLocalData = 12
-      if (!dirExists) {
-        await mkdir(dir, { baseDir: 12, recursive: true })
-      }
-    } catch {
-      // Directory might already exist
-    }
+  // Get document ID from file path for history storage
+  function getDocumentId(filePath: string): string {
+    // Use a hash of the file path as document ID
+    const parts = filePath.split('/')
+    const filename = parts[parts.length - 1]?.replace('.boardkit', '') || 'unknown'
+    return filename.replace(/[^a-zA-Z0-9-_]/g, '_')
   }
 
   // Ensure history directory exists for a document
@@ -100,13 +92,15 @@ export function usePersistence() {
 
   // Refresh the list of history entries
   async function refreshHistoryEntries(): Promise<void> {
-    if (!currentDocumentId.value) {
+    if (!currentFilePath.value) {
       historyEntries.value = []
       return
     }
 
+    const docId = getDocumentId(currentFilePath.value)
+
     try {
-      historyEntries.value = await getHistoryEntries(currentDocumentId.value)
+      historyEntries.value = await getHistoryEntries(docId)
     } catch {
       historyEntries.value = []
     }
@@ -115,19 +109,19 @@ export function usePersistence() {
   // Add current state to history
   async function addToHistory(action: string): Promise<void> {
     const doc = boardStore.getDocument()
-    if (!doc || !currentDocumentId.value) return
+    if (!doc || !currentFilePath.value) return
+
+    const docId = getDocumentId(currentFilePath.value)
 
     // If we're not at the latest (user went back in history),
-    // we would normally clear future entries, but for simplicity
-    // we just add new entries at the top
+    // we reset to latest
     if (currentHistoryIndex.value >= 0) {
-      // Clear the "future" entries by resetting to latest
       currentHistoryIndex.value = -1
     }
 
     try {
-      await ensureHistoryDir(currentDocumentId.value)
-      await saveToHistory(currentDocumentId.value, action, doc)
+      await ensureHistoryDir(docId)
+      await saveToHistory(docId, action, doc)
       await refreshHistoryEntries()
     } catch (error) {
       console.error('Failed to add to history:', error)
@@ -136,14 +130,15 @@ export function usePersistence() {
 
   // Go to a specific history entry
   async function goToHistoryEntry(entryId: string): Promise<boolean> {
-    if (!currentDocumentId.value) return false
+    if (!currentFilePath.value) return false
 
+    const docId = getDocumentId(currentFilePath.value)
     const index = historyEntries.value.findIndex((e) => e.id === entryId)
     if (index === -1) return false
 
     isLoading.value = true
     try {
-      const doc = await loadHistoryEntry(currentDocumentId.value, entryId)
+      const doc = await loadHistoryEntry(docId, entryId)
       if (!doc) return false
 
       boardStore.loadDocument(doc)
@@ -163,8 +158,9 @@ export function usePersistence() {
 
   // Undo to previous version
   async function undo(): Promise<boolean> {
-    if (!canUndo.value || !currentDocumentId.value) return false
+    if (!canUndo.value || !currentFilePath.value) return false
 
+    const docId = getDocumentId(currentFilePath.value)
     const targetIndex = currentHistoryIndex.value === -1 ? 0 : currentHistoryIndex.value + 1
     if (targetIndex >= historyEntries.value.length) return false
 
@@ -172,7 +168,7 @@ export function usePersistence() {
 
     isLoading.value = true
     try {
-      const doc = await loadHistoryEntry(currentDocumentId.value, entry.id)
+      const doc = await loadHistoryEntry(docId, entry.id)
       if (!doc) return false
 
       boardStore.loadDocument(doc)
@@ -190,14 +186,15 @@ export function usePersistence() {
 
   // Redo to next version
   async function redo(): Promise<boolean> {
-    if (!canRedo.value || currentHistoryIndex.value <= 0 || !currentDocumentId.value) return false
+    if (!canRedo.value || currentHistoryIndex.value <= 0 || !currentFilePath.value) return false
 
+    const docId = getDocumentId(currentFilePath.value)
     const targetIndex = currentHistoryIndex.value - 1
     const entry = historyEntries.value[targetIndex]
 
     isLoading.value = true
     try {
-      const doc = await loadHistoryEntry(currentDocumentId.value, entry.id)
+      const doc = await loadHistoryEntry(docId, entry.id)
       if (!doc) return false
 
       boardStore.loadDocument(doc)
@@ -215,14 +212,15 @@ export function usePersistence() {
 
   // Go to latest version
   async function goToLatest(): Promise<boolean> {
-    if (currentHistoryIndex.value === -1 || !currentDocumentId.value) return false
+    if (currentHistoryIndex.value === -1 || !currentFilePath.value) return false
 
+    const docId = getDocumentId(currentFilePath.value)
     const entry = historyEntries.value[0]
     if (!entry) return false
 
     isLoading.value = true
     try {
-      const doc = await loadHistoryEntry(currentDocumentId.value, entry.id)
+      const doc = await loadHistoryEntry(docId, entry.id)
       if (!doc) return false
 
       boardStore.loadDocument(doc)
@@ -238,41 +236,67 @@ export function usePersistence() {
     }
   }
 
-  // Create a new document
-  async function createDocument(title: string): Promise<string> {
-    const id = nanoid()
+  // Create a new document in the vault
+  async function createDocument(title: string): Promise<string | null> {
+    console.log('createDocument called, vault configured:', vault.isConfigured.value)
+
+    if (!vault.isConfigured.value) {
+      console.error('createDocument: Vault not configured')
+      return null
+    }
+
+    // Create the document in memory first
     boardStore.createNewBoard(title)
-    currentDocumentId.value = id
+    const doc = boardStore.getDocument()
+    if (!doc) {
+      console.error('createDocument: Failed to create document in store')
+      return null
+    }
 
-    // Save immediately
-    await saveDocument(true)
-    await refreshHistoryEntries()
+    console.log('Document created in store:', doc.meta.title)
 
-    // currentDocumentId is already synced to localStorage via useStorage
+    try {
+      // Try to save to vault
+      const filePath = await vault.createFile(title, doc)
+      if (!filePath) {
+        console.error('createDocument: createFile returned null')
+        return null
+      }
 
-    return id
+      currentFilePath.value = filePath
+      lastSaved.value = Date.now()
+      boardStore.markClean()
+
+      await refreshHistoryEntries()
+
+      console.log('Document saved to vault:', filePath)
+      return filePath
+    } catch (error) {
+      console.error('createDocument: Failed to save to vault', error)
+      // Document is still in memory, user can use it
+      // but autosave won't work until we have a file path
+      return null
+    }
   }
 
-  // Open an existing document from autosave
-  async function openDocument(id: string): Promise<boolean> {
+  // Open a document from the vault
+  async function openDocument(filePath: string): Promise<boolean> {
     isLoading.value = true
     try {
-      const data = await loadFromAutosave(id)
-      if (!data) {
+      const doc = await vault.loadFile(filePath)
+      if (!doc) {
         isLoading.value = false
         return false
       }
 
-      boardStore.loadDocument(data as BoardkitDocument)
-      currentDocumentId.value = id
-      lastSaved.value = (data as BoardkitDocument).meta.updatedAt
+      boardStore.loadDocument(doc)
+      currentFilePath.value = filePath
+      lastSaved.value = doc.meta.updatedAt
       boardStore.markClean()
 
       // Load history for this document
       await refreshHistoryEntries()
       currentHistoryIndex.value = -1 // Reset to latest
-
-      // currentDocumentId is already synced to localStorage via useStorage
 
       return true
     } catch (error) {
@@ -285,19 +309,20 @@ export function usePersistence() {
 
   // Internal save (doesn't add to history)
   async function saveDocumentInternal(): Promise<boolean> {
-    if (!currentDocumentId.value) return false
+    if (!currentFilePath.value || !vault.isConfigured.value) return false
 
     const doc = boardStore.getDocument()
     if (!doc) return false
 
     isSaving.value = true
     try {
-      await ensureAutosaveDir()
       doc.meta.updatedAt = Date.now()
-      await saveToAutosave(currentDocumentId.value, doc)
-      boardStore.markClean()
-      lastSaved.value = doc.meta.updatedAt
-      return true
+      const success = await vault.saveFile(currentFilePath.value, doc)
+      if (success) {
+        boardStore.markClean()
+        lastSaved.value = doc.meta.updatedAt
+      }
+      return success
     } catch (error) {
       console.error('Failed to save document:', error)
       return false
@@ -306,23 +331,23 @@ export function usePersistence() {
     }
   }
 
-  // Save the current document to autosave (with optional history)
+  // Save the current document (with optional history)
   async function saveDocument(addHistory = true): Promise<boolean> {
-    if (!currentDocumentId.value) return false
+    if (!currentFilePath.value || !vault.isConfigured.value) return false
 
     const doc = boardStore.getDocument()
     if (!doc) return false
 
     isSaving.value = true
     try {
-      await ensureAutosaveDir()
       doc.meta.updatedAt = Date.now()
-      await saveToAutosave(currentDocumentId.value, doc)
+      const success = await vault.saveFile(currentFilePath.value, doc)
+      if (!success) return false
+
       boardStore.markClean()
       lastSaved.value = doc.meta.updatedAt
 
       // Add to history if requested
-      // Skip: "Initial state", moves, and resizes (low-value, high-frequency actions)
       const skipActions = ['Initial state', 'Moved widget', 'Resized widget', 'Moved element', 'Resized element']
       if (addHistory && !skipActions.includes(boardStore.lastAction)) {
         await addToHistory(boardStore.lastAction)
@@ -337,21 +362,77 @@ export function usePersistence() {
     }
   }
 
-  // Initialize: load last document or create new
-  async function initialize(): Promise<void> {
+  // Initialize: load last document or wait for vault setup
+  async function initialize(): Promise<boolean> {
+    // If vault is not configured, return false to show setup modal
+    if (!vault.isConfigured.value) {
+      return false
+    }
+
     isLoading.value = true
 
     try {
-      await ensureAutosaveDir()
+      // Scan vault files
+      await vault.scanVaultFiles()
 
-      // Try to restore last document (currentDocumentId is synced from localStorage via useStorage)
-      if (currentDocumentId.value) {
-        const loaded = await openDocument(currentDocumentId.value)
-        if (loaded) return
+      // Try to restore last document
+      if (currentFilePath.value) {
+        // Verify the file still exists
+        const fileExists = vault.files.value.some((f) => f.path === currentFilePath.value)
+        if (fileExists) {
+          const loaded = await openDocument(currentFilePath.value)
+          if (loaded) return true
+        }
       }
 
-      // No last document or failed to load, create a new one
+      // Try to open the most recently modified file
+      if (vault.files.value.length > 0) {
+        const mostRecent = vault.files.value[0]
+        const loaded = await openDocument(mostRecent.path)
+        if (loaded) return true
+      }
+
+      // No files exist, create a new one
       await createDocument('Untitled Board')
+      return true
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  // Handle vault setup completion
+  async function onVaultSetup(): Promise<void> {
+    console.log('onVaultSetup called')
+    isLoading.value = true
+
+    try {
+      await vault.scanVaultFiles()
+      console.log('Vault scanned, files found:', vault.files.value.length)
+
+      // If there are existing files, open the most recent
+      if (vault.files.value.length > 0) {
+        console.log('Opening existing file:', vault.files.value[0].path)
+        const success = await openDocument(vault.files.value[0].path)
+        if (!success) {
+          console.warn('Failed to open existing file, creating new one')
+          await createDocument('Untitled Board')
+        }
+      } else {
+        // Create a new document
+        console.log('No files in vault, creating new document')
+        const path = await createDocument('Untitled Board')
+        if (!path) {
+          console.error('Failed to create initial document')
+          // Still create a board in memory so the user has something
+          boardStore.createNewBoard('Untitled Board')
+        }
+      }
+
+      console.log('onVaultSetup complete, currentFilePath:', currentFilePath.value)
+    } catch (error) {
+      console.error('onVaultSetup error:', error)
+      // Ensure user has at least an in-memory document
+      boardStore.createNewBoard('Untitled Board')
     } finally {
       isLoading.value = false
     }
@@ -363,21 +444,30 @@ export function usePersistence() {
       stopWatch()
     }
 
-    // Watch dirty state instead of deep watching the entire document (performance)
-    // Using VueUse's useDebounceFn for automatic debouncing
+    // Watch dirty state
     stopWatch = watch(
       () => boardStore.isDirty,
       (isDirty) => {
-        if (isDirty && currentDocumentId.value) {
+        if (isDirty && currentFilePath.value && vault.isConfigured.value) {
           debouncedSave()
         }
       }
     )
 
     // Save immediately if already dirty
-    if (boardStore.isDirty && currentDocumentId.value) {
+    if (boardStore.isDirty && currentFilePath.value && vault.isConfigured.value) {
       debouncedSave()
     }
+  }
+
+  // Setup file watching for external changes
+  function setupFileWatching(onExternalChange: (doc: BoardkitDocument) => void): void {
+    vault.startWatching(onExternalChange)
+  }
+
+  // Stop file watching
+  function stopFileWatching(): void {
+    vault.stopWatching()
   }
 
   // Export current document as .boardkit file using native dialog
@@ -395,21 +485,23 @@ export function usePersistence() {
 
   // Import a .boardkit file using native dialog
   async function importFromFile(): Promise<boolean> {
+    if (!vault.isConfigured.value) return false
+
     try {
       isLoading.value = true
       const doc = await openFromFile()
       if (!doc) return false
 
-      // Create a new document ID and load the imported content
-      const id = nanoid()
+      // Create a new file in the vault with the imported content
+      const filePath = await vault.createFile(doc.meta.title, doc)
+      if (!filePath) return false
+
       boardStore.loadDocument(doc)
-      currentDocumentId.value = id
+      currentFilePath.value = filePath
+      lastSaved.value = Date.now()
+      boardStore.markClean()
 
-      // Save to autosave
-      await saveDocument(true)
       await refreshHistoryEntries()
-
-      // currentDocumentId is already synced to localStorage via useStorage
 
       return true
     } catch (error) {
@@ -420,12 +512,66 @@ export function usePersistence() {
     }
   }
 
+  // Delete a document from the vault
+  async function deleteDocument(filePath: string): Promise<boolean> {
+    const success = await vault.deleteFile(filePath)
+    if (!success) return false
+
+    // If we deleted the current file, open another one or create new
+    if (currentFilePath.value === filePath) {
+      currentFilePath.value = null
+
+      if (vault.files.value.length > 0) {
+        await openDocument(vault.files.value[0].path)
+      } else {
+        await createDocument('Untitled Board')
+      }
+    }
+
+    return true
+  }
+
+  // Rename a document in the vault
+  async function renameDocument(oldPath: string, newName: string): Promise<boolean> {
+    const newPath = await vault.renameFile(oldPath, newName)
+    if (!newPath) return false
+
+    // Update current file path if this was the active file
+    if (currentFilePath.value === oldPath) {
+      currentFilePath.value = newPath
+
+      // Also update the document title
+      boardStore.setTitle(newName)
+      await saveDocumentInternal()
+    }
+
+    return true
+  }
+
+  // Duplicate a document in the vault
+  async function duplicateDocument(filePath: string): Promise<string | null> {
+    try {
+      const newPath = await vault.duplicateFile(filePath)
+      if (!newPath) return null
+
+      // Open the duplicated file
+      await openDocument(newPath)
+
+      return newPath
+    } catch (error) {
+      console.error('Failed to duplicate document:', error)
+      return null
+    }
+  }
+
   // Clear all history for current document
   async function clearDocumentHistory(): Promise<void> {
-    if (!currentDocumentId.value) return
+    if (!currentFilePath.value) return
+
+    const docId = getDocumentId(currentFilePath.value)
 
     try {
-      await clearHistory(currentDocumentId.value)
+      await clearHistory(docId)
       historyEntries.value = []
       currentHistoryIndex.value = -1
     } catch (error) {
@@ -435,7 +581,7 @@ export function usePersistence() {
 
   return {
     // State
-    currentDocumentId,
+    currentFilePath,
     isLoading,
     isSaving,
     lastSaved,
@@ -450,10 +596,16 @@ export function usePersistence() {
 
     // Document Actions
     initialize,
+    onVaultSetup,
     createDocument,
     openDocument,
     saveDocument,
+    deleteDocument,
+    renameDocument,
+    duplicateDocument,
     setupAutosave,
+    setupFileWatching,
+    stopFileWatching,
     exportToFile,
     importFromFile,
 

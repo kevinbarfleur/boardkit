@@ -113,6 +113,8 @@ html {
   line-height: 1.5;
   -webkit-text-size-adjust: 100%;
   tab-size: 4;
+  height: 100%;
+  overflow: hidden;
 }
 
 hr {
@@ -287,6 +289,9 @@ body {
   font-feature-settings: "rlig" 1, "calt" 1;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  height: 100%;
+  overflow: hidden;
+  margin: 0;
 }
 
 /* Canvas background pattern - 20px grid */
