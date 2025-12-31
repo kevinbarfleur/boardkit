@@ -2,7 +2,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { useBoardStore, registerCoreActions, type BoardkitDocument } from '@boardkit/core'
-import { useTheme } from '@boardkit/ui'
+import { useTheme, BkModalProvider } from '@boardkit/ui'
 import { registerModules } from './modules'
 import { registerDesktopActions } from './actions/desktopActions'
 import { usePersistence } from './composables/usePersistence'
@@ -225,14 +225,15 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <!-- Vault Setup Modal (first launch) -->
-  <VaultSetupModal
-    v-if="!vault.isConfigured.value"
-    @setup="handleVaultSetup"
-  />
+  <BkModalProvider>
+    <!-- Vault Setup Modal (first launch) -->
+    <VaultSetupModal
+      v-if="!vault.isConfigured.value"
+      @setup="handleVaultSetup"
+    />
 
-  <!-- Main App (after vault is configured) -->
-  <div v-else class="h-screen w-screen overflow-hidden flex">
+    <!-- Main App (after vault is configured) -->
+    <div v-else class="h-screen w-screen overflow-hidden flex">
     <!-- Vault Sidebar -->
     <VaultSidebar
       :files="vault.files.value"
@@ -274,4 +275,5 @@ onUnmounted(() => {
     <CommandPalette :open="isCommandPaletteOpen" @close="closeCommandPalette" />
     <SettingsPanel />
   </div>
+  </BkModalProvider>
 </template>

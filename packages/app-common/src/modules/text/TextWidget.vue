@@ -31,6 +31,7 @@ const content = computed({
 // Get settings with fallback to defaults
 const fontSize = computed(() => props.context.state.fontSize ?? defaultTextSettings.fontSize)
 const lineHeight = computed(() => props.context.state.lineHeight ?? defaultTextSettings.lineHeight)
+const editorMode = computed(() => props.context.state.editorMode ?? defaultTextSettings.editorMode)
 const showWordCount = computed(
   () => props.context.state.showWordCount ?? defaultTextSettings.showWordCount
 )
@@ -61,6 +62,7 @@ const charCount = computed(() => {
         placeholder="Start typing... Use markdown syntax for formatting."
         :font-size="fontSize"
         :line-height="lineHeight"
+        :mode="editorMode"
       />
     </div>
 

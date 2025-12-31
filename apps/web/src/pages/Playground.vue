@@ -11,6 +11,7 @@ import {
   BkToggle,
   BkSelect,
   BkButtonGroup,
+  BkDatePicker,
   BkFormRow,
   BkFormSection,
 } from "@boardkit/ui";
@@ -88,6 +89,11 @@ const formatButtonOptions = [
   { value: "I", label: "I" },
   { value: "U", label: "U" },
 ];
+
+// Date Picker state
+const datePickerValue = ref<string | null>(null);
+const datePickerWithPresets = ref<string | null>(null);
+const datePickerDisabled = ref<string | null>("2025-01-15");
 
 // Module Settings examples state
 const textSettings = ref({
@@ -3659,6 +3665,69 @@ const focusSettings = ref({
           <code class="text-xs bg-muted px-2 py-1 rounded block">
             &lt;BkButtonGroup v-model="value" :options="[{value, label}]" /&gt;
             | multiple | full-width | size="sm"
+          </code>
+        </div>
+
+        <!-- DatePicker -->
+        <div class="space-y-4">
+          <h3 class="text-lg font-medium text-foreground">BkDatePicker</h3>
+          <p class="text-sm text-muted-foreground">
+            Sélecteur de date avec calendrier visuel et raccourcis
+          </p>
+
+          <div class="grid grid-cols-3 gap-8">
+            <!-- Default -->
+            <div class="space-y-3">
+              <h4 class="text-sm font-medium text-foreground">Default</h4>
+              <div class="flex flex-col gap-2">
+                <BkDatePicker
+                  v-model="datePickerValue"
+                  placeholder="Choisir une date..."
+                />
+                <span class="text-xs text-muted-foreground">
+                  Value: {{ datePickerValue || "null" }}
+                </span>
+              </div>
+            </div>
+
+            <!-- With Presets -->
+            <div class="space-y-3">
+              <h4 class="text-sm font-medium text-foreground">With Presets</h4>
+              <div class="flex flex-col gap-2">
+                <BkDatePicker
+                  v-model="datePickerWithPresets"
+                  :show-presets="true"
+                />
+                <span class="text-xs text-muted-foreground">
+                  Value: {{ datePickerWithPresets || "null" }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Disabled -->
+            <div class="space-y-3">
+              <h4 class="text-sm font-medium text-foreground">Disabled</h4>
+              <div class="flex flex-col gap-2">
+                <BkDatePicker v-model="datePickerDisabled" disabled />
+                <span class="text-xs text-muted-foreground">
+                  Value: {{ datePickerDisabled || "null" }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Small Size -->
+          <div class="space-y-3">
+            <h4 class="text-sm font-medium text-foreground">Small Size</h4>
+            <div class="flex items-center gap-4">
+              <BkDatePicker v-model="datePickerValue" size="sm" />
+              <span class="text-sm text-muted-foreground">size="sm"</span>
+            </div>
+          </div>
+
+          <code class="text-xs bg-muted px-2 py-1 rounded block">
+            &lt;BkDatePicker v-model="date" /&gt; | size="sm" | disabled |
+            :show-presets="true" | :clearable="false"
           </code>
         </div>
 

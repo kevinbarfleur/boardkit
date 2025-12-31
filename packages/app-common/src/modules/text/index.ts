@@ -10,6 +10,23 @@ import { defaultTextSettings } from './types'
 const settingsSchema: SettingsSchema = {
   sections: [
     {
+      id: 'editor',
+      title: 'Editor',
+      icon: 'edit-3',
+      fields: [
+        {
+          key: 'editorMode',
+          type: 'button-group',
+          label: 'Mode',
+          options: [
+            { value: 'markdown', label: 'Markdown' },
+            { value: 'richtext', label: 'Rich Text' },
+          ],
+          fullWidth: true,
+        },
+      ],
+    },
+    {
       id: 'typography',
       title: 'Typography',
       icon: 'type',

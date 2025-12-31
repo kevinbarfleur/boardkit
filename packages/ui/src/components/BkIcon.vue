@@ -84,6 +84,7 @@ import {
   Link,
   List,
   ListTodo,
+  ListOrdered,
   Percent,
   Play,
   SlidersHorizontal,
@@ -91,6 +92,18 @@ import {
   Timer,
   Unlink,
   Volume2,
+  // Text formatting icons (TipTap toolbar)
+  Bold,
+  Italic,
+  Underline,
+  Strikethrough,
+  Code,
+  Quote,
+  Braces,
+  // Todo & navigation icons
+  CornerDownRight,
+  Flag,
+  Edit3,
   type LucideIcon,
 } from 'lucide-vue-next'
 
@@ -178,6 +191,7 @@ const iconComponents: Record<string, LucideIcon> = {
   link: Link,
   list: List,
   'list-todo': ListTodo,
+  'list-ordered': ListOrdered,
   percent: Percent,
   play: Play,
   'settings-2': Settings2,
@@ -186,6 +200,18 @@ const iconComponents: Record<string, LucideIcon> = {
   timer: Timer,
   unlink: Unlink,
   'volume-2': Volume2,
+  // Text formatting icons (TipTap toolbar)
+  bold: Bold,
+  italic: Italic,
+  underline: Underline,
+  strikethrough: Strikethrough,
+  code: Code,
+  quote: Quote,
+  braces: Braces,
+  // Todo & navigation icons
+  'corner-down-right': CornerDownRight,
+  flag: Flag,
+  'edit-3': Edit3,
 }
 
 export type IconName = keyof typeof iconComponents

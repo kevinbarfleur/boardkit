@@ -133,3 +133,40 @@ export interface ModuleContext<TState = unknown> {
 export type ModuleComponent<TState = unknown> = Component<{
   context: ModuleContext<TState>
 }>
+
+/**
+ * Menu item for module-specific context menu actions.
+ * Modules emit these when they want to show contextual actions
+ * that will be combined with widget-level actions.
+ */
+export interface ModuleMenuItem {
+  id: string
+  label: string
+  icon?: string
+  disabled?: boolean
+  destructive?: boolean
+}
+
+export interface ModuleMenuGroup {
+  label?: string
+  items: ModuleMenuItem[]
+}
+
+/**
+ * Event payload when a module requests a context menu.
+ * BoardCanvas will combine these module-specific actions
+ * with the standard widget actions (Edit, Data, Settings, Delete).
+ */
+export interface ModuleContextMenuEvent {
+  /** Screen X coordinate for menu positioning */
+  x: number
+  /** Screen Y coordinate for menu positioning */
+  y: number
+  /** Module-specific menu groups to show at the top */
+  groups: ModuleMenuGroup[]
+  /**
+   * Handler called when a module menu item is selected.
+   * BoardCanvas calls this for items from the module's groups.
+   */
+  onSelect: (itemId: string) => void | Promise<void>
+}

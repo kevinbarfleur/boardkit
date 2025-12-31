@@ -13,6 +13,7 @@ import {
   type CanvasElement,
   type TextElement,
   type Widget,
+  type ModuleContextMenuEvent,
   isDrawingTool,
   isTextElement,
   isShapeElement,
@@ -98,6 +99,12 @@ const contextMenu = ref({
   type: 'canvas' as ActionContextType | 'element',
   canvasPosition: { x: 0, y: 0 },
 })
+
+// Module-specific context menu data (combined with widget actions)
+const moduleContextMenuData = ref<{
+  groups: ModuleContextMenuEvent['groups']
+  onSelect: ModuleContextMenuEvent['onSelect']
+} | null>(null)
 
 const widgets = computed(() => boardStore.widgets)
 const elements = computed(() => boardStore.elements)
@@ -286,6 +293,22 @@ const contextMenuGroups = computed<MenuContent>(() => {
 
   const groups: MenuContent = []
 
+  // Add module-specific groups at the top if present
+  if (moduleContextMenuData.value) {
+    for (const moduleGroup of moduleContextMenuData.value.groups) {
+      groups.push({
+        label: moduleGroup.label,
+        items: moduleGroup.items.map(item => ({
+          id: `module:${item.id}`,
+          label: item.label,
+          icon: item.icon,
+          disabled: item.disabled,
+          destructive: item.destructive,
+        })),
+      })
+    }
+  }
+
   // For canvas context: create "Add Widget" submenu
   if (contextType === 'canvas' && groupedActions['board']) {
     const addWidgetActions = groupedActions['board'].filter(a => a.id.startsWith('board.add-'))
@@ -346,36 +369,61 @@ const contextMenuGroups = computed<MenuContent>(() => {
     }
   }
 
-  // Widget-specific actions
+  // Widget-specific actions - organized into logical groups
   if (groupedActions['widget']) {
-    const widgetItems: MenuItem[] = groupedActions['widget'].map(action => ({
+    const allWidgetActions = groupedActions['widget']
+
+    // Helper to create menu item from action
+    const toMenuItem = (action: typeof allWidgetActions[0]): MenuItem => ({
       id: action.id,
       label: action.title,
       icon: action.icon,
       shortcut: action.shortcutHint,
       disabled: action.when ? !action.when(ctx) : false,
       destructive: action.id.includes('delete'),
-    }))
+    })
 
-    if (widgetItems.length > 0) {
-      groups.push({ items: widgetItems })
-    }
-  }
+    // Categorize actions
+    const editActions = allWidgetActions.filter(a =>
+      ['widget.duplicate', 'widget.bring-to-front'].includes(a.id)
+    )
+    const dataActions = allWidgetActions.filter(a =>
+      a.id.includes('data') || a.id.includes('connect')
+    )
+    const settingsActions = allWidgetActions.filter(a =>
+      a.id.includes('settings')
+    )
+    const deleteActions = allWidgetActions.filter(a =>
+      a.id.includes('delete')
+    )
 
-  // Data actions (connections)
-  if (groupedActions['data']) {
-    const dataItems: MenuItem[] = groupedActions['data'].map(action => ({
-      id: action.id,
-      label: action.title,
-      icon: action.icon,
-      shortcut: action.shortcutHint,
-      disabled: action.when ? !action.when(ctx) : false,
-    }))
-
-    if (dataItems.length > 0) {
+    // Edit actions group
+    if (editActions.length > 0) {
       groups.push({
-        label: contextType === 'widget' ? 'Data' : undefined,
-        items: dataItems,
+        label: 'Edit',
+        items: editActions.map(toMenuItem),
+      })
+    }
+
+    // Data actions group
+    if (dataActions.length > 0) {
+      groups.push({
+        label: 'Data',
+        items: dataActions.map(toMenuItem),
+      })
+    }
+
+    // Settings group
+    if (settingsActions.length > 0) {
+      groups.push({
+        items: settingsActions.map(toMenuItem),
+      })
+    }
+
+    // Delete action (always last, destructive)
+    if (deleteActions.length > 0) {
+      groups.push({
+        items: deleteActions.map(toMenuItem),
       })
     }
   }
@@ -400,6 +448,14 @@ const contextMenuGroups = computed<MenuContent>(() => {
 
 // Handle context menu item selection
 const handleContextMenuSelect = async (item: MenuItem) => {
+  // Check if this is a module-specific action
+  if (item.id.startsWith('module:') && moduleContextMenuData.value) {
+    const moduleItemId = item.id.replace('module:', '')
+    await moduleContextMenuData.value.onSelect(moduleItemId)
+    return
+  }
+
+  // Otherwise, execute action from ActionRegistry
   const ctx = buildActionContext(contextMenu.value.canvasPosition)
   await actionRegistry.execute(item.id, ctx)
 }
@@ -443,6 +499,30 @@ const handleWidgetContextMenu = (widgetId: string, e: MouseEvent) => {
 
 const closeContextMenu = () => {
   contextMenu.value.open = false
+  moduleContextMenuData.value = null
+}
+
+// Handle module context menu event from WidgetRenderer
+const handleModuleContextMenu = (widgetId: string, event: ModuleContextMenuEvent) => {
+  // Select the widget if not already selected
+  if (!boardStore.isSelected('widget', widgetId)) {
+    boardStore.selectWidget(widgetId)
+  }
+
+  // Store module-specific menu data
+  moduleContextMenuData.value = {
+    groups: event.groups,
+    onSelect: event.onSelect,
+  }
+
+  // Open context menu as widget type (to get widget actions)
+  contextMenu.value = {
+    open: true,
+    x: event.x,
+    y: event.y,
+    type: 'widget',
+    canvasPosition: { x: 0, y: 0 },
+  }
 }
 
 // Keyboard shortcuts - routed through ActionRegistry
@@ -1184,7 +1264,11 @@ onUnmounted(() => {
         @scale-change="handleWidgetScaleChange"
         @contextmenu.native="(e: MouseEvent) => handleWidgetContextMenu(widget.id, e)"
       >
-        <WidgetRenderer :widget-id="widget.id" :module-id="widget.moduleId" />
+        <WidgetRenderer
+          :widget-id="widget.id"
+          :module-id="widget.moduleId"
+          @module-context-menu="(event) => handleModuleContextMenu(widget.id, event)"
+        />
       </WidgetFrame>
     </div>
 

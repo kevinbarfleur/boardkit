@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { RouterView } from 'vue-router'
+import { BkModalProvider } from '@boardkit/ui'
 </script>
 
 <template>
-  <RouterView />
+  <BkModalProvider>
+    <RouterView />
+  </BkModalProvider>
 </template>

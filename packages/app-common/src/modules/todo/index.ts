@@ -76,6 +76,12 @@ const settingsSchema: SettingsSchema = {
       icon: 'zap',
       fields: [
         {
+          key: 'cascadeCompletion',
+          type: 'toggle',
+          label: 'Cascade completion',
+          hint: 'Complete sub-tasks when parent is completed',
+        },
+        {
           key: 'confirmDelete',
           type: 'toggle',
           label: 'Confirm delete',

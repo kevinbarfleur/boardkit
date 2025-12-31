@@ -1,17 +1,31 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { nanoid } from 'nanoid'
-import type { ModuleContext } from '@boardkit/core'
+import type { ModuleContext, SettingsField, ModuleContextMenuEvent, ModuleMenuGroup } from '@boardkit/core'
 import { useProvideData, todoContractV1, truncate, type PublicTodoList } from '@boardkit/core'
-import { BkCheckbox, BkIcon } from '@boardkit/ui'
-import type { TodoState, TodoItem, TodoPriority } from './types'
+import { BkIcon, useModal } from '@boardkit/ui'
+import type { TodoState, TodoItem, TodoPriority, TodoSettings } from './types'
 import { defaultTodoSettings } from './types'
+import {
+  processItems,
+  getProgressStats,
+  toggleItemCompletion,
+  updateItemPriority,
+  updateItemDueDate,
+  removeItem,
+  findItem,
+} from './composables'
+import { TodoHeader, TodoList } from './components'
 
 interface Props {
   context: ModuleContext<TodoState>
 }
 
 const props = defineProps<Props>()
+
+const emit = defineEmits<{
+  moduleContextMenu: [event: ModuleContextMenuEvent]
+}>()
 
 // Register as data provider for todo contract
 useProvideData(props.context, todoContractV1, {
@@ -27,153 +41,164 @@ useProvideData(props.context, todoContractV1, {
   }),
 })
 
-const newTodoLabel = ref('')
+// Modal API
+const { openModal } = useModal()
+
+// UI state
 const deleteConfirmId = ref<string | null>(null)
 
+// Computed state
 const title = computed(() => props.context.state.title || '')
 const description = computed(() => props.context.state.description || '')
 const isSelected = computed(() => props.context.isSelected)
-
-// Settings with defaults
-const strikeCompleted = computed(
-  () => props.context.state.strikeCompleted ?? defaultTodoSettings.strikeCompleted
-)
-const hideCompleted = computed(
-  () => props.context.state.hideCompleted ?? defaultTodoSettings.hideCompleted
-)
-const autoSort = computed(() => props.context.state.autoSort ?? defaultTodoSettings.autoSort)
-const showProgress = computed(
-  () => props.context.state.showProgress ?? defaultTodoSettings.showProgress
-)
-const showDueDate = computed(
-  () => props.context.state.showDueDate ?? defaultTodoSettings.showDueDate
-)
-const showPriority = computed(
-  () => props.context.state.showPriority ?? defaultTodoSettings.showPriority
-)
-const confirmDelete = computed(
-  () => props.context.state.confirmDelete ?? defaultTodoSettings.confirmDelete
-)
-
-// Items with filtering and sorting
-const items = computed(() => {
-  let result = [...(props.context.state.items || [])]
-
-  // Filter completed if hideCompleted is enabled
-  if (hideCompleted.value) {
-    result = result.filter((item) => !item.completed)
-  }
-
-  // Sort if autoSort is enabled (completed items at bottom, then by priority)
-  if (autoSort.value) {
-    result.sort((a, b) => {
-      // Completed items go to bottom
-      if (a.completed !== b.completed) {
-        return a.completed ? 1 : -1
-      }
-      // Sort by priority (high > medium > low > undefined)
-      const priorityOrder = { high: 0, medium: 1, low: 2 }
-      const aPriority = a.priority ? priorityOrder[a.priority] : 3
-      const bPriority = b.priority ? priorityOrder[b.priority] : 3
-      return aPriority - bPriority
-    })
-  }
-
-  return result
-})
-
-// Raw items for progress calculation (before filtering)
 const allItems = computed(() => props.context.state.items || [])
+
+// Settings object for child components
+const settings = computed<TodoSettings>(() => ({
+  strikeCompleted: props.context.state.strikeCompleted ?? defaultTodoSettings.strikeCompleted,
+  hideCompleted: props.context.state.hideCompleted ?? defaultTodoSettings.hideCompleted,
+  showProgress: props.context.state.showProgress ?? defaultTodoSettings.showProgress,
+  showDueDate: props.context.state.showDueDate ?? defaultTodoSettings.showDueDate,
+  showPriority: props.context.state.showPriority ?? defaultTodoSettings.showPriority,
+  enableReorder: props.context.state.enableReorder ?? defaultTodoSettings.enableReorder,
+  autoSort: props.context.state.autoSort ?? defaultTodoSettings.autoSort,
+  cascadeCompletion: props.context.state.cascadeCompletion ?? defaultTodoSettings.cascadeCompletion,
+  confirmDelete: props.context.state.confirmDelete ?? defaultTodoSettings.confirmDelete,
+}))
+
+// Processed items (filtered + sorted)
+const items = computed(() =>
+  processItems(allItems.value, settings.value.hideCompleted, settings.value.autoSort)
+)
+
+// Progress stats
+const progress = computed(() => getProgressStats(allItems.value))
+
+// --- Actions ---
 
 const updateTitle = (value: string) => {
   props.context.updateState(
     { title: value },
-    {
-      captureHistory: true,
-      historyLabel: `Renamed list: ${truncate(value, 25)}`,
-      debounceMs: 1000,
-    }
+    { captureHistory: true, historyLabel: `Renamed list: ${truncate(value, 25)}`, debounceMs: 1000 }
   )
 }
 
 const updateDescription = (value: string) => {
   props.context.updateState(
     { description: value },
-    {
-      captureHistory: true,
-      historyLabel: `Updated description`,
-      debounceMs: 1000,
-    }
+    { captureHistory: true, historyLabel: `Updated description`, debounceMs: 1000 }
   )
 }
 
-const addTodo = () => {
-  if (!newTodoLabel.value.trim()) return
+// Define form fields for the add task modal
+const getAddTaskFields = (isSubTask: boolean): SettingsField[] => [
+  {
+    type: 'text',
+    key: 'label',
+    label: isSubTask ? 'Sub-task name' : 'Task name',
+    placeholder: 'Enter task name...',
+  },
+  {
+    type: 'textarea',
+    key: 'description',
+    label: 'Description',
+    placeholder: 'Add a description (optional)',
+    rows: 3,
+  },
+  {
+    type: 'button-group',
+    key: 'priority',
+    label: 'Priority',
+    options: [
+      { value: '', label: 'None' },
+      { value: 'low', label: 'Low' },
+      { value: 'medium', label: 'Medium' },
+      { value: 'high', label: 'High' },
+    ],
+  },
+  {
+    type: 'date',
+    key: 'dueDate',
+    label: 'Due date',
+    showPresets: true,
+    placeholder: 'No due date',
+  },
+]
 
-  const label = newTodoLabel.value.trim()
-  const newItem: TodoItem = {
-    id: nanoid(),
-    label,
-    completed: false,
-  }
+// Open add task modal
+const openAddTaskModal = async (parentId?: string) => {
+  const isSubTask = !!parentId
 
-  props.context.updateState(
-    { items: [...allItems.value, newItem] },
-    {
-      captureHistory: true,
-      historyLabel: `Added todo: ${truncate(label, 30)}`,
+  const result = await openModal<{
+    label: string
+    description?: string
+    priority?: TodoPriority | ''
+    dueDate?: string | null
+  }>({
+    title: isSubTask ? 'Add sub-task' : 'Add task',
+    fields: getAddTaskFields(isSubTask),
+    initialValues: { priority: '' },
+    submitLabel: isSubTask ? 'Add sub-task' : 'Add task',
+  })
+
+  if (result.confirmed && result.data?.label?.trim()) {
+    const newItem: TodoItem = {
+      id: nanoid(),
+      label: result.data.label.trim(),
+      description: result.data.description?.trim() || undefined,
+      completed: false,
+      priority: result.data.priority || undefined,
+      dueDate: result.data.dueDate || undefined,
+      parentId,
     }
-  )
 
-  newTodoLabel.value = ''
+    const historyLabel = parentId
+      ? `Added sub-task: ${truncate(result.data.label, 30)}`
+      : `Added todo: ${truncate(result.data.label, 30)}`
+
+    props.context.updateState(
+      { items: [...allItems.value, newItem] },
+      { captureHistory: true, historyLabel }
+    )
+  }
 }
 
 const toggleTodo = (id: string, completed: boolean) => {
-  const item = allItems.value.find((i) => i.id === id)
-  const updated = allItems.value.map((i) => (i.id === id ? { ...i, completed } : i))
+  const item = findItem(allItems.value, id)
+  const updated = toggleItemCompletion(
+    allItems.value,
+    id,
+    completed,
+    settings.value.cascadeCompletion
+  )
   const label = completed
     ? `Checked: ${truncate(item?.label, 30)}`
     : `Unchecked: ${truncate(item?.label, 30)}`
-
-  props.context.updateState(
-    { items: updated },
-    {
-      captureHistory: true,
-      historyLabel: label,
-    }
-  )
+  props.context.updateState({ items: updated }, { captureHistory: true, historyLabel: label })
 }
 
-const updateTodoPriority = (id: string, priority: TodoPriority | undefined) => {
-  const item = allItems.value.find((i) => i.id === id)
-  const updated = allItems.value.map((i) => (i.id === id ? { ...i, priority } : i))
+const updatePriority = (id: string, priority: TodoPriority | undefined) => {
+  const item = findItem(allItems.value, id)
+  const updated = updateItemPriority(allItems.value, id, priority)
   const priorityLabel = priority ? `${priority} priority` : 'no priority'
-
   props.context.updateState(
     { items: updated },
-    {
-      captureHistory: true,
-      historyLabel: `Set ${priorityLabel}: ${truncate(item?.label, 25)}`,
-    }
+    { captureHistory: true, historyLabel: `Set ${priorityLabel}: ${truncate(item?.label, 25)}` }
   )
 }
 
-const updateTodoDueDate = (id: string, dueDate: string | undefined) => {
-  const item = allItems.value.find((i) => i.id === id)
-  const updated = allItems.value.map((i) => (i.id === id ? { ...i, dueDate } : i))
+const updateDueDate = (id: string, dueDate: string | undefined) => {
+  const item = findItem(allItems.value, id)
+  const updated = updateItemDueDate(allItems.value, id, dueDate)
   const dateLabel = dueDate ? `due ${dueDate}` : 'no due date'
-
   props.context.updateState(
     { items: updated },
-    {
-      captureHistory: true,
-      historyLabel: `Set ${dateLabel}: ${truncate(item?.label, 25)}`,
-    }
+    { captureHistory: true, historyLabel: `Set ${dateLabel}: ${truncate(item?.label, 25)}` }
   )
 }
 
 const requestDelete = (id: string) => {
-  if (confirmDelete.value) {
+  if (settings.value.confirmDelete) {
     deleteConfirmId.value = id
   } else {
     removeTodo(id)
@@ -192,249 +217,197 @@ const confirmDeleteAction = () => {
 }
 
 const removeTodo = (id: string) => {
-  const item = allItems.value.find((i) => i.id === id)
-  const updated = allItems.value.filter((i) => i.id !== id)
-
+  const item = findItem(allItems.value, id)
+  const updated = removeItem(allItems.value, id)
   props.context.updateState(
     { items: updated },
-    {
-      captureHistory: true,
-      historyLabel: `Deleted todo: ${truncate(item?.label, 30)}`,
-    }
+    { captureHistory: true, historyLabel: `Deleted todo: ${truncate(item?.label, 30)}` }
   )
 }
 
-const handleKeydown = (e: KeyboardEvent) => {
-  if (e.key === 'Enter') {
-    addTodo()
+// --- Item Context Menu ---
+
+/**
+ * Build context menu groups for a specific item.
+ * These are emitted to BoardCanvas which combines them with widget-level actions.
+ */
+const buildItemContextMenuGroups = (item: TodoItem): ModuleMenuGroup[] => {
+  const groups: ModuleMenuGroup[] = []
+
+  // Task actions group
+  const taskActions: ModuleMenuGroup = {
+    label: 'Task',
+    items: [
+      {
+        id: `edit:${item.id}`,
+        label: 'Edit',
+        icon: 'pencil',
+      },
+      {
+        id: `toggle:${item.id}`,
+        label: item.completed ? 'Mark incomplete' : 'Mark complete',
+        icon: item.completed ? 'circle' : 'check-circle',
+      },
+    ],
+  }
+
+  // Add sub-task option (only for root items)
+  if (!item.parentId) {
+    taskActions.items.push({
+      id: `add-subtask:${item.id}`,
+      label: 'Add sub-task',
+      icon: 'corner-down-right',
+    })
+  }
+
+  groups.push(taskActions)
+
+  // Delete action in separate group
+  groups.push({
+    items: [
+      {
+        id: `delete:${item.id}`,
+        label: 'Delete task',
+        icon: 'trash-2',
+        destructive: true,
+      },
+    ],
+  })
+
+  return groups
+}
+
+/**
+ * Handle item context menu - emits to parent for combined rendering with widget actions.
+ */
+const handleItemContextMenu = (itemId: string, e: MouseEvent) => {
+  const item = findItem(allItems.value, itemId)
+  if (!item) return
+
+  const groups = buildItemContextMenuGroups(item)
+
+  emit('moduleContextMenu', {
+    x: e.clientX,
+    y: e.clientY,
+    groups,
+    onSelect: handleModuleMenuSelect,
+  })
+}
+
+/**
+ * Handle selection from module-specific menu items.
+ * Called by BoardCanvas when a module menu item is selected.
+ */
+const handleModuleMenuSelect = async (menuItemId: string) => {
+  // Parse the action and itemId from the menu item id (format: "action:itemId")
+  const [action, itemId] = menuItemId.split(':')
+  if (!itemId) return
+
+  switch (action) {
+    case 'edit':
+      await openEditModal(itemId)
+      break
+    case 'toggle': {
+      const item = findItem(allItems.value, itemId)
+      if (item) toggleTodo(itemId, !item.completed)
+      break
+    }
+    case 'add-subtask':
+      await openAddTaskModal(itemId)
+      break
+    case 'delete':
+      requestDelete(itemId)
+      break
   }
 }
 
-// Progress stats
-const completedCount = computed(() => allItems.value.filter((i) => i.completed).length)
-const totalCount = computed(() => allItems.value.length)
-const progressPercent = computed(() =>
-  totalCount.value > 0 ? Math.round((completedCount.value / totalCount.value) * 100) : 0
-)
+// Open edit modal for an existing item
+const openEditModal = async (itemId: string) => {
+  const item = findItem(allItems.value, itemId)
+  if (!item) return
 
-// Priority colors
-const getPriorityColor = (priority?: TodoPriority) => {
-  switch (priority) {
-    case 'high':
-      return 'text-red-500'
-    case 'medium':
-      return 'text-amber-500'
-    case 'low':
-      return 'text-blue-500'
-    default:
-      return 'text-muted-foreground'
+  const result = await openModal<{
+    label: string
+    description?: string
+    priority?: TodoPriority | ''
+    dueDate?: string | null
+  }>({
+    title: 'Edit task',
+    fields: getAddTaskFields(!!item.parentId),
+    initialValues: {
+      label: item.label,
+      description: item.description || '',
+      priority: item.priority || '',
+      dueDate: item.dueDate || null,
+    },
+    submitLabel: 'Save',
+  })
+
+  if (result.confirmed && result.data?.label?.trim()) {
+    const updatedItems = allItems.value.map((i) =>
+      i.id === itemId
+        ? {
+            ...i,
+            label: result.data!.label.trim(),
+            description: result.data!.description?.trim() || undefined,
+            priority: result.data!.priority || undefined,
+            dueDate: result.data!.dueDate || undefined,
+          }
+        : i
+    )
+
+    props.context.updateState(
+      { items: updatedItems },
+      { captureHistory: true, historyLabel: `Edited: ${truncate(result.data.label, 30)}` }
+    )
   }
-}
-
-// Due date formatting
-const formatDueDate = (dateStr?: string) => {
-  if (!dateStr) return ''
-  const date = new Date(dateStr)
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const tomorrow = new Date(today)
-  tomorrow.setDate(tomorrow.getDate() + 1)
-  const dateOnly = new Date(date)
-  dateOnly.setHours(0, 0, 0, 0)
-
-  if (dateOnly.getTime() === today.getTime()) return 'Today'
-  if (dateOnly.getTime() === tomorrow.getTime()) return 'Tomorrow'
-  if (dateOnly < today) return 'Overdue'
-
-  return date.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })
-}
-
-const isOverdue = (dateStr?: string) => {
-  if (!dateStr) return false
-  const date = new Date(dateStr)
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  return date < today
 }
 </script>
 
 <template>
   <div class="todo-widget h-full flex flex-col gap-2">
-    <!-- Header: Title & Description (always visible, editable when selected) -->
-    <div v-if="title || description || isSelected" class="flex flex-col gap-1">
-      <input
-        v-if="isSelected"
-        :value="title"
-        placeholder="List title..."
-        class="bg-transparent text-base font-medium text-foreground placeholder:text-muted-foreground outline-none"
-        @input="updateTitle(($event.target as HTMLInputElement).value)"
-      />
-      <span v-else-if="title" class="text-base font-medium text-foreground">
-        {{ title }}
-      </span>
-
-      <input
-        v-if="isSelected"
-        :value="description"
-        placeholder="Description..."
-        class="bg-transparent text-sm text-muted-foreground placeholder:text-muted-foreground/50 outline-none"
-        @input="updateDescription(($event.target as HTMLInputElement).value)"
-      />
-      <span v-else-if="description" class="text-sm text-muted-foreground">
-        {{ description }}
-      </span>
-    </div>
-
-    <!-- Progress indicator -->
-    <div v-if="showProgress !== 'none' && allItems.length > 0" class="flex items-center gap-2">
-      <!-- Bar progress -->
-      <template v-if="showProgress === 'bar'">
-        <div class="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-          <div
-            class="h-full bg-primary transition-all duration-300"
-            :style="{ width: `${progressPercent}%` }"
-          />
-        </div>
-        <span class="text-xs text-muted-foreground shrink-0">{{ progressPercent }}%</span>
-      </template>
-
-      <!-- Counter progress -->
-      <template v-else-if="showProgress === 'counter'">
-        <span class="text-xs text-muted-foreground">
-          {{ completedCount }}/{{ totalCount }} completed
-        </span>
-      </template>
-    </div>
-
-    <!-- Add new todo (only when selected) -->
-    <div v-if="isSelected" class="flex">
-      <input
-        v-model="newTodoLabel"
-        type="text"
-        placeholder="Add a task..."
-        class="flex-1 h-9 px-3 text-sm bg-background border border-border rounded-l-lg focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-0 placeholder:text-muted-foreground"
-        @keydown="handleKeydown"
-      />
-      <button
-        class="shrink-0 h-9 px-3 rounded-r-lg border border-l-0 border-border bg-muted hover:bg-accent flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-        @click="addTodo"
-      >
-        <BkIcon icon="plus" :size="16" />
-      </button>
-    </div>
+    <!-- Header: Title, Description, Progress -->
+    <TodoHeader
+      v-if="title || description || isSelected"
+      :title="title"
+      :description="description"
+      :progress="progress"
+      :show-progress="settings.showProgress"
+      :is-selected="isSelected"
+      @update:title="updateTitle"
+      @update:description="updateDescription"
+    />
 
     <!-- Todo list -->
-    <div class="flex-1 overflow-auto space-y-1">
-      <div
-        v-for="item in items"
-        :key="item.id"
-        class="flex items-start gap-2 p-1.5 rounded hover:bg-accent/50 group"
-      >
-        <BkCheckbox
-          :model-value="item.completed"
-          class="mt-0.5"
-          @update:model-value="(v) => toggleTodo(item.id, v)"
-        />
+    <TodoList
+      :items="items"
+      :all-items="allItems"
+      :settings="settings"
+      :is-selected="isSelected"
+      :hide-completed="settings.hideCompleted"
+      @toggle="toggleTodo"
+      @update-priority="updatePriority"
+      @update-due-date="updateDueDate"
+      @delete="requestDelete"
+      @open-sub-task-input="(id) => openAddTaskModal(id)"
+      @contextmenu="handleItemContextMenu"
+    />
 
-        <div class="flex-1 min-w-0">
-          <!-- Task label -->
-          <span
-            class="text-sm block"
-            :class="{
-              'line-through text-muted-foreground': item.completed && strikeCompleted,
-              'text-muted-foreground': item.completed && !strikeCompleted,
-            }"
-          >
-            {{ item.label }}
-          </span>
-
-          <!-- Meta info (due date, priority) -->
-          <div
-            v-if="(showDueDate && item.dueDate) || (showPriority && item.priority)"
-            class="flex items-center gap-2 mt-0.5"
-          >
-            <!-- Due date -->
-            <span
-              v-if="showDueDate && item.dueDate"
-              class="text-xs flex items-center gap-1"
-              :class="isOverdue(item.dueDate) && !item.completed ? 'text-red-500' : 'text-muted-foreground'"
-            >
-              <BkIcon icon="calendar" :size="10" />
-              {{ formatDueDate(item.dueDate) }}
-            </span>
-
-            <!-- Priority badge -->
-            <span
-              v-if="showPriority && item.priority"
-              class="text-xs flex items-center gap-0.5"
-              :class="getPriorityColor(item.priority)"
-            >
-              <BkIcon icon="flag" :size="10" />
-              {{ item.priority === 'high' ? 'High' : item.priority === 'medium' ? 'Medium' : 'Low' }}
-            </span>
-          </div>
-        </div>
-
-        <!-- Actions (only when selected) -->
-        <div v-if="isSelected" class="shrink-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-          <!-- Priority button -->
-          <div v-if="showPriority" class="relative">
-            <button
-              class="h-6 w-6 rounded flex items-center justify-center hover:bg-accent"
-              :class="getPriorityColor(item.priority)"
-              @click="updateTodoPriority(item.id, item.priority === 'high' ? undefined : item.priority === 'medium' ? 'high' : item.priority === 'low' ? 'medium' : 'low')"
-              title="Change priority"
-            >
-              <BkIcon icon="flag" :size="12" />
-            </button>
-          </div>
-
-          <!-- Due date button -->
-          <div v-if="showDueDate" class="relative">
-            <input
-              type="date"
-              :value="item.dueDate || ''"
-              class="absolute inset-0 opacity-0 cursor-pointer w-6"
-              @change="updateTodoDueDate(item.id, ($event.target as HTMLInputElement).value || undefined)"
-            />
-            <button
-              class="h-6 w-6 rounded flex items-center justify-center hover:bg-accent"
-              :class="item.dueDate ? 'text-primary' : 'text-muted-foreground'"
-            >
-              <BkIcon icon="calendar" :size="12" />
-            </button>
-          </div>
-
-          <!-- Delete button -->
-          <button
-            class="h-6 w-6 rounded flex items-center justify-center hover:bg-destructive/10 hover:text-destructive text-muted-foreground"
-            @click="requestDelete(item.id)"
-          >
-            <BkIcon icon="x" :size="12" />
-          </button>
-        </div>
-      </div>
-
-      <!-- Empty state -->
-      <p
-        v-if="items.length === 0 && isSelected"
-        class="text-sm text-muted-foreground text-center py-4"
-      >
-        {{ hideCompleted && allItems.length > 0 ? 'All tasks completed!' : 'No tasks yet' }}
-      </p>
-    </div>
+    <!-- Add task button (always visible, discrete) -->
+    <button
+      class="flex items-center gap-2 p-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded transition-colors"
+      @click.stop="openAddTaskModal()"
+    >
+      <BkIcon icon="plus" :size="16" />
+      <span>Add task</span>
+    </button>
 
     <!-- Delete confirmation dialog -->
     <Teleport to="body">
-      <div
-        v-if="deleteConfirmId"
-        class="fixed inset-0 z-50 flex items-center justify-center"
-      >
+      <div v-if="deleteConfirmId" class="fixed inset-0 z-50 flex items-center justify-center">
         <div class="fixed inset-0 bg-overlay/50" @click="cancelDelete" />
         <div class="relative bg-popover border border-border rounded-lg p-4 shadow-lg max-w-xs">
-          <p class="text-sm text-foreground mb-4">
-            Delete this task?
-          </p>
+          <p class="text-sm text-foreground mb-4">Delete this task?</p>
           <div class="flex justify-end gap-2">
             <button
               class="px-3 py-1.5 text-sm rounded-md border border-border hover:bg-accent"

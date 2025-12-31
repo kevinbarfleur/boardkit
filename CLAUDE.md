@@ -60,7 +60,28 @@ Boardkit uses a **portable `.boardkit` document format** and does NOT rely on an
 - No custom widget frames, drag logic, or headers inside modules.
 - No ad-hoc spacing, typography, or colors.
 
-### 6. Action-first UX
+### 6. Lucide Icons (MANDATORY VERIFICATION)
+
+**BEFORE using any Lucide icon, you MUST verify it exists.**
+
+Verification methods (in order of preference):
+1. **WebFetch** to `https://lucide.dev/icons/{icon-name}` to confirm the icon exists
+2. **WebSearch** for `lucide icon {icon-name} site:lucide.dev`
+3. Check existing codebase usage with `Grep`
+
+**Common mistakes to avoid:**
+- `code-2` does NOT exist → use `braces` or `code-xml`
+- `list-check` does NOT exist → use `list-todo`
+- Always use kebab-case (e.g., `corner-down-right`, not `cornerDownRight`)
+
+**If an icon doesn't exist:**
+- Search for alternatives on [lucide.dev/icons](https://lucide.dev/icons)
+- Choose the closest semantic match
+- Document the choice in a comment if the name isn't obvious
+
+This verification is NON-NEGOTIABLE. Icon errors break the UI silently.
+
+### 7. Action-first UX
 
 - All user actions must go through the ActionRegistry.
 - Command Palette, context menus, shortcuts, and menus are just **different views of the same actions**.

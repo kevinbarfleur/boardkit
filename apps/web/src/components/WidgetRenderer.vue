@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useBoardStore, moduleRegistry } from '@boardkit/core'
-import type { ModuleContext, HistoryOptions } from '@boardkit/core'
+import type { ModuleContext, HistoryOptions, ModuleContextMenuEvent } from '@boardkit/core'
 import { useSettingsPanel } from '../composables/useSettingsPanel'
 
 interface Props {
@@ -10,6 +10,11 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+
+const emit = defineEmits<{
+  moduleContextMenu: [event: ModuleContextMenuEvent]
+}>()
+
 const boardStore = useBoardStore()
 const { openForWidget } = useSettingsPanel()
 
@@ -44,6 +49,14 @@ const ModuleComponent = computed(() => {
 function handleOpenSettings(options?: { tab?: string }) {
   openForWidget(props.widgetId, options)
 }
+
+/**
+ * Handle module context menu event from module components.
+ * Forwards to BoardCanvas for combined rendering with widget actions.
+ */
+function handleModuleContextMenu(event: ModuleContextMenuEvent) {
+  emit('moduleContextMenu', event)
+}
 </script>
 
 <template>
@@ -52,6 +65,7 @@ function handleOpenSettings(options?: { tab?: string }) {
     :is="ModuleComponent"
     :context="context"
     @open-settings="handleOpenSettings"
+    @module-context-menu="handleModuleContextMenu"
   />
   <div v-else class="flex items-center justify-center h-full text-muted-foreground text-sm">
     Module not found: {{ moduleId }}

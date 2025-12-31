@@ -65,11 +65,15 @@ export type SettingsField =
   | SliderField
   | NumberField
   | TextInputField
+  | TextareaField
+  | DateField
+  | ColorField
+  | CheckboxField
 
 /**
  * Base interface for all settings fields.
  */
-interface SettingsFieldBase {
+export interface SettingsFieldBase {
   /** Key in the module state where the value is stored */
   key: string
 
@@ -237,6 +241,75 @@ export interface TextInputField extends SettingsFieldBase {
 }
 
 // ============================================================================
+// Textarea Field
+// ============================================================================
+
+/**
+ * Multi-line text input field.
+ */
+export interface TextareaField extends SettingsFieldBase {
+  type: 'textarea'
+
+  /** Placeholder text */
+  placeholder?: string
+
+  /** Number of visible rows */
+  rows?: number
+
+  /** Maximum character length */
+  maxLength?: number
+}
+
+// ============================================================================
+// Date Field
+// ============================================================================
+
+/**
+ * Date picker field.
+ */
+export interface DateField extends SettingsFieldBase {
+  type: 'date'
+
+  /** Placeholder text when no date selected */
+  placeholder?: string
+
+  /** Show quick preset buttons (Today, Tomorrow, etc.) */
+  showPresets?: boolean
+}
+
+// ============================================================================
+// Color Field
+// ============================================================================
+
+/**
+ * Color picker field.
+ */
+export interface ColorField extends SettingsFieldBase {
+  type: 'color'
+
+  /** Custom color palette (hex values) */
+  colors?: string[]
+
+  /** Allow clearing the color (nullable) */
+  allowNone?: boolean
+}
+
+// ============================================================================
+// Checkbox Field
+// ============================================================================
+
+/**
+ * Single checkbox field.
+ * Similar to toggle but with checkbox styling.
+ */
+export interface CheckboxField extends SettingsFieldBase {
+  type: 'checkbox'
+
+  /** Label displayed next to the checkbox (can differ from main label) */
+  checkboxLabel?: string
+}
+
+// ============================================================================
 // Helper Types
 // ============================================================================
 
@@ -245,13 +318,35 @@ export interface TextInputField extends SettingsFieldBase {
  */
 export type SettingsFieldValue<T extends SettingsField> = T extends ToggleField
   ? boolean
-  : T extends SliderField | NumberField
-    ? number
-    : T extends SelectField | ButtonGroupField
-      ? T['options'][number]['value']
-      : T extends TextInputField
-        ? string
-        : unknown
+  : T extends CheckboxField
+    ? boolean
+    : T extends SliderField | NumberField
+      ? number
+      : T extends SelectField | ButtonGroupField
+        ? T['options'][number]['value']
+        : T extends TextInputField | TextareaField
+          ? string
+          : T extends DateField
+            ? string | null
+            : T extends ColorField
+              ? string | null
+              : unknown
+
+// ============================================================================
+// Type Guards
+// ============================================================================
+
+export const isToggle = (field: SettingsField): field is ToggleField => field.type === 'toggle'
+export const isSelect = (field: SettingsField): field is SelectField => field.type === 'select'
+export const isButtonGroup = (field: SettingsField): field is ButtonGroupField =>
+  field.type === 'button-group'
+export const isSlider = (field: SettingsField): field is SliderField => field.type === 'slider'
+export const isNumber = (field: SettingsField): field is NumberField => field.type === 'number'
+export const isText = (field: SettingsField): field is TextInputField => field.type === 'text'
+export const isTextarea = (field: SettingsField): field is TextareaField => field.type === 'textarea'
+export const isDate = (field: SettingsField): field is DateField => field.type === 'date'
+export const isColor = (field: SettingsField): field is ColorField => field.type === 'color'
+export const isCheckbox = (field: SettingsField): field is CheckboxField => field.type === 'checkbox'
 
 /**
  * Standard settings categories.

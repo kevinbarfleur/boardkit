@@ -25,6 +25,7 @@ export { default as BkSelect } from './components/BkSelect.vue'
 export type { SelectOption } from './components/BkSelect.vue'
 export { default as BkButtonGroup } from './components/BkButtonGroup.vue'
 export type { ButtonGroupOption } from './components/BkButtonGroup.vue'
+export { default as BkDatePicker } from './components/BkDatePicker.vue'
 export { default as BkFormRow } from './components/BkFormRow.vue'
 export { default as BkFormSection } from './components/BkFormSection.vue'
 export { default as BkTabs } from './components/BkTabs.vue'
@@ -44,6 +45,11 @@ export { default as BkConfigurationPanel } from './components/BkConfigurationPan
 export type { ConfigPanelProvider } from './components/BkConfigurationPanel.vue'
 export { default as BkSettingsPanelGeneric } from './components/BkSettingsPanelGeneric.vue'
 export { default as BkModuleSettingsPanel } from './components/BkModuleSettingsPanel.vue'
+export { default as BkSchemaForm } from './components/BkSchemaForm.vue'
+
+// Modal Components
+export { default as BkModalProvider } from './components/BkModalProvider.vue'
+export { default as BkFormModal } from './components/BkFormModal.vue'
 
 // Canvas Tool Components
 export { default as BkToolbar } from './components/BkToolbar.vue'
@@ -74,6 +80,15 @@ export {
 
 // Composables
 export { useTheme } from './composables/useTheme'
+export { useModal, MODAL_INJECTION_KEY } from './composables/useModal'
+
+// Modal Types
+export type {
+  ModalConfig,
+  ModalResult,
+  ConfirmConfig,
+  UseModalReturn,
+} from './types/modal'
 
 // Types
 export type { ButtonVariant } from './components/BkButton.vue'
