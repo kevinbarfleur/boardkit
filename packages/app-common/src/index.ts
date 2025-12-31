@@ -28,7 +28,7 @@ export {
 } from './modules'
 
 // Custom configuration components
-export { StatsCardMetricsConfig } from './modules'
+export { StatsCardMetricsConfig, GoogleCalendarSetup } from './modules'
 
 // Components
 export { TiptapEditor } from './components'

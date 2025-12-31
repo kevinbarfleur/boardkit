@@ -69,6 +69,7 @@ export type SettingsField =
   | DateField
   | ColorField
   | CheckboxField
+  | SecretField
 
 /**
  * Base interface for all settings fields.
@@ -310,6 +311,33 @@ export interface CheckboxField extends SettingsFieldBase {
 }
 
 // ============================================================================
+// Secret Field
+// ============================================================================
+
+/**
+ * Secret input field for sensitive data (API keys, tokens, etc.).
+ *
+ * Values are stored in a secure vault, separate from the .boardkit file.
+ * The module state stores a reference (e.g., "secret:my_api_key")
+ * which is resolved at runtime via useSecrets().
+ *
+ * This allows .boardkit files to be shared as templates without
+ * exposing sensitive credentials.
+ */
+export interface SecretField extends SettingsFieldBase {
+  type: 'secret'
+
+  /** Placeholder text */
+  placeholder?: string
+
+  /**
+   * Label shown when a secret is stored.
+   * Defaults to "Secret stored securely"
+   */
+  storedLabel?: string
+}
+
+// ============================================================================
 // Helper Types
 // ============================================================================
 
@@ -330,7 +358,9 @@ export type SettingsFieldValue<T extends SettingsField> = T extends ToggleField
             ? string | null
             : T extends ColorField
               ? string | null
-              : unknown
+              : T extends SecretField
+                ? string | null
+                : unknown
 
 // ============================================================================
 // Type Guards
@@ -347,6 +377,7 @@ export const isTextarea = (field: SettingsField): field is TextareaField => fiel
 export const isDate = (field: SettingsField): field is DateField => field.type === 'date'
 export const isColor = (field: SettingsField): field is ColorField => field.type === 'color'
 export const isCheckbox = (field: SettingsField): field is CheckboxField => field.type === 'checkbox'
+export const isSecret = (field: SettingsField): field is SecretField => field.type === 'secret'
 
 /**
  * Standard settings categories.

@@ -9,6 +9,7 @@ import { TimerModule } from './timer'
 import { HabitTrackerModule } from './habit-tracker'
 import { KanbanModule } from './kanban'
 import { StatsCardModule } from './stats-card'
+import { GoogleCalendarModule } from './google-calendar'
 
 export function registerModules() {
   moduleRegistry.register(TextModule)
@@ -21,6 +22,7 @@ export function registerModules() {
   moduleRegistry.register(HabitTrackerModule)
   moduleRegistry.register(KanbanModule)
   moduleRegistry.register(StatsCardModule)
+  moduleRegistry.register(GoogleCalendarModule)
 }
 
 export { TextModule } from './text'
@@ -33,6 +35,7 @@ export { TimerModule } from './timer'
 export { HabitTrackerModule } from './habit-tracker'
 export { KanbanModule } from './kanban'
 export { StatsCardModule } from './stats-card'
+export { GoogleCalendarModule } from './google-calendar'
 
 // Re-export types
 export type { TextState } from './text'
@@ -45,6 +48,7 @@ export type { TimerState, TimerSession } from './timer'
 export type { HabitTrackerState, Habit, HabitCompletion } from './habit-tracker'
 export type { KanbanState, KanbanItem, KanbanColumn } from './kanban'
 export type { StatsCardState, StatMetricConfig } from './stats-card'
+export type { CalendarState, CalendarEvent, CalendarSettings } from './google-calendar'
 
 // Re-export default settings
 export { defaultTextSettings } from './text'
@@ -57,3 +61,4 @@ export { defaultTimerSettings } from './timer'
 export { defaultHabitTrackerSettings } from './habit-tracker'
 export { defaultKanbanSettings, defaultKanbanColumns } from './kanban'
 export { defaultStatsCardSettings, metricTemplates, StatsCardMetricsConfig } from './stats-card'
+export { defaultCalendarState, defaultCalendarSettings, GoogleCalendarSetup } from './google-calendar'

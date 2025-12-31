@@ -26,7 +26,7 @@ import {
   useTheme,
   type ConfigPanelProvider,
 } from '@boardkit/ui'
-import { StatsCardMetricsConfig } from '@boardkit/app-common'
+import { StatsCardMetricsConfig, GoogleCalendarSetup } from '@boardkit/app-common'
 
 const boardStore = useBoardStore()
 const { isOpen, widgetId, initialTab, isAppSettings, close } = useSettingsPanel()
@@ -118,6 +118,7 @@ function handleSettingsUpdate(key: string, value: unknown) {
 
 const customComponents: Record<string, unknown> = {
   StatsCardMetricsConfig,
+  GoogleCalendarSetup,
 }
 
 // Construct module context for custom components that need full context access

@@ -2,7 +2,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { useBoardStore, registerCoreActions, type BoardkitDocument } from '@boardkit/core'
-import { useTheme, BkModalProvider } from '@boardkit/ui'
+import { useTheme, BkModalProvider, BkToastProvider } from '@boardkit/ui'
 import { registerModules } from './modules'
 import { registerDesktopActions } from './actions/desktopActions'
 import { usePersistence } from './composables/usePersistence'
@@ -225,55 +225,57 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <BkModalProvider>
-    <!-- Vault Setup Modal (first launch) -->
-    <VaultSetupModal
-      v-if="!vault.isConfigured.value"
-      @setup="handleVaultSetup"
-    />
-
-    <!-- Main App (after vault is configured) -->
-    <div v-else class="h-screen w-screen overflow-hidden flex">
-    <!-- Vault Sidebar -->
-    <VaultSidebar
-      :files="vault.files.value"
-      :active-file-path="persistence.currentFilePath.value"
-      :vault-name="vault.vaultName.value"
-      :is-loading="persistence.isLoading.value"
-      :collapsed="sidebarCollapsed"
-      @select="handleSelectFile"
-      @create="handleCreateFile"
-      @delete="handleDeleteFile"
-      @rename="handleRenameFile"
-      @duplicate="handleDuplicateFile"
-      @open-settings="handleOpenSettings"
-      @toggle-collapse="toggleSidebarCollapse"
-    />
-
-    <!-- Main Content -->
-    <div class="flex-1 flex flex-col min-w-0">
-      <Toolbar
-        :is-saving="persistence.isSaving.value"
-        :last-saved="persistence.lastSaved.value"
-        :can-undo="persistence.canUndo.value"
-        :can-redo="persistence.canRedo.value"
-        :undo-entries="persistence.undoEntries.value"
-        :redo-entries="persistence.redoEntries.value"
-        @new-board="handleNewBoard"
-        @export="handleExport"
-        @import="handleImport"
-        @open-command-palette="openCommandPalette"
-        @undo="handleUndo"
-        @redo="handleRedo"
-        @go-to-history="handleGoToHistory"
-        @go-to-latest="handleGoToLatest"
-        @title-change="handleTitleChange"
+  <BkToastProvider>
+    <BkModalProvider>
+      <!-- Vault Setup Modal (first launch) -->
+      <VaultSetupModal
+        v-if="!vault.isConfigured.value"
+        @setup="handleVaultSetup"
       />
-      <BoardCanvas @open-command-palette="openCommandPalette" />
-    </div>
 
-    <CommandPalette :open="isCommandPaletteOpen" @close="closeCommandPalette" />
-    <SettingsPanel />
-  </div>
-  </BkModalProvider>
+      <!-- Main App (after vault is configured) -->
+      <div v-else class="h-screen w-screen overflow-hidden flex">
+        <!-- Vault Sidebar -->
+        <VaultSidebar
+          :files="vault.files.value"
+          :active-file-path="persistence.currentFilePath.value"
+          :vault-name="vault.vaultName.value"
+          :is-loading="persistence.isLoading.value"
+          :collapsed="sidebarCollapsed"
+          @select="handleSelectFile"
+          @create="handleCreateFile"
+          @delete="handleDeleteFile"
+          @rename="handleRenameFile"
+          @duplicate="handleDuplicateFile"
+          @open-settings="handleOpenSettings"
+          @toggle-collapse="toggleSidebarCollapse"
+        />
+
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col min-w-0">
+          <Toolbar
+            :is-saving="persistence.isSaving.value"
+            :last-saved="persistence.lastSaved.value"
+            :can-undo="persistence.canUndo.value"
+            :can-redo="persistence.canRedo.value"
+            :undo-entries="persistence.undoEntries.value"
+            :redo-entries="persistence.redoEntries.value"
+            @new-board="handleNewBoard"
+            @export="handleExport"
+            @import="handleImport"
+            @open-command-palette="openCommandPalette"
+            @undo="handleUndo"
+            @redo="handleRedo"
+            @go-to-history="handleGoToHistory"
+            @go-to-latest="handleGoToLatest"
+            @title-change="handleTitleChange"
+          />
+          <BoardCanvas @open-command-palette="openCommandPalette" />
+        </div>
+
+        <CommandPalette :open="isCommandPaletteOpen" @close="closeCommandPalette" />
+        <SettingsPanel />
+      </div>
+    </BkModalProvider>
+  </BkToastProvider>
 </template>

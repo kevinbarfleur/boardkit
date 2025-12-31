@@ -17,6 +17,7 @@ import type {
   DateField,
   ColorField,
   CheckboxField,
+  SecretField,
 } from '@boardkit/core'
 import BkFormRow from './BkFormRow.vue'
 import BkToggle from './BkToggle.vue'
@@ -28,6 +29,7 @@ import BkTextarea from './BkTextarea.vue'
 import BkDatePicker from './BkDatePicker.vue'
 import BkColorPicker from './BkColorPicker.vue'
 import BkCheckbox from './BkCheckbox.vue'
+import BkSecretInput from './BkSecretInput.vue'
 
 interface Props {
   /** Fields to render */
@@ -36,10 +38,16 @@ interface Props {
   values: Record<string, unknown>
   /** Visual variant: 'plain' (no wrapper) or 'card' (with border, bg, dividers) */
   variant?: 'plain' | 'card'
+  /**
+   * Map of secret field keys to whether they have a stored secret.
+   * Used by BkSecretInput to show the "stored" indicator.
+   */
+  secretStatus?: Record<string, boolean>
 }
 
 const props = withDefaults(defineProps<Props>(), {
   variant: 'plain',
+  secretStatus: () => ({}),
 })
 
 const wrapperClass = computed(() => {
@@ -52,6 +60,10 @@ const wrapperClass = computed(() => {
 const emit = defineEmits<{
   /** Emitted when a field value changes */
   update: [key: string, value: unknown]
+  /** Emitted when a secret should be saved (key from field, value to store) */
+  saveSecret: [key: string, value: string]
+  /** Emitted when a secret should be cleared (key from field) */
+  clearSecret: [key: string]
 }>()
 
 // Get current value for a field
@@ -118,6 +130,23 @@ function isColor(field: SettingsField): field is ColorField {
 
 function isCheckbox(field: SettingsField): field is CheckboxField {
   return field.type === 'checkbox'
+}
+
+function isSecret(field: SettingsField): field is SecretField {
+  return field.type === 'secret'
+}
+
+// Secret field helpers
+function hasStoredSecret(field: SettingsField): boolean {
+  return props.secretStatus?.[field.key] ?? false
+}
+
+function handleSaveSecret(key: string, value: string) {
+  emit('saveSecret', key, value)
+}
+
+function handleClearSecret(key: string) {
+  emit('clearSecret', key)
 }
 
 // Computed visible fields
@@ -315,6 +344,24 @@ import { computed } from 'vue'
           :show-none="field.allowNone"
           :disabled="field.disabled"
           @update:model-value="(v) => handleUpdate(field.key, v)"
+        />
+      </BkFormRow>
+
+      <!-- Secret Field -->
+      <BkFormRow
+        v-else-if="isSecret(field)"
+        :label="field.label"
+        :icon="field.icon"
+        layout="stacked"
+      >
+        <BkSecretInput
+          :model-value="(getFieldValue(field) as string | null)"
+          :placeholder="field.placeholder"
+          :stored-label="field.storedLabel"
+          :has-stored-secret="hasStoredSecret(field)"
+          :disabled="field.disabled"
+          @save-secret="(v) => handleSaveSecret(field.key, v)"
+          @clear-secret="() => handleClearSecret(field.key)"
         />
       </BkFormRow>
     </template>

@@ -62,6 +62,17 @@ export {
 export { useProvideData } from './composables/useProvideData'
 export { useConsumeData } from './composables/useConsumeData'
 
+// Secrets composable
+export { useSecrets, type UseSecretsReturn } from './composables/useSecrets'
+
+// Async operation composable
+export {
+  useAsyncOperation,
+  type AsyncOperationOptions,
+  type AsyncOperationState,
+  type UseAsyncOperationReturn,
+} from './composables/useAsyncOperation'
+
 // Data sharing composables (legacy - full control)
 export { useDataProvider } from './composables/useDataProvider'
 export { useDataConsumer } from './composables/useDataConsumer'
@@ -84,3 +95,10 @@ export {
 
 // Utils
 export { truncate } from './utils'
+
+// Services
+export {
+  setSecretsVault,
+  getSecretsVault,
+  isSecretsVaultInitialized,
+} from './services'

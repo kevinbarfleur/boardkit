@@ -104,6 +104,11 @@ import {
   CornerDownRight,
   Flag,
   Edit3,
+  // Video & communication icons
+  Video,
+  MapPin,
+  HelpCircle,
+  RefreshCw,
   type LucideIcon,
 } from 'lucide-vue-next'
 
@@ -212,6 +217,11 @@ const iconComponents: Record<string, LucideIcon> = {
   'corner-down-right': CornerDownRight,
   flag: Flag,
   'edit-3': Edit3,
+  // Video & communication icons
+  video: Video,
+  'map-pin': MapPin,
+  'help-circle': HelpCircle,
+  'refresh-cw': RefreshCw,
 }
 
 export type IconName = keyof typeof iconComponents

@@ -252,10 +252,16 @@ importers:
 
   packages/platform:
     dependencies:
+      '@boardkit/core':
+        specifier: workspace:^
+        version: link:../core
       idb:
         specifier: ^8.0.0
         version: 8.0.3
     devDependencies:
+      '@tauri-apps/plugin-fs':
+        specifier: ^2.4.4
+        version: 2.4.4
       typescript:
         specifier: ^5.3.0
         version: 5.9.3
@@ -271,6 +277,9 @@ importers:
       lucide-vue-next:
         specifier: ^0.562.0
         version: 0.562.0(vue@3.5.26)
+      nanoid:
+        specifier: ^5.0.4
+        version: 5.1.6
       perfect-freehand:
         specifier: ^1.2.2
         version: 1.2.2
@@ -2029,7 +2038,6 @@ packages:
 
   /@tauri-apps/api@2.9.1:
     resolution: {integrity: sha512-IGlhP6EivjXHepbBic618GOmiWe4URJiIeZFlB7x3czM0yDHHYviH1Xvoiv4FefdkQtn6v7TuwWCRfOGdnVUGw==}
-    dev: false
 
   /@tauri-apps/cli-darwin-arm64@2.9.6:
     resolution: {integrity: sha512-gf5no6N9FCk1qMrti4lfwP77JHP5haASZgVbBgpZG7BUepB3fhiLCXGUK8LvuOjP36HivXewjg72LTnPDScnQQ==}
@@ -2158,7 +2166,6 @@ packages:
     resolution: {integrity: sha512-MTorXxIRmOnOPT1jZ3w96vjSuScER38ryXY88vl5F0uiKdnvTKKTtaEjTEo8uPbl4e3gnUtfsDVwC7h77GQLvQ==}
     dependencies:
       '@tauri-apps/api': 2.9.1
-    dev: false
 
   /@tiptap/core@3.14.0(@tiptap/pm@3.14.0):
     resolution: {integrity: sha512-nm0VWVA1Vq/jaKY3wyRXViL/kf78yMdH7qETpv4qZXDQLU+pdWV3IGoRTQTKESc7d8L1wL/2uCeByLNUJfrSIw==}
