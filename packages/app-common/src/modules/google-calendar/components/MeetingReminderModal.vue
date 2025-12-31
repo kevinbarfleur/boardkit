@@ -32,17 +32,43 @@ const formatTime = (dateStr: string): string => {
   return date.toLocaleTimeString(undefined, options)
 }
 
-// Time string
-const timeString = computed(() => {
+// Time range
+const timeRange = computed(() => {
   if (props.event.isAllDay) return 'All day'
-  return formatTime(props.event.start)
+  return `${formatTime(props.event.start)} - ${formatTime(props.event.end)}`
 })
 
-// Color style for accent
-const colorStyle = computed(() => {
-  if (!props.event.color) return {}
-  return { backgroundColor: props.event.color }
+// Duration
+const duration = computed(() => {
+  if (props.event.isAllDay) return null
+  const start = new Date(props.event.start)
+  const end = new Date(props.event.end)
+  const mins = Math.round((end.getTime() - start.getTime()) / (1000 * 60))
+  if (mins < 60) return `${mins} min`
+  const hours = Math.floor(mins / 60)
+  const remainingMins = mins % 60
+  if (remainingMins === 0) return `${hours}h`
+  return `${hours}h ${remainingMins}min`
 })
+
+// Response status helpers
+const getResponseIcon = (status?: string) => {
+  switch (status) {
+    case 'accepted': return 'check'
+    case 'declined': return 'x'
+    case 'tentative': return 'help-circle'
+    default: return 'clock'
+  }
+}
+
+const getResponseColor = (status?: string) => {
+  switch (status) {
+    case 'accepted': return 'text-green-500'
+    case 'declined': return 'text-red-500'
+    case 'tentative': return 'text-yellow-500'
+    default: return 'text-muted-foreground'
+  }
+}
 
 // Join meeting
 const handleJoin = () => {
@@ -68,58 +94,89 @@ const handleDismiss = () => {
       leave-from-class="opacity-100"
       leave-to-class="opacity-0"
     >
-      <div class="fixed inset-0 z-[100] flex items-center justify-center">
+      <div class="fixed inset-0 z-[100] flex items-center justify-center p-4">
         <!-- Backdrop -->
         <div
-          class="absolute inset-0 bg-black/60 backdrop-blur-sm"
+          class="absolute inset-0 bg-black/70 backdrop-blur-md"
           @click="handleDismiss"
         />
 
         <!-- Modal -->
-        <div class="relative bg-popover rounded-xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
-          <!-- Color accent bar -->
-          <div class="h-1.5" :style="colorStyle" />
+        <div class="relative bg-popover rounded-lg shadow-2xl w-full max-w-md overflow-hidden">
+          <!-- Header -->
+          <div class="p-5 pb-4">
+            <div class="flex items-start gap-4">
+              <!-- Video icon badge -->
+              <div class="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <BkIcon icon="video" :size="24" class="text-primary" />
+              </div>
+
+              <!-- Title & subtitle -->
+              <div class="flex-1 min-w-0">
+                <p class="text-xs font-medium text-primary uppercase tracking-wide mb-1">
+                  Meeting starting now
+                </p>
+                <h2 class="text-lg font-semibold text-foreground leading-tight">
+                  {{ event.title }}
+                </h2>
+              </div>
+
+              <!-- Close button -->
+              <button
+                class="p-1.5 rounded-md hover:bg-muted transition-colors shrink-0"
+                @click="handleDismiss"
+              >
+                <BkIcon icon="x" :size="18" class="text-muted-foreground" />
+              </button>
+            </div>
+          </div>
 
           <!-- Content -->
-          <div class="p-6 text-center space-y-4">
-            <!-- Icon -->
-            <div class="w-16 h-16 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
-              <BkIcon icon="video" :size="32" class="text-primary" />
+          <div class="px-5 pb-5 space-y-4">
+            <!-- Time & Location -->
+            <div class="flex flex-wrap gap-x-4 gap-y-2 text-sm">
+              <div class="flex items-center gap-2 text-foreground">
+                <BkIcon icon="clock" :size="14" class="text-muted-foreground" />
+                <span>{{ timeRange }}</span>
+                <span v-if="duration" class="text-muted-foreground">({{ duration }})</span>
+              </div>
+              <div v-if="event.location" class="flex items-center gap-2 text-foreground">
+                <BkIcon icon="map-pin" :size="14" class="text-muted-foreground" />
+                <span>{{ event.location }}</span>
+              </div>
             </div>
 
-            <!-- Title -->
-            <div>
-              <p class="text-xs text-muted-foreground uppercase tracking-wide mb-1">
-                Meeting starting now
-              </p>
-              <h2 class="text-lg font-semibold text-foreground">
-                {{ event.title }}
-              </h2>
+            <!-- Description -->
+            <div v-if="event.description" class="text-sm text-muted-foreground leading-relaxed">
+              <p class="whitespace-pre-wrap">{{ event.description }}</p>
             </div>
 
-            <!-- Time -->
-            <div class="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-              <BkIcon icon="clock" :size="14" />
-              <span>{{ timeString }}</span>
-            </div>
-
-            <!-- Location if any -->
-            <div v-if="event.location" class="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-              <BkIcon icon="map-pin" :size="14" />
-              <span>{{ event.location }}</span>
-            </div>
-
-            <!-- Participants count -->
-            <div
-              v-if="event.participants && event.participants.length > 0"
-              class="flex items-center justify-center gap-2 text-sm text-muted-foreground"
-            >
-              <BkIcon icon="users" :size="14" />
-              <span>{{ event.participants.length }} participant{{ event.participants.length > 1 ? 's' : '' }}</span>
+            <!-- Participants -->
+            <div v-if="event.participants && event.participants.length > 0">
+              <div class="flex items-center gap-2 text-sm font-medium text-foreground mb-2">
+                <BkIcon icon="users" :size="14" />
+                <span>Participants ({{ event.participants.length }})</span>
+              </div>
+              <div class="space-y-1.5">
+                <div
+                  v-for="participant in event.participants"
+                  :key="participant.email"
+                  class="flex items-center gap-2.5 text-sm"
+                >
+                  <BkIcon
+                    :icon="getResponseIcon(participant.responseStatus)"
+                    :size="12"
+                    :class="getResponseColor(participant.responseStatus)"
+                  />
+                  <span class="text-foreground">
+                    {{ participant.name || participant.email }}
+                  </span>
+                </div>
+              </div>
             </div>
 
             <!-- Actions -->
-            <div class="flex gap-3 pt-2">
+            <div class="flex gap-3 pt-3">
               <BkButton
                 variant="outline"
                 class="flex-1"
@@ -132,8 +189,8 @@ const handleDismiss = () => {
                 class="flex-1"
                 @click="handleJoin"
               >
-                <BkIcon icon="video" :size="14" class="mr-2" />
-                Join
+                <BkIcon icon="video" :size="16" class="mr-2" />
+                Join Meeting
               </BkButton>
             </div>
           </div>

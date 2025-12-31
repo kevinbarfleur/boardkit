@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted, nextTick } from 'vue'
-import { BkIcon } from '@boardkit/ui'
+import { computed, ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { BkIcon, useWidgetTransform } from '@boardkit/ui'
 import type { CalendarEvent } from '../types'
 import EventDetailsPopover from './EventDetailsPopover.vue'
+
+// Get widget transform (zoom * scale) from WidgetFrame
+const widgetTransform = useWidgetTransform()
 
 interface Props {
   event: CalendarEvent
@@ -90,6 +93,41 @@ const handleClickOutside = (e: MouseEvent) => {
   }
 }
 
+// Continuously update popover position while open (follows canvas pan)
+let animationFrameId: number | null = null
+
+const updatePopoverPosition = () => {
+  if (showPopover.value && containerRef.value) {
+    const newPosition = calculatePosition()
+    if (newPosition) {
+      popoverPosition.value = newPosition
+    }
+    animationFrameId = requestAnimationFrame(updatePopoverPosition)
+  }
+}
+
+const startPositionTracking = () => {
+  if (animationFrameId === null) {
+    animationFrameId = requestAnimationFrame(updatePopoverPosition)
+  }
+}
+
+const stopPositionTracking = () => {
+  if (animationFrameId !== null) {
+    cancelAnimationFrame(animationFrameId)
+    animationFrameId = null
+  }
+}
+
+// Watch popover state to start/stop position tracking
+watch(showPopover, (isOpen) => {
+  if (isOpen) {
+    startPositionTracking()
+  } else {
+    stopPositionTracking()
+  }
+})
+
 // Setup click outside listener
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
@@ -97,6 +135,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
+  stopPositionTracking()
 })
 </script>
 
@@ -155,6 +194,7 @@ onUnmounted(() => {
       :event="event"
       :time-format="timeFormat"
       :position="popoverPosition"
+      :scale="widgetTransform.combinedScale"
       @close="closePopover"
     />
   </div>

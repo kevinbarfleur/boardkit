@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, onUnmounted } from "vue";
+import { ref, computed, onUnmounted, provide } from "vue";
 import BkIcon from "./BkIcon.vue";
+import { WIDGET_TRANSFORM_KEY } from "../composables/useWidgetTransform";
 
 export type VisibilityMode = "transparent" | "subtle" | "visible";
 
@@ -62,6 +63,14 @@ const emit = defineEmits<{
 const MIN_SCALE = 1.0;
 const MAX_SCALE = 2.0;
 const SCALE_STEP = 0.1;
+
+// Provide transform values to child components (for teleported popovers)
+// Use a getter function to maintain reactivity through provide/inject
+provide(WIDGET_TRANSFORM_KEY, {
+  get zoom() { return props.zoom; },
+  get scale() { return props.scale; },
+  get combinedScale() { return props.zoom * props.scale; },
+});
 
 // State
 const isDragging = ref(false);

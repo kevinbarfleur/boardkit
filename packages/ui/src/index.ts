@@ -87,6 +87,7 @@ export {
 export { useTheme } from './composables/useTheme'
 export { useModal, MODAL_INJECTION_KEY } from './composables/useModal'
 export { useToast, TOAST_INJECTION_KEY } from './composables/useToast'
+export { useWidgetTransform, WIDGET_TRANSFORM_KEY, type WidgetTransform } from './composables/useWidgetTransform'
 
 // Modal Types
 export type {

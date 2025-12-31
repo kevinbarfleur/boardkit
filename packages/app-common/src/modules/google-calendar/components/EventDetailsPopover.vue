@@ -6,9 +6,49 @@
  * Uses Teleport to render outside the module container.
  * Positioned to the right or left of the event based on available space.
  */
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { BkIcon, BkButton } from '@boardkit/ui'
 import type { CalendarEvent } from '../types'
+
+// Ref for the popover container
+const popoverRef = ref<HTMLElement | null>(null)
+
+/**
+ * Handle wheel events by passing them through to elements underneath.
+ * This allows canvas panning to work even when the mouse is over the popover.
+ */
+const handleWheel = (event: WheelEvent) => {
+  if (!popoverRef.value) return
+
+  // Temporarily hide the popover to find the element underneath
+  const originalPointerEvents = popoverRef.value.style.pointerEvents
+  popoverRef.value.style.pointerEvents = 'none'
+
+  // Find the element at the cursor position
+  const elementBelow = document.elementFromPoint(event.clientX, event.clientY)
+
+  // Restore pointer events
+  popoverRef.value.style.pointerEvents = originalPointerEvents
+
+  // If there's an element below, dispatch a new wheel event to it
+  if (elementBelow) {
+    const newEvent = new WheelEvent('wheel', {
+      bubbles: true,
+      cancelable: true,
+      clientX: event.clientX,
+      clientY: event.clientY,
+      deltaX: event.deltaX,
+      deltaY: event.deltaY,
+      deltaZ: event.deltaZ,
+      deltaMode: event.deltaMode,
+      ctrlKey: event.ctrlKey,
+      shiftKey: event.shiftKey,
+      altKey: event.altKey,
+      metaKey: event.metaKey,
+    })
+    elementBelow.dispatchEvent(newEvent)
+  }
+}
 
 interface PopoverPosition {
   top: number
@@ -20,17 +60,33 @@ interface Props {
   event: CalendarEvent
   timeFormat: '12h' | '24h'
   position: PopoverPosition
+  /** Combined scale (canvas zoom * widget scale) for proper sizing */
+  scale?: number
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  scale: 1,
+})
 
-// Computed style for absolute positioning
-const positionStyle = computed(() => ({
-  position: 'fixed' as const,
-  top: `${props.position.top}px`,
-  left: `${props.position.left}px`,
-  zIndex: 9999,
-}))
+// Computed style for absolute positioning with scale
+const positionStyle = computed(() => {
+  const style: Record<string, string | number> = {
+    position: 'fixed',
+    top: `${props.position.top}px`,
+    left: `${props.position.left}px`,
+    zIndex: 9999,
+  }
+
+  // Apply scale transform to match widget zoom level
+  if (props.scale !== 1) {
+    style.transform = `scale(${props.scale})`
+    // Origin depends on which side the popover is positioned
+    // Right side: scale from top-left, Left side: scale from top-right
+    style.transformOrigin = props.position.side === 'right' ? 'top left' : 'top right'
+  }
+
+  return style
+})
 
 const emit = defineEmits<{
   close: []
@@ -131,9 +187,11 @@ const openMeetLink = () => {
 <template>
   <Teleport to="body">
     <div
+      ref="popoverRef"
       class="w-80 bg-popover shadow-xl overflow-hidden rounded-lg"
       :style="positionStyle"
       @click.stop
+      @wheel="handleWheel"
     >
       <!-- Header -->
       <div class="relative">
