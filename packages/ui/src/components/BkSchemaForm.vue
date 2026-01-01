@@ -18,6 +18,7 @@ import type {
   ColorField,
   CheckboxField,
   SecretField,
+  TagsField,
 } from '@boardkit/core'
 import BkFormRow from './BkFormRow.vue'
 import BkToggle from './BkToggle.vue'
@@ -30,6 +31,7 @@ import BkDatePicker from './BkDatePicker.vue'
 import BkColorPicker from './BkColorPicker.vue'
 import BkCheckbox from './BkCheckbox.vue'
 import BkSecretInput from './BkSecretInput.vue'
+import BkTagInput from './BkTagInput.vue'
 
 interface Props {
   /** Fields to render */
@@ -134,6 +136,10 @@ function isCheckbox(field: SettingsField): field is CheckboxField {
 
 function isSecret(field: SettingsField): field is SecretField {
   return field.type === 'secret'
+}
+
+function isTags(field: SettingsField): field is TagsField {
+  return field.type === 'tags'
 }
 
 // Secret field helpers
@@ -362,6 +368,25 @@ import { computed } from 'vue'
           :disabled="field.disabled"
           @save-secret="(v) => handleSaveSecret(field.key, v)"
           @clear-secret="() => handleClearSecret(field.key)"
+        />
+      </BkFormRow>
+
+      <!-- Tags Field -->
+      <BkFormRow
+        v-else-if="isTags(field)"
+        :label="field.label"
+        :icon="field.icon"
+        :hint="field.hint"
+        layout="stacked"
+      >
+        <BkTagInput
+          :model-value="(getFieldValue(field) as string[]) || []"
+          :placeholder="field.placeholder"
+          :suggestions="field.suggestions"
+          :max-tags="field.maxTags"
+          :allow-create="field.allowCreate ?? true"
+          :disabled="field.disabled"
+          @update:model-value="(v) => handleUpdate(field.key, v)"
         />
       </BkFormRow>
     </template>

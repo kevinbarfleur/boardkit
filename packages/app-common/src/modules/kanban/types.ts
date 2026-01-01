@@ -1,8 +1,22 @@
 /**
  * Kanban Module Types
  *
- * Kanban board with drag & drop.
+ * Production-ready Kanban board with columns, cards, tags, and checklists.
  */
+
+// === Priority ===
+
+export type KanbanPriority = 'low' | 'medium' | 'high'
+
+// === Checklist ===
+
+export interface ChecklistItem {
+  id: string
+  label: string
+  completed: boolean
+}
+
+// === Card (Item) ===
 
 export interface KanbanItem {
   id: string
@@ -11,7 +25,14 @@ export interface KanbanItem {
   columnId: string
   order: number
   createdAt: string
+  // Optional fields
+  dueDate?: string
+  priority?: KanbanPriority
+  tags: string[] // Direct tag values (auto-colored)
+  checklist: ChecklistItem[]
 }
+
+// === Column ===
 
 export interface KanbanColumn {
   id: string
@@ -19,7 +40,10 @@ export interface KanbanColumn {
   color: string
   wipLimit: number | null
   order: number
+  isCollapsed?: boolean
 }
+
+// === State ===
 
 export interface KanbanState {
   // Core state
@@ -27,18 +51,58 @@ export interface KanbanState {
   columns: KanbanColumn[]
   items: KanbanItem[]
 
-  // Settings
+  // Display settings
   showWipLimits: boolean
   showItemCount: boolean
   showCompletionRate: boolean
   compactMode: boolean
+
+  // Feature settings
+  showDueDate: boolean
+  showPriority: boolean
+  showTags: boolean
+  showChecklist: boolean
+
+  // Behavior settings
+  confirmDeleteCard: boolean
+  confirmDeleteColumn: boolean
 }
 
+// === Tag Color Palette ===
+
+export const tagColorPalette = [
+  '#3b82f6', // blue
+  '#22c55e', // green
+  '#f59e0b', // amber
+  '#ef4444', // red
+  '#8b5cf6', // purple
+  '#ec4899', // pink
+  '#06b6d4', // cyan
+  '#f97316', // orange
+]
+
+// Hash-based color assignment for consistent tag colors
+export function getTagColor(tag: string): string {
+  const hash = tag.toLowerCase().split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+  return tagColorPalette[hash % tagColorPalette.length]
+}
+
+// === Defaults ===
+
 export const defaultKanbanSettings: Omit<KanbanState, 'title' | 'columns' | 'items'> = {
+  // Display
   showWipLimits: true,
   showItemCount: true,
   showCompletionRate: true,
   compactMode: false,
+  // Features
+  showDueDate: true,
+  showPriority: true,
+  showTags: true,
+  showChecklist: true,
+  // Behavior
+  confirmDeleteCard: true,
+  confirmDeleteColumn: true,
 }
 
 export const defaultKanbanColumns: KanbanColumn[] = [

@@ -13,20 +13,44 @@ import {
   type ModuleContext,
 } from '@boardkit/core'
 import { useSettingsPanel } from '../composables/useSettingsPanel'
+import { useDocumentList } from '../composables/useDocumentList'
 import {
   BkIcon,
   BkToggle,
   BkSelect,
   BkSlider,
+  BkButtonGroup,
+  BkFormRow,
   BkFormSection,
   BkModuleSettingsPanel,
+  useTheme,
   type ConfigPanelProvider,
 } from '@boardkit/ui'
 import { StatsCardMetricsConfig, GoogleCalendarSetup } from '@boardkit/app-common'
 
 const boardStore = useBoardStore()
-const { isOpen, widgetId, initialTab, close } = useSettingsPanel()
+const { isOpen, widgetId, initialTab, isAppSettings, close } = useSettingsPanel()
 const { getAllProviders, extractContractIdsFromSchema } = useConfigurationProviders()
+const documentList = useDocumentList()
+const { theme, setTheme } = useTheme()
+
+// =============================================================================
+// App Settings
+// =============================================================================
+
+const themeOptions = [
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+  { value: 'system', label: 'System' },
+]
+
+const storageInfo = computed(() => {
+  const count = documentList.documents.value.length
+  return {
+    documentCount: count,
+    label: count === 1 ? '1 board' : `${count} boards`,
+  }
+})
 
 // =============================================================================
 // Widget & Module
@@ -269,8 +293,72 @@ const visibilityOptions = [
     leave-from-class="translate-x-0 opacity-100"
     leave-to-class="translate-x-4 opacity-0"
   >
+    <!-- App Settings Panel -->
     <aside
-      v-if="isOpen && widget"
+      v-if="isOpen && isAppSettings"
+      class="fixed right-4 top-[4.5rem] bottom-4 z-40 w-80 rounded-xl border border-border bg-popover flex flex-col shadow-2xl"
+    >
+      <!-- Header -->
+      <div class="flex items-center gap-3 px-4 py-3 border-b border-border">
+        <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-muted">
+          <BkIcon icon="settings" :size="14" class="text-muted-foreground" />
+        </div>
+        <div class="flex-1 min-w-0">
+          <h2 class="text-sm font-medium text-foreground">Settings</h2>
+        </div>
+        <button
+          class="inline-flex h-7 w-7 items-center justify-center rounded-lg transition-colors hover:bg-accent"
+          @click="close"
+        >
+          <BkIcon icon="x" :size="14" class="text-muted-foreground" />
+        </button>
+      </div>
+
+      <!-- Scrollable Content -->
+      <div class="flex-1 overflow-y-auto p-4 space-y-4">
+        <!-- Storage Section -->
+        <BkFormSection title="Storage">
+          <div class="p-3">
+            <div class="flex items-center gap-3 mb-3">
+              <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+                <BkIcon icon="database" :size="16" class="text-primary" />
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-foreground">Local Storage</p>
+                <p class="text-xs text-muted-foreground">
+                  {{ storageInfo.label }} saved in browser
+                </p>
+              </div>
+            </div>
+            <p class="text-xs text-muted-foreground">
+              Your boards are stored locally in your browser using IndexedDB.
+              Use Export to back up your boards.
+            </p>
+          </div>
+        </BkFormSection>
+
+        <!-- Appearance Section -->
+        <BkFormSection title="Appearance">
+          <BkFormRow label="Theme" icon="palette" layout="stacked">
+            <BkButtonGroup
+              :model-value="theme"
+              :options="themeOptions"
+              full-width
+              @update:model-value="(v) => setTheme(v as 'light' | 'dark' | 'system')"
+            />
+          </BkFormRow>
+        </BkFormSection>
+      </div>
+
+      <!-- Footer -->
+      <div class="shrink-0 border-t border-border p-3">
+        <p class="text-xs text-muted-foreground text-center">Boardkit v0.1.0</p>
+      </div>
+    </aside>
+
+    <!-- Widget Settings Panel -->
+    <aside
+      v-else-if="isOpen && widget"
       class="fixed right-4 top-[4.5rem] bottom-4 z-40 w-80 rounded-xl border border-border bg-popover flex flex-col shadow-2xl"
     >
       <!-- Header -->
