@@ -1,22 +1,29 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { registerCoreActions } from '@boardkit/core'
+import { registerCoreActions, useBoardStore } from '@boardkit/core'
 import { useTheme } from '@boardkit/ui'
 import { registerModules } from '../modules'
 import { registerWebActions } from '../actions/webActions'
 import { usePersistence } from '../composables/usePersistence'
+import { useDocumentList } from '../composables/useDocumentList'
+import { useSettingsPanel } from '../composables/useSettingsPanel'
 import BoardCanvas from '../components/BoardCanvas.vue'
 import Toolbar from '../components/Toolbar.vue'
 import CommandPalette from '../components/CommandPalette.vue'
 import SettingsPanel from '../components/SettingsPanel.vue'
+import DocumentSidebar from '../components/DocumentSidebar.vue'
 
 // Register all modules before using the store
 registerModules()
 
+const boardStore = useBoardStore()
 const { initTheme } = useTheme()
 const persistence = usePersistence()
+const documentList = useDocumentList()
+const { openAppSettings } = useSettingsPanel()
 
 const isCommandPaletteOpen = ref(false)
+const sidebarCollapsed = ref(false)
 
 const openCommandPalette = () => {
   isCommandPaletteOpen.value = true
@@ -24,6 +31,10 @@ const openCommandPalette = () => {
 
 const closeCommandPalette = () => {
   isCommandPaletteOpen.value = false
+}
+
+const toggleSidebarCollapse = () => {
+  sidebarCollapsed.value = !sidebarCollapsed.value
 }
 
 const handleUndo = async () => {
@@ -42,11 +53,62 @@ const handleGoToLatest = async () => {
   await persistence.goToLatest()
 }
 
+// Document sidebar handlers
+const handleSelectDocument = async (id: string) => {
+  // Check for unsaved changes
+  if (boardStore.isDirty) {
+    await persistence.saveDocument()
+  }
+  await persistence.openDocument(id)
+  await documentList.refreshDocumentList()
+}
+
+const handleCreateDocument = async () => {
+  await persistence.createDocument('Untitled Board')
+  await documentList.refreshDocumentList()
+}
+
+const handleDeleteDocument = async (id: string) => {
+  await persistence.deleteDocument(id)
+  await documentList.refreshDocumentList()
+
+  // If we deleted the current document, open another one
+  if (!documentList.currentDocumentId.value && documentList.documents.value.length > 0) {
+    await persistence.openDocument(documentList.documents.value[0].id)
+  } else if (documentList.documents.value.length === 0) {
+    await persistence.createDocument('Untitled Board')
+    await documentList.refreshDocumentList()
+  }
+}
+
+const handleRenameDocument = async (id: string, newTitle: string) => {
+  await documentList.renameDocument(id, newTitle)
+  // If this is the current document, update the store title
+  if (id === documentList.currentDocumentId.value) {
+    boardStore.setTitle(newTitle)
+  }
+}
+
+const handleDuplicateDocument = async (id: string) => {
+  const newId = await documentList.duplicateDocument(id)
+  if (newId) {
+    await persistence.openDocument(newId)
+    await documentList.refreshDocumentList()
+  }
+}
+
+const handleOpenSettings = () => {
+  openAppSettings()
+}
+
 onMounted(async () => {
   initTheme()
 
   // Initialize persistence (loads last document or creates new)
   await persistence.initialize()
+
+  // Sync document list with persistence
+  await documentList.refreshDocumentList()
 
   // Register core actions after Pinia store is ready
   registerCoreActions()
@@ -60,24 +122,43 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="h-screen w-screen overflow-hidden flex flex-col">
-    <Toolbar
-      :is-saving="persistence.isSaving.value"
-      :last-saved="persistence.lastSaved.value"
-      :can-undo="persistence.canUndo.value"
-      :can-redo="persistence.canRedo.value"
-      :undo-entries="persistence.undoEntries.value"
-      :redo-entries="persistence.redoEntries.value"
-      @new-board="persistence.createDocument('Untitled Board')"
-      @export="persistence.exportToFile()"
-      @import="persistence.importFromFile()"
-      @open-command-palette="openCommandPalette"
-      @undo="handleUndo"
-      @redo="handleRedo"
-      @go-to-history="handleGoToHistory"
-      @go-to-latest="handleGoToLatest"
+  <div class="h-screen w-screen overflow-hidden flex">
+    <!-- Document Sidebar -->
+    <DocumentSidebar
+      :documents="documentList.documents.value"
+      :active-document-id="documentList.currentDocumentId.value"
+      :is-loading="documentList.isLoading.value"
+      :collapsed="sidebarCollapsed"
+      @select="handleSelectDocument"
+      @create="handleCreateDocument"
+      @delete="handleDeleteDocument"
+      @rename="handleRenameDocument"
+      @duplicate="handleDuplicateDocument"
+      @open-settings="handleOpenSettings"
+      @toggle-collapse="toggleSidebarCollapse"
     />
-    <BoardCanvas @open-command-palette="openCommandPalette" />
+
+    <!-- Main Content -->
+    <div class="flex-1 flex flex-col min-w-0">
+      <Toolbar
+        :is-saving="persistence.isSaving.value"
+        :last-saved="persistence.lastSaved.value"
+        :can-undo="persistence.canUndo.value"
+        :can-redo="persistence.canRedo.value"
+        :undo-entries="persistence.undoEntries.value"
+        :redo-entries="persistence.redoEntries.value"
+        @new-board="handleCreateDocument"
+        @export="persistence.exportToFile()"
+        @import="persistence.importFromFile()"
+        @open-command-palette="openCommandPalette"
+        @undo="handleUndo"
+        @redo="handleRedo"
+        @go-to-history="handleGoToHistory"
+        @go-to-latest="handleGoToLatest"
+      />
+      <BoardCanvas @open-command-palette="openCommandPalette" />
+    </div>
+
     <CommandPalette :open="isCommandPaletteOpen" @close="closeCommandPalette" />
     <SettingsPanel />
   </div>

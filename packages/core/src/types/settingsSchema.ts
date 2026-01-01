@@ -70,6 +70,7 @@ export type SettingsField =
   | ColorField
   | CheckboxField
   | SecretField
+  | TagsField
 
 /**
  * Base interface for all settings fields.
@@ -338,6 +339,30 @@ export interface SecretField extends SettingsFieldBase {
 }
 
 // ============================================================================
+// Tags Field
+// ============================================================================
+
+/**
+ * Tags input field for adding multiple string tags.
+ * Displays as an inline tag input with autocomplete suggestions.
+ */
+export interface TagsField extends SettingsFieldBase {
+  type: 'tags'
+
+  /** Placeholder text when no tags added */
+  placeholder?: string
+
+  /** Suggested tags for autocomplete */
+  suggestions?: string[]
+
+  /** Maximum number of tags allowed */
+  maxTags?: number
+
+  /** Whether to allow creating new tags not in suggestions */
+  allowCreate?: boolean
+}
+
+// ============================================================================
 // Helper Types
 // ============================================================================
 
@@ -360,7 +385,9 @@ export type SettingsFieldValue<T extends SettingsField> = T extends ToggleField
               ? string | null
               : T extends SecretField
                 ? string | null
-                : unknown
+                : T extends TagsField
+                  ? string[]
+                  : unknown
 
 // ============================================================================
 // Type Guards
@@ -378,6 +405,7 @@ export const isDate = (field: SettingsField): field is DateField => field.type =
 export const isColor = (field: SettingsField): field is ColorField => field.type === 'color'
 export const isCheckbox = (field: SettingsField): field is CheckboxField => field.type === 'checkbox'
 export const isSecret = (field: SettingsField): field is SecretField => field.type === 'secret'
+export const isTags = (field: SettingsField): field is TagsField => field.type === 'tags'
 
 /**
  * Standard settings categories.

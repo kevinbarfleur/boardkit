@@ -1,10 +1,15 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import type { ModuleContext } from '@boardkit/core'
-import { useProvideData, kanbanContractV1, kanbanStatsContractV1, truncate } from '@boardkit/core'
-import { BkButton, BkIcon, BkInput } from '@boardkit/ui'
-import type { KanbanState, KanbanItem, KanbanColumn } from './types'
+import { useProvideData, kanbanContractV1, kanbanStatsContractV1 } from '@boardkit/core'
+import { BkIcon, useModal } from '@boardkit/ui'
+import type { KanbanState, KanbanItem, KanbanColumn as KanbanColumnType } from './types'
 import type { PublicKanbanBoard, PublicKanbanStats } from '@boardkit/core'
+import { KanbanColumn, KanbanHeader } from './components'
+import { useKanbanItems } from './composables/useKanbanItems'
+import { useKanbanColumns } from './composables/useKanbanColumns'
+import { useKanbanDragDrop } from './composables/useKanbanDragDrop'
+import { useKanbanFilters } from './composables/useKanbanFilters'
 
 interface Props {
   context: ModuleContext<KanbanState>
@@ -12,157 +17,279 @@ interface Props {
 
 const props = defineProps<Props>()
 
-// Local state
-const draggedItemId = ref<string | null>(null)
-const dragOverColumnId = ref<string | null>(null)
-const addingToColumn = ref<string | null>(null)
-const newItemTitle = ref('')
+// Modal
+const { openModal, confirm } = useModal()
 
-// Computed properties
-const columns = computed(() =>
-  [...(props.context.state.columns || [])].sort((a, b) => a.order - b.order)
-)
-const items = computed(() => props.context.state.items || [])
+// Context getter to ensure reactivity in composables
+const getContext = () => props.context
+
+// Composables
+const {
+  items,
+  allTags,
+  getColumnItems,
+  addItem,
+  updateItem,
+  removeItem,
+} = useKanbanItems(getContext)
+
+const {
+  columns,
+  completionStats,
+  getColumnItemCount,
+  addColumn,
+  updateColumn,
+  removeColumn,
+} = useKanbanColumns(getContext)
+
+const {
+  draggedItemId,
+  dragOverColumnId,
+  dragOverItemId,
+  dropPosition,
+  handleDragStart,
+  handleDragOverColumn,
+  handleDragOverItem,
+  handleDragLeave,
+  handleDrop,
+  handleDragEnd,
+} = useKanbanDragDrop(getContext)
+
+// Filtering
+const {
+  searchQuery,
+  hasActiveFilters,
+  getFilteredColumnItems,
+  setSearchQuery,
+  clearFilters,
+} = useKanbanFilters(items)
+
+// Settings
 const showWipLimits = computed(() => props.context.state.showWipLimits)
 const showItemCount = computed(() => props.context.state.showItemCount)
 const showCompletionRate = computed(() => props.context.state.showCompletionRate)
+const showDueDate = computed(() => props.context.state.showDueDate ?? true)
+const showPriority = computed(() => props.context.state.showPriority ?? true)
+const showTags = computed(() => props.context.state.showTags ?? true)
+const showChecklist = computed(() => props.context.state.showChecklist ?? true)
+const compactMode = computed(() => props.context.state.compactMode)
+const confirmDeleteCard = computed(() => props.context.state.confirmDeleteCard ?? true)
+const confirmDeleteColumn = computed(() => props.context.state.confirmDeleteColumn ?? true)
 
-function getColumnItems(columnId: string): KanbanItem[] {
-  return items.value
-    .filter((item) => item.columnId === columnId)
-    .sort((a, b) => a.order - b.order)
+// Column colors palette
+const columnColors = [
+  '#3b82f6', // blue
+  '#22c55e', // green
+  '#f59e0b', // amber
+  '#ef4444', // red
+  '#8b5cf6', // purple
+  '#ec4899', // pink
+  '#06b6d4', // cyan
+  '#f97316', // orange
+]
+
+// Handlers
+function handleAddItem(columnId: string, title: string) {
+  addItem(columnId, title)
 }
 
-function getColumnItemCount(columnId: string): number {
-  return items.value.filter((item) => item.columnId === columnId).length
+async function handleDeleteItem(itemId: string) {
+  if (confirmDeleteCard.value) {
+    const item = items.value.find((i) => i.id === itemId)
+    const confirmed = await confirm({
+      title: 'Delete card?',
+      message: `Are you sure you want to delete "${item?.title}"? This action cannot be undone.`,
+      confirmLabel: 'Delete',
+      destructive: true,
+    })
+    if (!confirmed) return
+  }
+  removeItem(itemId)
 }
 
-function isOverWipLimit(column: KanbanColumn): boolean {
-  if (column.wipLimit === null) return false
-  return getColumnItemCount(column.id) > column.wipLimit
-}
+async function handleClickItem(item: KanbanItem) {
+  interface CardFormData {
+    title: string
+    description: string
+    dueDate: string | null
+    priority: string | null
+    tags: string[]
+  }
 
-const lastColumn = computed(() => columns.value[columns.value.length - 1])
+  const result = await openModal<CardFormData>({
+    title: 'Edit Card',
+    size: 'md',
+    fields: [
+      {
+        type: 'text',
+        key: 'title',
+        label: 'Title',
+        placeholder: 'Card title',
+      },
+      {
+        type: 'textarea',
+        key: 'description',
+        label: 'Description',
+        placeholder: 'Add a description...',
+        rows: 3,
+      },
+      ...(showTags.value ? [{
+        type: 'tags' as const,
+        key: 'tags',
+        label: 'Tags',
+        placeholder: 'Add tags...',
+        suggestions: allTags.value,
+      }] : []),
+      ...(showDueDate.value ? [{
+        type: 'date' as const,
+        key: 'dueDate',
+        label: 'Due Date',
+        placeholder: 'Select date',
+        showPresets: true,
+      }] : []),
+      ...(showPriority.value ? [{
+        type: 'button-group' as const,
+        key: 'priority',
+        label: 'Priority',
+        options: [
+          { value: '', label: 'None' },
+          { value: 'low', label: 'Low' },
+          { value: 'medium', label: 'Medium' },
+          { value: 'high', label: 'High' },
+        ],
+        fullWidth: true,
+      }] : []),
+    ],
+    initialValues: {
+      title: item.title,
+      description: item.description || '',
+      tags: item.tags || [],
+      dueDate: item.dueDate || null,
+      priority: item.priority || '',
+    },
+    submitLabel: 'Save',
+  })
 
-const completionStats = computed(() => {
-  const total = items.value.length
-  const completed = lastColumn.value ? getColumnItemCount(lastColumn.value.id) : 0
-  const rate = total > 0 ? Math.round((completed / total) * 100) : 0
-  return { total, completed, rate }
-})
-
-// Drag & Drop handlers
-function handleDragStart(e: DragEvent, itemId: string) {
-  draggedItemId.value = itemId
-  if (e.dataTransfer) {
-    e.dataTransfer.effectAllowed = 'move'
-    e.dataTransfer.setData('text/plain', itemId)
+  if (result.confirmed && result.data) {
+    updateItem(item.id, {
+      title: result.data.title || item.title,
+      description: result.data.description || '',
+      tags: result.data.tags || [],
+      dueDate: result.data.dueDate || undefined,
+      priority: result.data.priority ? (result.data.priority as 'low' | 'medium' | 'high') : undefined,
+    })
   }
 }
 
-function handleDragOver(e: DragEvent, columnId: string) {
-  e.preventDefault()
-  if (e.dataTransfer) {
-    e.dataTransfer.dropEffect = 'move'
+async function handleAddColumn() {
+  const result = await openModal<{ title: string; color: string; wipLimit: number | null }>({
+    title: 'Add Column',
+    fields: [
+      {
+        type: 'text',
+        key: 'title',
+        label: 'Column name',
+        placeholder: 'e.g., In Review',
+      },
+      {
+        type: 'color',
+        key: 'color',
+        label: 'Color',
+        colors: columnColors,
+      },
+      {
+        type: 'number',
+        key: 'wipLimit',
+        label: 'WIP Limit',
+        hint: 'Maximum number of cards (leave empty for no limit)',
+        min: 1,
+        max: 100,
+        placeholder: 'No limit',
+      },
+    ],
+    initialValues: {
+      title: '',
+      color: '#3b82f6',
+      wipLimit: null,
+    },
+    submitLabel: 'Add Column',
+  })
+
+  if (result.confirmed && result.data?.title) {
+    addColumn(
+      result.data.title,
+      result.data.color || '#3b82f6',
+      result.data.wipLimit || null
+    )
   }
-  dragOverColumnId.value = columnId
 }
 
-function handleDragLeave() {
-  dragOverColumnId.value = null
-}
+async function handleEditColumn(column: KanbanColumnType) {
+  const result = await openModal<{ title: string; color: string; wipLimit: number | null }>({
+    title: 'Edit Column',
+    fields: [
+      {
+        type: 'text',
+        key: 'title',
+        label: 'Column name',
+        placeholder: 'e.g., In Review',
+      },
+      {
+        type: 'color',
+        key: 'color',
+        label: 'Color',
+        colors: columnColors,
+      },
+      {
+        type: 'number',
+        key: 'wipLimit',
+        label: 'WIP Limit',
+        hint: 'Maximum number of cards (leave empty for no limit)',
+        min: 1,
+        max: 100,
+        placeholder: 'No limit',
+      },
+    ],
+    initialValues: {
+      title: column.title,
+      color: column.color,
+      wipLimit: column.wipLimit,
+    },
+    submitLabel: 'Save',
+  })
 
-function handleDrop(e: DragEvent, targetColumnId: string) {
-  e.preventDefault()
-  dragOverColumnId.value = null
-
-  if (!draggedItemId.value) return
-
-  const itemIndex = items.value.findIndex((item) => item.id === draggedItemId.value)
-  if (itemIndex === -1) return
-
-  const item = items.value[itemIndex]
-  if (item.columnId === targetColumnId) {
-    draggedItemId.value = null
-    return
+  if (result.confirmed && result.data) {
+    updateColumn(column.id, {
+      title: result.data.title || column.title,
+      color: result.data.color || column.color,
+      wipLimit: result.data.wipLimit || null,
+    })
   }
-
-  // Get target column name for history label
-  const targetColumn = columns.value.find((c) => c.id === targetColumnId)
-  const columnName = targetColumn?.title ?? 'column'
-
-  // Get max order in target column
-  const targetItems = getColumnItems(targetColumnId)
-  const maxOrder = targetItems.length > 0
-    ? Math.max(...targetItems.map((i) => i.order))
-    : -1
-
-  const newItems = [...items.value]
-  newItems[itemIndex] = {
-    ...item,
-    columnId: targetColumnId,
-    order: maxOrder + 1,
-  }
-
-  props.context.updateState(
-    { items: newItems },
-    {
-      captureHistory: true,
-      historyLabel: `Moved: ${truncate(item.title, 20)} → ${columnName}`,
-    }
-  )
-  draggedItemId.value = null
 }
 
-function handleDragEnd() {
-  draggedItemId.value = null
-  dragOverColumnId.value = null
-}
-
-// Item management
-function addItem(columnId: string) {
-  if (!newItemTitle.value.trim()) return
-
-  const title = newItemTitle.value.trim()
+async function handleDeleteColumn(columnId: string) {
   const column = columns.value.find((c) => c.id === columnId)
-  const columnName = column?.title ?? 'column'
+  const itemCount = getColumnItemCount(columnId)
 
-  const columnItems = getColumnItems(columnId)
-  const maxOrder = columnItems.length > 0
-    ? Math.max(...columnItems.map((i) => i.order))
-    : -1
+  if (confirmDeleteColumn.value || itemCount > 0) {
+    const message = itemCount > 0
+      ? `This column contains ${itemCount} card${itemCount > 1 ? 's' : ''}. Delete column and all its cards?`
+      : `Are you sure you want to delete "${column?.title}"?`
 
-  const newItem: KanbanItem = {
-    id: crypto.randomUUID(),
-    title,
-    description: '',
-    columnId,
-    order: maxOrder + 1,
-    createdAt: new Date().toISOString(),
+    const confirmed = await confirm({
+      title: 'Delete column?',
+      message,
+      confirmLabel: 'Delete',
+      destructive: true,
+    })
+    if (!confirmed) return
   }
 
-  props.context.updateState(
-    { items: [...items.value, newItem] },
-    {
-      captureHistory: true,
-      historyLabel: `Added card: ${truncate(title, 20)} to ${columnName}`,
-    }
-  )
-
-  newItemTitle.value = ''
-  addingToColumn.value = null
+  removeColumn(columnId, true) // Delete with items
 }
 
-function removeItem(itemId: string) {
-  const item = items.value.find((i) => i.id === itemId)
-
-  props.context.updateState(
-    { items: items.value.filter((i) => i.id !== itemId) },
-    {
-      captureHistory: true,
-      historyLabel: `Deleted card: ${truncate(item?.title, 25)}`,
-    }
-  )
+function handleSearchUpdate(query: string) {
+  setSearchQuery(query)
 }
 
 // Data sharing - Board contract
@@ -220,111 +347,57 @@ useProvideData(props.context, kanbanStatsContractV1, {
 
 <template>
   <div class="kanban h-full flex flex-col overflow-hidden">
-    <!-- Header -->
-    <div
-      v-if="showCompletionRate"
-      class="flex items-center justify-between px-3 py-2 border-b border-border"
-    >
-      <span class="text-xs text-muted-foreground">
-        {{ completionStats.completed }}/{{ completionStats.total }} done
-      </span>
-      <span class="text-xs text-muted-foreground">
-        {{ completionStats.rate }}%
-      </span>
-    </div>
+    <!-- Header with search -->
+    <KanbanHeader
+      :total="completionStats.total"
+      :completed="completionStats.completed"
+      :show-completion-rate="showCompletionRate"
+      :search-query="searchQuery"
+      :has-active-filters="hasActiveFilters"
+      @update:search-query="handleSearchUpdate"
+      @add-column="handleAddColumn"
+      @clear-filters="clearFilters"
+    />
 
     <!-- Columns -->
-    <div class="flex-1 flex gap-2 p-2 overflow-x-auto">
-      <div
+    <div class="flex-1 flex gap-3 p-3 overflow-x-auto">
+      <KanbanColumn
         v-for="column in columns"
         :key="column.id"
-        class="flex-shrink-0 w-48 flex flex-col rounded-lg bg-muted/50"
-        :class="{ 'ring-2 ring-primary': dragOverColumnId === column.id }"
-        @dragover="handleDragOver($event, column.id)"
+        :column="column"
+        :items="hasActiveFilters ? getFilteredColumnItems(column.id) : getColumnItems(column.id)"
+        :show-item-count="showItemCount"
+        :show-wip-limits="showWipLimits"
+        :show-due-date="showDueDate"
+        :show-priority="showPriority"
+        :show-tags="showTags"
+        :show-checklist="showChecklist"
+        :compact-mode="compactMode"
+        :dragged-item-id="draggedItemId"
+        :is-drag-over="dragOverColumnId === column.id"
+        :drag-over-item-id="dragOverItemId"
+        :drop-position="dropPosition"
+        @add-item="handleAddItem"
+        @delete-item="handleDeleteItem"
+        @click-item="handleClickItem"
+        @edit-column="handleEditColumn"
+        @delete-column="handleDeleteColumn"
+        @dragstart="handleDragStart"
+        @dragover="handleDragOverColumn"
+        @dragover-item="handleDragOverItem"
         @dragleave="handleDragLeave"
-        @drop="handleDrop($event, column.id)"
+        @drop="handleDrop"
+        @dragend="handleDragEnd"
+      />
+
+      <!-- Add column button -->
+      <button
+        class="flex-shrink-0 w-56 h-10 flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-foreground rounded-xl border border-dashed border-border hover:border-primary/50 transition-colors"
+        @click="handleAddColumn"
       >
-        <!-- Column header -->
-        <div class="flex items-center justify-between px-2 py-1.5">
-          <div class="flex items-center gap-1.5">
-            <div
-              class="w-2 h-2 rounded-full"
-              :style="{ backgroundColor: column.color }"
-            />
-            <span class="text-xs font-medium text-foreground">{{ column.title }}</span>
-          </div>
-          <div class="flex items-center gap-1">
-            <span
-              v-if="showItemCount"
-              class="text-xs text-muted-foreground"
-              :class="{ 'text-destructive': isOverWipLimit(column) }"
-            >
-              {{ getColumnItemCount(column.id) }}
-              <template v-if="showWipLimits && column.wipLimit !== null">
-                /{{ column.wipLimit }}
-              </template>
-            </span>
-          </div>
-        </div>
-
-        <!-- Items -->
-        <div class="flex-1 overflow-y-auto px-1.5 pb-1.5 space-y-1.5">
-          <div
-            v-for="item in getColumnItems(column.id)"
-            :key="item.id"
-            class="group bg-card rounded-md px-2 py-1.5 cursor-grab active:cursor-grabbing border border-border hover:border-primary/50 transition-colors"
-            :class="{ 'opacity-50': draggedItemId === item.id }"
-            draggable="true"
-            @dragstart="handleDragStart($event, item.id)"
-            @dragend="handleDragEnd"
-          >
-            <div class="flex items-start justify-between gap-1">
-              <span class="text-xs text-foreground line-clamp-2">{{ item.title }}</span>
-              <button
-                class="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive flex-shrink-0 mt-0.5"
-                @click.stop="removeItem(item.id)"
-              >
-                <BkIcon icon="x" :size="12" />
-              </button>
-            </div>
-          </div>
-
-          <!-- Add item form -->
-          <div v-if="addingToColumn === column.id" class="space-y-1">
-            <BkInput
-              v-model="newItemTitle"
-              placeholder="Card title..."
-              size="sm"
-              class="text-xs"
-              @keyup.enter="addItem(column.id)"
-              @keyup.escape="addingToColumn = null"
-            />
-            <div class="flex gap-1">
-              <BkButton size="sm" class="flex-1 text-xs h-6" @click="addItem(column.id)">
-                Add
-              </BkButton>
-              <BkButton
-                variant="ghost"
-                size="sm"
-                class="text-xs h-6"
-                @click="addingToColumn = null"
-              >
-                Cancel
-              </BkButton>
-            </div>
-          </div>
-
-          <!-- Add button -->
-          <button
-            v-else
-            class="w-full text-xs text-muted-foreground hover:text-foreground flex items-center justify-center gap-1 py-1 rounded hover:bg-muted transition-colors"
-            @click="addingToColumn = column.id"
-          >
-            <BkIcon icon="plus" :size="12" />
-            Add
-          </button>
-        </div>
-      </div>
+        <BkIcon icon="plus" :size="14" />
+        Add column
+      </button>
     </div>
   </div>
 </template>

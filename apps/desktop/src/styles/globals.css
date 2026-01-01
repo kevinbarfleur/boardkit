@@ -1,5 +1,86 @@
-/* Google Fonts for text elements */
-@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap');
+/* ==========================================================================
+   Local Fonts for Offline Support
+   ========================================================================== */
+
+/* Caveat - Handwriting font (latin-ext) */
+@font-face {
+  font-family: 'Caveat';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('../assets/fonts/Caveat-LatinExt.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* Caveat - Handwriting font (latin) */
+@font-face {
+  font-family: 'Caveat';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('../assets/fonts/Caveat-Latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* Libre Baskerville - Serif font Regular (latin-ext) */
+@font-face {
+  font-family: 'Libre Baskerville';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../assets/fonts/LibreBaskerville-Regular-LatinExt.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* Libre Baskerville - Serif font Regular (latin) */
+@font-face {
+  font-family: 'Libre Baskerville';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../assets/fonts/LibreBaskerville-Regular-Latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* Libre Baskerville - Serif font Bold (latin-ext) */
+@font-face {
+  font-family: 'Libre Baskerville';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('../assets/fonts/LibreBaskerville-Regular-LatinExt.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* Libre Baskerville - Serif font Bold (latin) */
+@font-face {
+  font-family: 'Libre Baskerville';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('../assets/fonts/LibreBaskerville-Regular-Latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* Libre Baskerville - Serif font Italic (latin-ext) */
+@font-face {
+  font-family: 'Libre Baskerville';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../assets/fonts/LibreBaskerville-Italic-LatinExt.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* Libre Baskerville - Serif font Italic (latin) */
+@font-face {
+  font-family: 'Libre Baskerville';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../assets/fonts/LibreBaskerville-Italic-Latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
 
 /* CSS Variables - Design Tokens */
 :root {
@@ -299,4 +380,90 @@ body {
   background-image:
     radial-gradient(circle, rgba(var(--grid-color), 0.1) 1px, transparent 1px);
   background-size: 20px 20px;
+}
+
+/* ==========================================================================
+   Vue DatePicker (@vuepic/vue-datepicker) Theming
+   Maps the library's CSS variables to Boardkit design tokens
+   ========================================================================== */
+
+/* Dark mode theme */
+.dp__theme_dark {
+  --dp-background-color: hsl(var(--popover));
+  --dp-text-color: hsl(var(--foreground));
+  --dp-hover-color: hsl(var(--accent));
+  --dp-hover-text-color: hsl(var(--accent-foreground));
+  --dp-hover-icon-color: hsl(var(--muted-foreground));
+  --dp-primary-color: hsl(var(--primary));
+  --dp-primary-disabled-color: hsl(var(--primary) / 0.5);
+  --dp-primary-text-color: hsl(var(--primary-foreground));
+  --dp-secondary-color: hsl(var(--muted-foreground));
+  --dp-border-color: hsl(var(--border));
+  --dp-menu-border-color: hsl(var(--border));
+  --dp-border-color-hover: hsl(var(--ring));
+  --dp-border-color-focus: hsl(var(--ring));
+  --dp-disabled-color: hsl(var(--muted));
+  --dp-disabled-color-text: hsl(var(--muted-foreground));
+  --dp-scroll-bar-background: hsl(var(--muted));
+  --dp-scroll-bar-color: hsl(var(--accent));
+  --dp-success-color: hsl(142 76% 36%);
+  --dp-success-color-disabled: hsl(142 76% 36% / 0.5);
+  --dp-icon-color: hsl(var(--muted-foreground));
+  --dp-danger-color: hsl(var(--destructive));
+  --dp-marker-color: hsl(var(--destructive));
+  --dp-tooltip-color: hsl(var(--popover));
+  --dp-highlight-color: hsl(var(--primary) / 0.2);
+  --dp-range-between-dates-background-color: hsl(var(--accent));
+  --dp-range-between-dates-text-color: hsl(var(--accent-foreground));
+  --dp-range-between-border-color: hsl(var(--accent));
+}
+
+/* Light mode theme */
+.dp__theme_light {
+  --dp-background-color: hsl(var(--popover));
+  --dp-text-color: hsl(var(--foreground));
+  --dp-hover-color: hsl(var(--accent));
+  --dp-hover-text-color: hsl(var(--accent-foreground));
+  --dp-hover-icon-color: hsl(var(--muted-foreground));
+  --dp-primary-color: hsl(var(--primary));
+  --dp-primary-disabled-color: hsl(var(--primary) / 0.5);
+  --dp-primary-text-color: hsl(var(--primary-foreground));
+  --dp-secondary-color: hsl(var(--muted-foreground));
+  --dp-border-color: hsl(var(--border));
+  --dp-menu-border-color: hsl(var(--border));
+  --dp-border-color-hover: hsl(var(--ring));
+  --dp-border-color-focus: hsl(var(--ring));
+  --dp-disabled-color: hsl(var(--muted));
+  --dp-disabled-color-text: hsl(var(--muted-foreground));
+  --dp-scroll-bar-background: hsl(var(--muted));
+  --dp-scroll-bar-color: hsl(var(--accent));
+  --dp-success-color: hsl(142 76% 36%);
+  --dp-success-color-disabled: hsl(142 76% 36% / 0.5);
+  --dp-icon-color: hsl(var(--muted-foreground));
+  --dp-danger-color: hsl(var(--destructive));
+  --dp-marker-color: hsl(var(--destructive));
+  --dp-tooltip-color: hsl(var(--popover));
+  --dp-highlight-color: hsl(var(--primary) / 0.1);
+  --dp-range-between-dates-background-color: hsl(var(--accent));
+  --dp-range-between-dates-text-color: hsl(var(--accent-foreground));
+  --dp-range-between-border-color: hsl(var(--accent));
+}
+
+/* Additional DatePicker styling tweaks */
+.dp__menu {
+  border-radius: 8px;
+}
+
+.dp__action_row {
+  padding: 8px 12px;
+}
+
+.dp__preset_range {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.dp__preset_range:hover {
+  background-color: hsl(var(--accent));
 }

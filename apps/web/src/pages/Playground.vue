@@ -706,25 +706,47 @@ const focusSettings = ref({
         <div class="space-y-4">
           <h3 class="text-lg font-medium text-foreground">BkColorPicker</h3>
           <p class="text-sm text-muted-foreground">
-            Sélecteur de couleur avec palette de presets
+            Sélecteur de couleur avec gradient, presets et formats multiples (HEX/RGB/HSL)
           </p>
 
-          <div class="flex gap-8">
+          <div class="flex flex-wrap gap-8">
+            <!-- Popover mode (default) -->
             <div class="space-y-2">
+              <p class="text-xs font-medium text-muted-foreground uppercase">Popover Mode</p>
               <BkColorPicker
                 v-model="strokeColor"
-                label="Stroke"
               />
-              <p class="text-xs text-muted-foreground">Couleur: {{ strokeColor }}</p>
+              <p class="text-xs text-muted-foreground">{{ strokeColor }}</p>
             </div>
+
+            <!-- Popover with show-none -->
             <div class="space-y-2">
+              <p class="text-xs font-medium text-muted-foreground uppercase">With None Option</p>
               <BkColorPicker
                 v-model="fillColor"
-                label="Fill"
                 show-none
               />
-              <p class="text-xs text-muted-foreground">Couleur: {{ fillColor ?? 'none' }}</p>
+              <p class="text-xs text-muted-foreground">{{ fillColor ?? 'none' }}</p>
             </div>
+
+            <!-- Presets only (no advanced) -->
+            <div class="space-y-2">
+              <p class="text-xs font-medium text-muted-foreground uppercase">Presets Only</p>
+              <BkColorPicker
+                v-model="strokeColor"
+                :show-advanced="false"
+              />
+            </div>
+          </div>
+
+          <!-- Inline mode -->
+          <div class="space-y-2 max-w-xs">
+            <p class="text-xs font-medium text-muted-foreground uppercase">Inline Mode</p>
+            <BkColorPicker
+              v-model="strokeColor"
+              mode="inline"
+              label="Choose a color"
+            />
           </div>
         </div>
 
