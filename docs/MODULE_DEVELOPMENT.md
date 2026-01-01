@@ -304,16 +304,52 @@ useProvideData(props.context, myContractV1, {
 })
 ```
 
-### Consuming Data
+### Consuming Data (Single Provider)
 
 ```typescript
 import { useConsumeData, todoContractV1 } from '@boardkit/core'
 
-const { data, isConnected, connect } = useConsumeData(
+// Single provider mode (default)
+const { status, data, connect, disconnect } = useConsumeData(
+  props.context,
+  todoContractV1
+)
+
+// status: 'idle' | 'connecting' | 'connected' | 'error'
+// data: the projected data from the provider (reactive)
+```
+
+### Consuming Data (Multiple Providers)
+
+```typescript
+import { useConsumeData, todoContractV1 } from '@boardkit/core'
+
+// Multi-provider mode
+const { connections, allData, connect, disconnect } = useConsumeData(
   props.context,
   todoContractV1,
-  'selectedTodoList' // state key for provider ID
+  { multi: true, stateKey: 'connectedProviders' }
 )
+
+// connections: array of { providerId, status, data }
+// allData: flattened array of all connected data
+```
+
+### Declarative Data Sharing
+
+The recommended approach is to declare data sharing in `defineModule`:
+
+```typescript
+export const MyConsumerModule = defineModule<MyState>({
+  moduleId: 'my-consumer',
+  // ...
+  consumes: [{
+    contract: todoContractV1,
+    multi: true,                    // Enable multi-provider mode
+    stateKey: 'connectedProviders', // Where provider IDs are stored
+    sourceLabel: 'Todo List',       // UI label
+  }],
+})
 ```
 
 ---
