@@ -193,7 +193,7 @@ const getSubmenuChildren = computed(() => {
         />
 
         <!-- Label -->
-        <span class="flex-1">{{ item.label }}</span>
+        <span class="flex-1 whitespace-nowrap">{{ item.label }}</span>
 
         <!-- Shortcut (only if no children) -->
         <span

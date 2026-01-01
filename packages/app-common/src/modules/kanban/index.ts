@@ -77,6 +77,12 @@ const settingsSchema: SettingsSchema = {
       icon: 'zap',
       fields: [
         {
+          key: 'quickCardCreation',
+          type: 'toggle',
+          label: 'Quick card creation',
+          hint: 'Use inline input instead of modal when adding cards',
+        },
+        {
           key: 'confirmDeleteCard',
           type: 'toggle',
           label: 'Confirm card delete',

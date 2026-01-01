@@ -89,7 +89,9 @@ export function useKeyboardShortcuts(
   // Legacy handler for backward compatibility
   const handleKeyDownLegacy = (e: KeyboardEvent, opts: LegacyKeyboardShortcutsOptions) => {
     // Track space key for panning
+    // Prevent default to avoid activating focused buttons (standard HTML behavior)
     if (e.code === 'Space' && !isInputElement(e.target)) {
+      e.preventDefault()
       isSpacePressed.value = true
     }
 
@@ -170,7 +172,9 @@ export function useKeyboardShortcuts(
   // New handler using ActionRegistry
   const handleKeyDownWithRegistry = (e: KeyboardEvent, opts: KeyboardShortcutsOptions) => {
     // Track space key for panning
+    // Prevent default to avoid activating focused buttons (standard HTML behavior)
     if (e.code === 'Space' && !isInputElement(e.target)) {
+      e.preventDefault()
       isSpacePressed.value = true
     }
 
