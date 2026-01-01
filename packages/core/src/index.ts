@@ -35,6 +35,20 @@ export type {
   LegacyKeyboardShortcutsOptions,
 } from './composables/useKeyboardShortcuts'
 
+export { useHistory, type HistoryEntry, type HistoryManager } from './composables/useHistory'
+
+export {
+  useModuleConfiguration,
+  isModuleConfigured,
+  getModuleConfigurationSchema,
+  getModuleSettingsSchema,
+} from './composables/useModuleConfiguration'
+
+export {
+  useConfigurationProviders,
+  type ConfigurationProvider,
+} from './composables/useConfigurationProviders'
+
 // Canvas helpers (VueUse-based utilities)
 export {
   useCanvasSize,
@@ -47,6 +61,17 @@ export {
 // Data sharing composables (simplified API - recommended)
 export { useProvideData } from './composables/useProvideData'
 export { useConsumeData } from './composables/useConsumeData'
+
+// Secrets composable
+export { useSecrets, type UseSecretsReturn } from './composables/useSecrets'
+
+// Async operation composable
+export {
+  useAsyncOperation,
+  type AsyncOperationOptions,
+  type AsyncOperationState,
+  type UseAsyncOperationReturn,
+} from './composables/useAsyncOperation'
 
 // Data sharing composables (legacy - full control)
 export { useDataProvider } from './composables/useDataProvider'
@@ -67,3 +92,13 @@ export {
   safeValidateDocument,
   DocumentValidationError,
 } from './validation/documentValidator'
+
+// Utils
+export { truncate } from './utils'
+
+// Services
+export {
+  setSecretsVault,
+  getSecretsVault,
+  isSecretsVaultInitialized,
+} from './services'

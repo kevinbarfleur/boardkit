@@ -66,17 +66,22 @@ function createCoreActions(): ActionDefinition[] {
     {
       id: 'widget.delete',
       title: 'Delete',
-      subtitle: 'Remove the selected widget',
+      subtitle: 'Remove selected items',
       keywords: ['remove', 'trash', 'delete'],
       icon: 'trash-2',
       group: 'widget',
       contexts: ['global', 'widget'],
       shortcutHint: '⌫',
       priority: 80,
-      when: (ctx) => ctx.selectedWidgetId !== null,
+      when: (ctx) => ctx.selectionCount > 0,
       run: (ctx) => {
-        if (ctx.selectedWidgetId) {
+        // For multi-selection, use removeSelection
+        if (ctx.isMultiSelection) {
+          store.removeSelection()
+        } else if (ctx.selectedWidgetId) {
           store.removeWidget(ctx.selectedWidgetId)
+        } else if (ctx.selectedElementId) {
+          store.removeElement(ctx.selectedElementId)
         }
       },
     },
@@ -95,6 +100,40 @@ function createCoreActions(): ActionDefinition[] {
           // Re-select to bring to front (existing behavior in selectWidget)
           store.selectWidget(ctx.selectedWidgetId)
         }
+      },
+    },
+
+    // ============================================
+    // UNDO/REDO ACTIONS
+    // ============================================
+    {
+      id: 'board.undo',
+      title: 'Undo',
+      subtitle: 'Undo the last action',
+      keywords: ['undo', 'back', 'revert', 'cancel'],
+      icon: 'undo-2',
+      group: 'board',
+      contexts: ['global', 'canvas'],
+      shortcutHint: '⌘Z',
+      priority: 200,
+      when: () => store.canUndo,
+      run: () => {
+        store.undo()
+      },
+    },
+    {
+      id: 'board.redo',
+      title: 'Redo',
+      subtitle: 'Redo the last undone action',
+      keywords: ['redo', 'forward', 'repeat'],
+      icon: 'redo-2',
+      group: 'board',
+      contexts: ['global', 'canvas'],
+      shortcutHint: '⌘⇧Z',
+      priority: 199,
+      when: () => store.canRedo,
+      run: () => {
+        store.redo()
       },
     },
 

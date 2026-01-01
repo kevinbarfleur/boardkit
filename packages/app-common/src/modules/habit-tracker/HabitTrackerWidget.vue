@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import type { ModuleContext } from '@boardkit/core'
-import { useProvideData, habitsContractV1, habitsStatsContractV1 } from '@boardkit/core'
+import { useProvideData, habitsContractV1, habitsStatsContractV1, truncate } from '@boardkit/core'
 import { BkButton, BkIcon, BkCheckbox, BkInput } from '@boardkit/ui'
 import type { HabitTrackerState, Habit } from './types'
 import { habitColors } from './types'
@@ -148,12 +148,14 @@ function toggleHabitToday(habitId: string) {
   const completionIndex = habit.completions?.findIndex((c) => c.date === todayStr) ?? -1
 
   const newCompletions = [...(habit.completions || [])]
+  let isCompleting = true
 
   if (completionIndex >= 0) {
     // Toggle existing completion
+    isCompleting = !newCompletions[completionIndex].completed
     newCompletions[completionIndex] = {
       ...newCompletions[completionIndex],
-      completed: !newCompletions[completionIndex].completed,
+      completed: isCompleting,
     }
   } else {
     // Add new completion
@@ -162,33 +164,55 @@ function toggleHabitToday(habitId: string) {
 
   const newHabits = [...habits.value]
   newHabits[habitIndex] = { ...habit, completions: newCompletions }
-  props.context.updateState({ habits: newHabits })
+
+  const label = isCompleting
+    ? `Completed: ${truncate(habit.name, 30)}`
+    : `Unmarked: ${truncate(habit.name, 30)}`
+
+  props.context.updateState(
+    { habits: newHabits },
+    {
+      captureHistory: true,
+      historyLabel: label,
+    }
+  )
 }
 
 function addHabit() {
   if (!newHabitName.value.trim()) return
 
+  const name = newHabitName.value.trim()
   const newHabit: Habit = {
     id: crypto.randomUUID(),
-    name: newHabitName.value.trim(),
+    name,
     icon: 'activity',
     color: habitColors[habits.value.length % habitColors.length],
     completions: [],
     createdAt: new Date().toISOString(),
   }
 
-  props.context.updateState({
-    habits: [...habits.value, newHabit],
-  })
+  props.context.updateState(
+    { habits: [...habits.value, newHabit] },
+    {
+      captureHistory: true,
+      historyLabel: `Added habit: ${truncate(name, 30)}`,
+    }
+  )
 
   newHabitName.value = ''
   isAddingHabit.value = false
 }
 
 function removeHabit(habitId: string) {
-  props.context.updateState({
-    habits: habits.value.filter((h) => h.id !== habitId),
-  })
+  const habit = habits.value.find((h) => h.id === habitId)
+
+  props.context.updateState(
+    { habits: habits.value.filter((h) => h.id !== habitId) },
+    {
+      captureHistory: true,
+      historyLabel: `Removed habit: ${truncate(habit?.name, 30)}`,
+    }
+  )
 }
 
 // Stats calculations

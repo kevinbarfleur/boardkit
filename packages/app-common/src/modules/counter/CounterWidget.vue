@@ -45,16 +45,36 @@ const canDecrement = computed(() => {
 // Methods
 function increment() {
   if (!canIncrement.value) return
-  props.context.updateState({ value: value.value + step.value })
+  const newValue = value.value + step.value
+  props.context.updateState(
+    { value: newValue },
+    {
+      captureHistory: true,
+      historyLabel: `${label.value}: ${value.value} → ${newValue}`,
+    }
+  )
 }
 
 function decrement() {
   if (!canDecrement.value) return
-  props.context.updateState({ value: value.value - step.value })
+  const newValue = value.value - step.value
+  props.context.updateState(
+    { value: newValue },
+    {
+      captureHistory: true,
+      historyLabel: `${label.value}: ${value.value} → ${newValue}`,
+    }
+  )
 }
 
 function reset() {
-  props.context.updateState({ value: 0 })
+  props.context.updateState(
+    { value: 0 },
+    {
+      captureHistory: true,
+      historyLabel: `Reset ${label.value} (was ${value.value})`,
+    }
+  )
 }
 
 // Daily reset check

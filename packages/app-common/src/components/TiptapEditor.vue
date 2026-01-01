@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { watch, onBeforeUnmount, computed } from 'vue'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
+import { BubbleMenu } from '@tiptap/vue-3/menus'
 import StarterKit from '@tiptap/starter-kit'
 import { Markdown } from 'tiptap-markdown'
 import Placeholder from '@tiptap/extension-placeholder'
@@ -8,8 +9,12 @@ import Typography from '@tiptap/extension-typography'
 import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
 import Link from '@tiptap/extension-link'
+import Underline from '@tiptap/extension-underline'
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
 import { common, createLowlight } from 'lowlight'
+import { BkIcon } from '@boardkit/ui'
+import TiptapToolbar from './TiptapToolbar.vue'
+import type { EditorMode } from '../modules/text/types'
 
 // Create lowlight instance with common languages
 const lowlight = createLowlight(common)
@@ -31,6 +36,7 @@ interface Props {
   editable?: boolean
   fontSize?: 'small' | 'medium' | 'large'
   lineHeight?: 'compact' | 'normal' | 'spacious'
+  mode?: EditorMode
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -38,7 +44,11 @@ const props = withDefaults(defineProps<Props>(), {
   editable: true,
   fontSize: 'medium',
   lineHeight: 'normal',
+  mode: 'markdown',
 })
+
+// Check if we're in richtext mode
+const isRichTextMode = computed(() => props.mode === 'richtext')
 
 // Compute font size class
 const fontSizeClass = computed(() => {
@@ -97,6 +107,7 @@ const editor = useEditor({
       autolink: true,
       linkOnPaste: true,
     }),
+    Underline,
     CodeBlockLowlight.configure({
       lowlight,
     }),
@@ -147,8 +158,71 @@ defineExpose({
 </script>
 
 <template>
-  <div class="tiptap-wrapper h-full" :class="[fontSizeClass, lineHeightClass]">
-    <EditorContent :editor="editor" class="h-full" />
+  <div class="tiptap-wrapper h-full flex flex-col" :class="[fontSizeClass, lineHeightClass]">
+    <!-- Fixed toolbar for rich text mode -->
+    <TiptapToolbar v-if="isRichTextMode && editor" :editor="editor" />
+
+    <!-- Floating bubble menu for rich text mode -->
+    <BubbleMenu
+      v-if="isRichTextMode && editor"
+      :editor="editor"
+      :options="{ placement: 'top', offset: 8 }"
+      class="bubble-menu"
+    >
+      <div class="flex items-center gap-0.5 px-1 py-1 bg-popover border border-border rounded-lg shadow-lg">
+        <button
+          class="h-7 w-7 rounded flex items-center justify-center transition-colors"
+          :class="editor.isActive('bold') ? 'bg-accent text-accent-foreground' : 'hover:bg-accent text-muted-foreground hover:text-foreground'"
+          title="Bold"
+          @click="editor.chain().focus().toggleBold().run()"
+        >
+          <BkIcon icon="bold" :size="14" />
+        </button>
+        <button
+          class="h-7 w-7 rounded flex items-center justify-center transition-colors"
+          :class="editor.isActive('italic') ? 'bg-accent text-accent-foreground' : 'hover:bg-accent text-muted-foreground hover:text-foreground'"
+          title="Italic"
+          @click="editor.chain().focus().toggleItalic().run()"
+        >
+          <BkIcon icon="italic" :size="14" />
+        </button>
+        <button
+          class="h-7 w-7 rounded flex items-center justify-center transition-colors"
+          :class="editor.isActive('underline') ? 'bg-accent text-accent-foreground' : 'hover:bg-accent text-muted-foreground hover:text-foreground'"
+          title="Underline"
+          @click="editor.chain().focus().toggleUnderline().run()"
+        >
+          <BkIcon icon="underline" :size="14" />
+        </button>
+        <button
+          class="h-7 w-7 rounded flex items-center justify-center transition-colors"
+          :class="editor.isActive('strike') ? 'bg-accent text-accent-foreground' : 'hover:bg-accent text-muted-foreground hover:text-foreground'"
+          title="Strikethrough"
+          @click="editor.chain().focus().toggleStrike().run()"
+        >
+          <BkIcon icon="strikethrough" :size="14" />
+        </button>
+        <button
+          class="h-7 w-7 rounded flex items-center justify-center transition-colors"
+          :class="editor.isActive('code') ? 'bg-accent text-accent-foreground' : 'hover:bg-accent text-muted-foreground hover:text-foreground'"
+          title="Code"
+          @click="editor.chain().focus().toggleCode().run()"
+        >
+          <BkIcon icon="code" :size="14" />
+        </button>
+        <button
+          class="h-7 w-7 rounded flex items-center justify-center transition-colors"
+          :class="editor.isActive('link') ? 'bg-accent text-accent-foreground' : 'hover:bg-accent text-muted-foreground hover:text-foreground'"
+          title="Link"
+          @click="editor.chain().focus().toggleLink({ href: '' }).run()"
+        >
+          <BkIcon icon="link" :size="14" />
+        </button>
+      </div>
+    </BubbleMenu>
+
+    <!-- Editor content -->
+    <EditorContent :editor="editor" class="flex-1 min-h-0" />
   </div>
 </template>
 
@@ -184,8 +258,21 @@ defineExpose({
   line-height: 1.8;
 }
 
-.tiptap-wrapper .tiptap {
+.tiptap-wrapper .ProseMirror {
   height: 100%;
+  overflow-y: auto;
+  padding: 0.5rem;
+}
+
+/* Ensure EditorContent fills available space */
+.tiptap-wrapper > div:last-child {
+  display: flex;
+  flex-direction: column;
+}
+
+.tiptap-wrapper > div:last-child .tiptap {
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
 }
 

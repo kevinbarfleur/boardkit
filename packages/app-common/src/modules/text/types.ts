@@ -1,3 +1,5 @@
+export type EditorMode = 'markdown' | 'richtext'
+
 export interface TextState {
   content: string
   // Settings (stored per widget)
@@ -7,6 +9,7 @@ export interface TextState {
   autoLinks: boolean
   smartTypography: boolean
   showWordCount: boolean
+  editorMode: EditorMode
 }
 
 // Default settings for new widgets
@@ -17,4 +20,5 @@ export const defaultTextSettings: Omit<TextState, 'content'> = {
   autoLinks: true,
   smartTypography: true,
   showWordCount: false,
+  editorMode: 'markdown',
 }

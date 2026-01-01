@@ -3,9 +3,11 @@ export type TodoPriority = 'low' | 'medium' | 'high'
 export interface TodoItem {
   id: string
   label: string
+  description?: string // Optional task description
   completed: boolean
   dueDate?: string // ISO date string
   priority?: TodoPriority
+  parentId?: string // Reference to parent item (undefined = root item)
 }
 
 export interface TodoState {
@@ -21,6 +23,23 @@ export interface TodoState {
   showDueDate: boolean
   showPriority: boolean
   confirmDelete: boolean
+  cascadeCompletion: boolean // Complete sub-tasks when parent is completed
+}
+
+// Grouped settings interface for component props
+export interface TodoSettings {
+  // Display
+  strikeCompleted: boolean
+  hideCompleted: boolean
+  showProgress: 'none' | 'bar' | 'counter'
+  // Features
+  showDueDate: boolean
+  showPriority: boolean
+  enableReorder: boolean
+  autoSort: boolean
+  // Behavior
+  cascadeCompletion: boolean
+  confirmDelete: boolean
 }
 
 // Default settings for new widgets
@@ -34,6 +53,7 @@ export const defaultTodoSettings: Pick<
   | 'showDueDate'
   | 'showPriority'
   | 'confirmDelete'
+  | 'cascadeCompletion'
 > = {
   strikeCompleted: true,
   hideCompleted: false,
@@ -43,4 +63,5 @@ export const defaultTodoSettings: Pick<
   showDueDate: false,
   showPriority: false,
   confirmDelete: false,
+  cascadeCompletion: true,
 }

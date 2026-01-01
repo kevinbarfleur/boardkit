@@ -27,9 +27,6 @@ It runs:
 
 Boardkit uses a **portable `.boardkit` document format** and does NOT rely on any proprietary backend.
 
-The project currently targets **V0 only**.
-Do NOT implement speculative V1/V2 features unless explicitly instructed.
-
 ---
 
 ## Core Product Philosophy (NON-NEGOTIABLE)
@@ -63,7 +60,28 @@ Do NOT implement speculative V1/V2 features unless explicitly instructed.
 - No custom widget frames, drag logic, or headers inside modules.
 - No ad-hoc spacing, typography, or colors.
 
-### 6. Action-first UX
+### 6. Lucide Icons (MANDATORY VERIFICATION)
+
+**BEFORE using any Lucide icon, you MUST verify it exists.**
+
+Verification methods (in order of preference):
+1. **WebFetch** to `https://lucide.dev/icons/{icon-name}` to confirm the icon exists
+2. **WebSearch** for `lucide icon {icon-name} site:lucide.dev`
+3. Check existing codebase usage with `Grep`
+
+**Common mistakes to avoid:**
+- `code-2` does NOT exist → use `braces` or `code-xml`
+- `list-check` does NOT exist → use `list-todo`
+- Always use kebab-case (e.g., `corner-down-right`, not `cornerDownRight`)
+
+**If an icon doesn't exist:**
+- Search for alternatives on [lucide.dev/icons](https://lucide.dev/icons)
+- Choose the closest semantic match
+- Document the choice in a comment if the name isn't obvious
+
+This verification is NON-NEGOTIABLE. Icon errors break the UI silently.
+
+### 7. Action-first UX
 
 - All user actions must go through the ActionRegistry.
 - Command Palette, context menus, shortcuts, and menus are just **different views of the same actions**.
@@ -99,22 +117,27 @@ Do NOT guess APIs when documentation is available.
 
 ---
 
-## Explicitly Out of Scope (DO NOT IMPLEMENT)
+## Permanently Out of Scope (DO NOT IMPLEMENT)
 
-- Real-time collaboration
-- Authentication or user accounts
-- Cloud backend or proprietary sync service
-- CRDTs or automatic conflict resolution
-- Native macOS widgets
-- Plugin marketplace UI
+These features are **permanently excluded** from Boardkit's vision:
 
-If a feature is not explicitly described in `SPECS_V0.md`, assume it is out of scope.
+| Feature                       | Reason                                          |
+| ----------------------------- | ----------------------------------------------- |
+| **Real-time collaboration**   | Multi-user, shared cursors = outside philosophy |
+| **Proprietary backend/cloud** | No Boardkit server, no vendor lock-in           |
+| **User accounts**             | No authentication, no login                     |
+| **Automatic sync**            | No CRDTs, no conflict resolution                |
+| **Plugin marketplace**        | No third-party plugin system / store            |
+| **Monetization**              | No paid features, premium, freemium             |
+| **Analytics/tracking**        | No user telemetry, no metrics                   |
+
+If someone proposes one of these features, the `senior-reviewer` agent MUST block it.
 
 ---
 
-## Native Canvas Elements (V0 Scope)
+## Native Canvas Elements
 
-Native canvas primitives (shapes, lines, arrows, freehand, text) are **in scope for V0**.
+Native canvas primitives (shapes, lines, arrows, freehand, text) are supported.
 
 These elements:
 
@@ -159,6 +182,12 @@ You MUST delegate work to the correct agent(s) based on the domain.
 - **When handling user-generated content or file import/export**
   → `security-reviewer`
 
+- **Integrating new modules (widgets, APIs, data visualization)**
+  → `module-integrator`
+
+- **After any feature/fix (AUTOMATIC)**
+  → `senior-reviewer` (mandatory)
+
 If a task spans multiple domains:
 
 - split the work
@@ -166,7 +195,7 @@ If a task spans multiple domains:
 
 ---
 
-## Definition of Done (V0)
+## Definition of Done
 
 A task is NOT considered done unless:
 
@@ -194,14 +223,19 @@ A task is NOT considered done unless:
 
 5. **Scope**
 
-   - No feature outside `SPECS_V0.md`
+   - No feature from the "Permanently Out of Scope" list
 
 6. **Tests**
 
    - At least one targeted smoke test for risky changes
 
 7. **Docs**
+
    - If a rule or invariant changes → documentation updated
+
+8. **Senior Review**
+   - `senior-reviewer` agent MUST review significant changes
+   - Can block if project philosophy is violated
 
 ---
 
@@ -211,7 +245,7 @@ When implementing a new feature:
 
 1. **Clarify scope**
 
-   - Is this V0?
+   - Is this in scope? (check "Permanently Out of Scope")
    - Does it affect core, UI, or platform?
 
 2. **Design first**

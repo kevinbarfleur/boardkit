@@ -17,9 +17,11 @@
     "test:run": "vitest run"
   },
   "dependencies": {
+    "@boardkit/core": "workspace:^",
     "idb": "^8.0.0"
   },
   "devDependencies": {
+    "@tauri-apps/plugin-fs": "^2.4.4",
     "typescript": "^5.3.0"
   }
 }

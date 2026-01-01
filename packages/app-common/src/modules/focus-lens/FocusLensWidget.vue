@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from 'vue'
 import type { ModuleContext } from '@boardkit/core'
-import { useConsumeData, todoContractV1, type PublicTodoList } from '@boardkit/core'
-import { BkIcon } from '@boardkit/ui'
+import { useConsumeData, useModuleConfiguration, todoContractV1, type PublicTodoList } from '@boardkit/core'
+import { BkIcon, BkSetupRequired } from '@boardkit/ui'
 import type { FocusLensState } from './types'
 import { defaultFocusLensSettings } from './types'
 
@@ -11,6 +11,17 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+
+const emit = defineEmits<{
+  'open-settings': [options?: { tab?: string }]
+}>()
+
+// Configuration check
+const { needsSetup, setupMessage, setupIcon } = useModuleConfiguration(props.context)
+
+function handleConfigure() {
+  emit('open-settings', { tab: 'configure' })
+}
 
 // Settings with defaults
 const autoRefresh = computed(
@@ -123,17 +134,13 @@ onUnmounted(() => {
       </div>
     </template>
 
-    <!-- Not connected -->
+    <!-- Not connected - Setup Required -->
     <template v-else>
-      <div class="flex-1 flex items-center justify-center">
-        <div class="text-center px-4">
-          <BkIcon icon="focus" :size="24" class="text-muted-foreground mx-auto mb-3" />
-          <div class="text-sm text-muted-foreground mb-1">No data source connected</div>
-          <div class="text-xs text-muted-foreground/70">
-            Right-click or use header menu to connect a Todo list
-          </div>
-        </div>
-      </div>
+      <BkSetupRequired
+        :icon="setupIcon"
+        :message="setupMessage"
+        @configure="handleConfigure"
+      />
     </template>
   </div>
 </template>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { ModuleContext } from '@boardkit/core'
+import { truncate } from '@boardkit/core'
 import type { TextState } from './types'
 import { defaultTextSettings } from './types'
 import TiptapEditor from '../../components/TiptapEditor.vue'
@@ -13,12 +14,24 @@ const props = defineProps<Props>()
 
 const content = computed({
   get: () => props.context.state.content,
-  set: (value: string) => props.context.updateState({ content: value }),
+  set: (value: string) => {
+    // Show last 25 chars of the content for context
+    const preview = truncate(value.slice(-30), 25)
+    props.context.updateState(
+      { content: value },
+      {
+        captureHistory: true,
+        historyLabel: `Typed: ...${preview}`,
+        debounceMs: 1000, // Capture after 1s of inactivity
+      }
+    )
+  },
 })
 
 // Get settings with fallback to defaults
 const fontSize = computed(() => props.context.state.fontSize ?? defaultTextSettings.fontSize)
 const lineHeight = computed(() => props.context.state.lineHeight ?? defaultTextSettings.lineHeight)
+const editorMode = computed(() => props.context.state.editorMode ?? defaultTextSettings.editorMode)
 const showWordCount = computed(
   () => props.context.state.showWordCount ?? defaultTextSettings.showWordCount
 )
@@ -49,6 +62,7 @@ const charCount = computed(() => {
         placeholder="Start typing... Use markdown syntax for formatting."
         :font-size="fontSize"
         :line-height="lineHeight"
+        :mode="editorMode"
       />
     </div>
 

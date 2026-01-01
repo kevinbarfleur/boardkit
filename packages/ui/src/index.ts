@@ -9,6 +9,7 @@ export { default as BkDropdown } from './components/BkDropdown.vue'
 export { default as BkMenu } from './components/BkMenu.vue'
 export { default as BkHistoryList } from './components/BkHistoryList.vue'
 export { default as BkModal } from './components/BkModal.vue'
+export { default as BkConfirmDialog } from './components/BkConfirmDialog.vue'
 export { default as BkDataConnectionDialog } from './components/BkDataConnectionDialog.vue'
 export { default as BkDataSourcePicker } from './components/BkDataSourcePicker.vue'
 export type { ProviderInfo } from './components/BkDataSourcePicker.vue'
@@ -24,8 +25,36 @@ export { default as BkSelect } from './components/BkSelect.vue'
 export type { SelectOption } from './components/BkSelect.vue'
 export { default as BkButtonGroup } from './components/BkButtonGroup.vue'
 export type { ButtonGroupOption } from './components/BkButtonGroup.vue'
+export { default as BkDatePicker } from './components/BkDatePicker.vue'
+export { default as BkSecretInput } from './components/BkSecretInput.vue'
 export { default as BkFormRow } from './components/BkFormRow.vue'
 export { default as BkFormSection } from './components/BkFormSection.vue'
+export { default as BkTabs } from './components/BkTabs.vue'
+export type { Tab as BkTab } from './components/BkTabs.vue'
+
+// Configuration Components
+export { default as BkSetupRequired } from './components/BkSetupRequired.vue'
+export { default as BkSourcePicker } from './components/BkSourcePicker.vue'
+export type { SourcePickerProvider } from './components/BkSourcePicker.vue'
+export { default as BkSourcePickerGroup } from './components/BkSourcePickerGroup.vue'
+export type { ContractGroup } from './components/BkSourcePickerGroup.vue'
+export { default as BkConfiguredItemsList } from './components/BkConfiguredItemsList.vue'
+export type { ConfiguredItem } from './components/BkConfiguredItemsList.vue'
+export { default as BkAddItemWizard } from './components/BkAddItemWizard.vue'
+export type { WizardStep, WizardOption } from './components/BkAddItemWizard.vue'
+export { default as BkConfigurationPanel } from './components/BkConfigurationPanel.vue'
+export type { ConfigPanelProvider } from './components/BkConfigurationPanel.vue'
+export { default as BkSettingsPanelGeneric } from './components/BkSettingsPanelGeneric.vue'
+export { default as BkModuleSettingsPanel } from './components/BkModuleSettingsPanel.vue'
+export { default as BkSchemaForm } from './components/BkSchemaForm.vue'
+
+// Modal Components
+export { default as BkModalProvider } from './components/BkModalProvider.vue'
+export { default as BkFormModal } from './components/BkFormModal.vue'
+
+// Toast Components
+export { default as BkToastProvider } from './components/BkToastProvider.vue'
+export { default as BkToast } from './components/BkToast.vue'
 
 // Canvas Tool Components
 export { default as BkToolbar } from './components/BkToolbar.vue'
@@ -56,6 +85,25 @@ export {
 
 // Composables
 export { useTheme } from './composables/useTheme'
+export { useModal, MODAL_INJECTION_KEY } from './composables/useModal'
+export { useToast, TOAST_INJECTION_KEY } from './composables/useToast'
+export { useWidgetTransform, WIDGET_TRANSFORM_KEY, type WidgetTransform } from './composables/useWidgetTransform'
+
+// Modal Types
+export type {
+  ModalConfig,
+  ModalResult,
+  ConfirmConfig,
+  UseModalReturn,
+} from './types/modal'
+
+// Toast Types
+export type {
+  Toast,
+  ToastType,
+  ToastOptions,
+  UseToastReturn,
+} from './types/toast'
 
 // Types
 export type { ButtonVariant } from './components/BkButton.vue'

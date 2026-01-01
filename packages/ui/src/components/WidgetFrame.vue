@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, onUnmounted } from "vue";
+import { ref, computed, onUnmounted, provide } from "vue";
 import BkIcon from "./BkIcon.vue";
+import { WIDGET_TRANSFORM_KEY } from "../composables/useWidgetTransform";
 
 export type VisibilityMode = "transparent" | "subtle" | "visible";
 
@@ -23,6 +24,10 @@ interface Props {
   zIndex?: number;
   restMode?: VisibilityMode;
   hoverMode?: VisibilityMode;
+  /** Canvas zoom level for proper drag/resize calculations */
+  zoom?: number;
+  /** Widget content scale (0.5 to 2.0, default 1.0) */
+  scale?: number;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -36,6 +41,8 @@ const props = withDefaults(defineProps<Props>(), {
   zIndex: 1,
   restMode: "transparent",
   hoverMode: "subtle",
+  zoom: 1,
+  scale: 1,
 });
 
 const emit = defineEmits<{
@@ -48,7 +55,22 @@ const emit = defineEmits<{
   moveStart: [id: string, event: MouseEvent];
   /** Emitted when the settings button is clicked (opens context menu) */
   openMenu: [id: string, event: MouseEvent];
+  /** Emitted when scale +/- buttons are clicked */
+  scaleChange: [id: string, delta: number];
 }>();
+
+// Scale constants
+const MIN_SCALE = 1.0;
+const MAX_SCALE = 2.0;
+const SCALE_STEP = 0.1;
+
+// Provide transform values to child components (for teleported popovers)
+// Use a getter function to maintain reactivity through provide/inject
+provide(WIDGET_TRANSFORM_KEY, {
+  get zoom() { return props.zoom; },
+  get scale() { return props.scale; },
+  get combinedScale() { return props.zoom * props.scale; },
+});
 
 // State
 const isDragging = ref(false);
@@ -74,22 +96,36 @@ const visibilityState = computed<"rest" | "hover" | "selected">(() => {
 
 const showHeader = computed(() => visibilityState.value !== "rest" || props.isMultiSelected);
 
-const frameStyle = computed(() => {
-  // Apply drag offset during group drag
+// Wrapper style: handles positioning (translate) - NOT scaled
+const wrapperStyle = computed(() => {
   const x = props.x + (props.isDragging ? props.dragOffset.x : 0);
   const y = props.y + (props.isDragging ? props.dragOffset.y : 0);
 
   return {
     transform: `translate(${x}px, ${y}px)`,
-    width: `${props.width}px`,
-    height: `${props.height}px`,
     zIndex: props.zIndex,
   };
 });
 
+// Frame style: handles size and scale - the entire widget visual
+const frameStyle = computed(() => {
+  const style: Record<string, string> = {
+    width: `${props.width}px`,
+    height: `${props.height}px`,
+  };
+
+  // Apply scale to the entire widget frame
+  if (props.scale !== 1) {
+    style.transform = `scale(${props.scale})`;
+    style.transformOrigin = "top left";
+  }
+
+  return style;
+});
+
 const frameClasses = computed(() => {
   const base =
-    "widget-frame absolute rounded-lg overflow-visible transition-colors duration-200";
+    "widget-frame rounded-lg overflow-visible transition-colors duration-200";
 
   // Multi-selected: dashed border like elements
   if (props.isMultiSelected) {
@@ -122,6 +158,10 @@ const frameClasses = computed(() => {
       return `${base} bg-card border border-border`;
   }
 });
+
+const canScaleUp = computed(() => props.scale < MAX_SCALE);
+const canScaleDown = computed(() => props.scale > MIN_SCALE);
+const scalePercentage = computed(() => Math.round(props.scale * 100));
 
 // Hover handling with delay for floating header access
 const setHovered = (value: boolean) => {
@@ -170,8 +210,9 @@ const startDrag = (e: MouseEvent) => {
 
 const onDrag = (e: MouseEvent) => {
   if (!isDragging.value) return;
-  const dx = e.clientX - dragStart.value.x;
-  const dy = e.clientY - dragStart.value.y;
+  // Divide by zoom to keep movement synchronized with cursor
+  const dx = (e.clientX - dragStart.value.x) / props.zoom;
+  const dy = (e.clientY - dragStart.value.y) / props.zoom;
   emit("move", props.id, initialPos.value.x + dx, initialPos.value.y + dy);
 };
 
@@ -198,8 +239,9 @@ const startResize = (e: MouseEvent) => {
 
 const onResize = (e: MouseEvent) => {
   if (!isResizing.value) return;
-  const dx = e.clientX - dragStart.value.x;
-  const dy = e.clientY - dragStart.value.y;
+  // Divide by zoom to keep resize synchronized with cursor
+  const dx = (e.clientX - dragStart.value.x) / props.zoom;
+  const dy = (e.clientY - dragStart.value.y) / props.zoom;
   emit(
     "resize",
     props.id,
@@ -222,17 +264,31 @@ const handleOpenMenu = (e: MouseEvent) => {
   e.stopPropagation();
   emit("openMenu", props.id, e);
 };
+
+const handleScaleUp = (e: MouseEvent) => {
+  e.stopPropagation();
+  if (canScaleUp.value) {
+    emit("scaleChange", props.id, SCALE_STEP);
+  }
+};
+
+const handleScaleDown = (e: MouseEvent) => {
+  e.stopPropagation();
+  if (canScaleDown.value) {
+    emit("scaleChange", props.id, -SCALE_STEP);
+  }
+};
 </script>
 
 <template>
+  <!-- Outer wrapper: handles positioning, NOT scaled -->
   <div
-    :class="[frameClasses, { 'cursor-move': isDragging }]"
-    :style="frameStyle"
-    @mousedown="handleSelect"
+    class="widget-wrapper absolute"
+    :style="wrapperStyle"
     @mouseenter="setHovered(true)"
     @mouseleave="setHovered(false)"
   >
-    <!-- Floating Header -->
+    <!-- Floating Header (outside of scale, stays normal size) -->
     <div
       v-if="showHeader"
       class="absolute inset-x-0 bottom-full mb-2 flex items-center gap-2 rounded-lg px-3 py-2 cursor-move select-none bg-popover border border-border shadow-lg z-10"
@@ -244,6 +300,30 @@ const handleOpenMenu = (e: MouseEvent) => {
       <span class="flex-1 text-sm font-medium text-popover-foreground truncate">
         {{ title }}
       </span>
+      <!-- Scale controls -->
+      <div
+        v-if="selected || isMultiSelected"
+        class="flex items-center gap-0.5"
+        @mousedown.stop
+      >
+        <button
+          class="inline-flex h-5 w-5 items-center justify-center rounded bg-transparent hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed"
+          :disabled="!canScaleDown"
+          @click="handleScaleDown"
+        >
+          <BkIcon icon="minus" :size="12" class="text-muted-foreground" />
+        </button>
+        <span class="text-xs text-muted-foreground w-8 text-center tabular-nums">
+          {{ scalePercentage }}%
+        </span>
+        <button
+          class="inline-flex h-5 w-5 items-center justify-center rounded bg-transparent hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed"
+          :disabled="!canScaleUp"
+          @click="handleScaleUp"
+        >
+          <BkIcon icon="plus" :size="12" class="text-muted-foreground" />
+        </button>
+      </div>
       <button
         v-if="selected || isMultiSelected"
         class="inline-flex h-5 w-5 items-center justify-center rounded bg-transparent hover:bg-accent"
@@ -254,22 +334,29 @@ const handleOpenMenu = (e: MouseEvent) => {
       </button>
     </div>
 
-    <!-- Content -->
-    <div class="h-full overflow-auto p-3 text-sm text-foreground">
-      <slot />
-    </div>
-
-    <!-- Resize Handle (hidden when multi-selected) -->
+    <!-- Scaled Widget Frame (entire widget visual is scaled) -->
     <div
-      v-if="selected && !isMultiSelected"
-      class="absolute bottom-1 right-1 size-4 cursor-se-resize flex items-center justify-center z-10"
-      @mousedown="startResize"
+      :class="[frameClasses, { 'cursor-move': isDragging }]"
+      :style="frameStyle"
+      @mousedown="handleSelect"
     >
-      <BkIcon
-        icon="grip-horizontal"
-        :size="12"
-        class="text-muted-foreground/50 rotate-[-45deg]"
-      />
+      <!-- Content -->
+      <div class="h-full overflow-auto p-3 text-sm text-foreground">
+        <slot />
+      </div>
+
+      <!-- Resize Handle (inside scaled frame, will scale with widget) -->
+      <div
+        v-if="selected && !isMultiSelected"
+        class="absolute bottom-1 right-1 size-4 cursor-se-resize flex items-center justify-center z-10"
+        @mousedown="startResize"
+      >
+        <BkIcon
+          icon="grip-horizontal"
+          :size="12"
+          class="text-muted-foreground/50 rotate-[-45deg]"
+        />
+      </div>
     </div>
   </div>
 </template>

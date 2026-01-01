@@ -53,24 +53,74 @@ export function usePersistence() {
   const filterEntries = (entries: HistoryEntry[]) =>
     entries.filter((e) => !hiddenActions.includes(e.action))
 
-  // Computed: can we undo/redo?
-  const canUndo = computed(() => filterEntries(historyEntries.value).length > 0)
-  const canRedo = computed(() => currentHistoryIndex.value >= 0)
+  // ==========================================================================
+  // History - Now delegated to boardStore's useHistory
+  // ==========================================================================
 
-  // Get entries for undo (past versions)
-  const undoEntries = computed(() => {
-    if (currentHistoryIndex.value === -1) {
-      // At latest version, all history is undoable
-      return filterEntries(historyEntries.value)
+  // Computed: can we undo/redo? (delegated to boardStore)
+  const canUndo = computed(() => boardStore.canUndo)
+  const canRedo = computed(() => boardStore.canRedo)
+  const isAtLive = computed(() => boardStore.isAtLive)
+
+  // Undo entries: entries OLDER than current position (what we can go back to)
+  // Timeline: [oldest] A → B → C → [current] → D → E [newest/live]
+  // If at index 2 (viewing C), undo shows: B, A (indices 3, 4, ...)
+  const undoEntries = computed<HistoryEntry[]>(() => {
+    const historyIndex = boardStore.historyIndex
+    const stack = boardStore.historyStack
+
+    // If at live state (index -1), show all stack entries
+    // If at index N, show entries from N+1 onwards (older entries)
+    const startIndex = historyIndex < 0 ? 0 : historyIndex + 1
+
+    const entries: HistoryEntry[] = []
+    for (let i = startIndex; i < stack.length; i++) {
+      const entry = stack[i]
+      entries.push({
+        id: entry.id,
+        documentId: currentDocumentId.value ?? '',
+        timestamp: entry.timestamp,
+        action: entry.label,
+        snapshot: entry.snapshot,
+      })
     }
-    // Show entries older than current position
-    return filterEntries(historyEntries.value.slice(currentHistoryIndex.value + 1))
+    return entries
   })
 
-  // Get entries for redo (future versions)
-  const redoEntries = computed(() => {
-    if (currentHistoryIndex.value === -1) return []
-    return filterEntries(historyEntries.value.slice(0, currentHistoryIndex.value + 1).reverse())
+  // Redo entries: entries NEWER than current position (what we can go forward to)
+  // If at index 2, redo shows: D (index 1), E (index 0), then live
+  const redoEntries = computed<HistoryEntry[]>(() => {
+    const historyIndex = boardStore.historyIndex
+    const stack = boardStore.historyStack
+
+    // If at live state (index -1), nothing to redo
+    if (historyIndex < 0) return []
+
+    // Get entries from currentIndex-1 down to 0 (newer entries)
+    const entries: HistoryEntry[] = []
+    for (let i = historyIndex - 1; i >= 0; i--) {
+      const entry = stack[i]
+      if (entry) {
+        entries.push({
+          id: entry.id,
+          documentId: currentDocumentId.value ?? '',
+          timestamp: entry.timestamp,
+          action: entry.label,
+          snapshot: entry.snapshot,
+        })
+      }
+    }
+
+    // Add "live state" as the final redo target
+    entries.push({
+      id: 'live',
+      documentId: currentDocumentId.value ?? '',
+      timestamp: Date.now(),
+      action: 'Current state',
+      snapshot: {} as BoardkitDocument,
+    })
+
+    return entries
   })
 
   // Load the list of documents
@@ -123,61 +173,45 @@ export function usePersistence() {
     }
   }
 
-  // Go to a specific history entry
+  // Go to a specific history entry (from the UI dropdown)
   async function goToHistoryEntry(entryId: string): Promise<boolean> {
-    const index = historyEntries.value.findIndex((e) => e.id === entryId)
-    if (index === -1) return false
+    // Special case: 'live' means return to current state
+    if (entryId === 'live') {
+      return goToLatest()
+    }
 
-    const entry = historyEntries.value[index]
-    boardStore.loadDocument(entry.snapshot as BoardkitDocument)
-    currentHistoryIndex.value = index
-
-    // Save this as the current document state
-    await saveDocument(false) // Don't add to history
-
-    return true
+    const success = boardStore.goToHistoryEntry(entryId)
+    if (success) {
+      await saveDocument(false)
+    }
+    return success
   }
 
-  // Undo to previous version
+  // Undo to previous version (delegated to boardStore)
   async function undo(): Promise<boolean> {
-    if (!canUndo.value) return false
-
-    const targetIndex = currentHistoryIndex.value === -1 ? 0 : currentHistoryIndex.value + 1
-    if (targetIndex >= historyEntries.value.length) return false
-
-    const entry = historyEntries.value[targetIndex]
-    boardStore.loadDocument(entry.snapshot as BoardkitDocument)
-    currentHistoryIndex.value = targetIndex
-
-    await saveDocument(false)
-    return true
+    const success = boardStore.undo()
+    if (success) {
+      await saveDocument(false)
+    }
+    return success
   }
 
-  // Redo to next version
+  // Redo to next version (delegated to boardStore)
   async function redo(): Promise<boolean> {
-    if (!canRedo.value || currentHistoryIndex.value <= 0) return false
-
-    const targetIndex = currentHistoryIndex.value - 1
-    const entry = historyEntries.value[targetIndex]
-    boardStore.loadDocument(entry.snapshot as BoardkitDocument)
-    currentHistoryIndex.value = targetIndex
-
-    await saveDocument(false)
-    return true
+    const success = boardStore.redo()
+    if (success) {
+      await saveDocument(false)
+    }
+    return success
   }
 
-  // Go to latest version
+  // Return to the live (most recent) state
   async function goToLatest(): Promise<boolean> {
-    if (currentHistoryIndex.value === -1) return false
-
-    const entry = historyEntries.value[0]
-    if (!entry) return false
-
-    boardStore.loadDocument(entry.snapshot as BoardkitDocument)
-    currentHistoryIndex.value = -1
-
-    await saveDocument(false)
-    return true
+    const success = boardStore.goToLiveState()
+    if (success) {
+      await saveDocument(false)
+    }
+    return success
   }
 
   // Create a new document
@@ -405,6 +439,7 @@ export function usePersistence() {
     // Computed
     canUndo,
     canRedo,
+    isAtLive,
     undoEntries,
     redoEntries,
 

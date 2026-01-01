@@ -39,6 +39,9 @@ BkContextMenu, BkIcon, BkMenu
 ### Command Palette
 BkCommandDialog, BkCommandInput, BkCommandList, BkCommandGroup, BkCommandItem, BkCommandEmpty
 
+### Settings & Configuration
+BkSettingsPanel, BkSettingsSection, BkSettingsRow, BkPreferenceToggle, BkConfigForm
+
 ## Design Principles
 
 ### 1. Compact Density (NON-NÉGOCIABLE)
@@ -64,6 +67,40 @@ BkCommandDialog, BkCommandInput, BkCommandList, BkCommandGroup, BkCommandItem, B
 - Component: `<BkIcon icon="name" :size="16" />`
 - Sizes: 12, 14, 16, 18, 20
 - **Interdit**: SVG inline custom
+
+## Settings UX Patterns (Configuration UI)
+
+### Principes
+1. **Hiérarchie claire** : System > Module > Instance
+2. **Defaults intelligents** : Toujours une valeur par défaut sensée
+3. **Reset facile** : Bouton "Restore defaults" sur chaque section
+4. **Validation inline** : Feedback immédiat, pas de submit global
+5. **Preview live** : Les changements s'appliquent en temps réel
+
+### Composants Settings
+- `BkSettingsPanel` — Container principal avec navigation latérale
+- `BkSettingsSection` — Groupe de settings avec titre et description
+- `BkSettingsRow` — Ligne label + control + help text
+- `BkPreferenceToggle` — Toggle avec label inline et description
+- `BkConfigForm` — Formulaire de config avec validation schema
+
+### Structure recommandée
+```vue
+<BkSettingsPanel>
+  <BkSettingsSection title="General" description="...">
+    <BkSettingsRow label="Theme" help="Choose your color scheme">
+      <BkSelect v-model="theme" :options="themes" />
+    </BkSettingsRow>
+  </BkSettingsSection>
+</BkSettingsPanel>
+```
+
+### Règles Settings
+1. **Jamais de modal pour les settings** — Toujours panel latéral ou page dédiée
+2. **Grouper par domaine** — Pas plus de 5-7 options par section
+3. **Labels courts** — Max 3 mots, description en `help`
+4. **États sauvegardés** — Autosave avec debounce 500ms
+5. **Migration de préférences** — Versionner le schema des settings
 
 ## Rules
 

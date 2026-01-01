@@ -13,6 +13,7 @@ import {
   type CanvasElement,
   type TextElement,
   type Widget,
+  type ModuleContextMenuEvent,
   isDrawingTool,
   isTextElement,
   isShapeElement,
@@ -24,6 +25,8 @@ import {
   useTheme,
   type ContextMenuItem,
   type ContextMenuItemOrSeparator,
+  type MenuItem,
+  type MenuContent,
 } from '@boardkit/ui'
 import WidgetRenderer from './WidgetRenderer.vue'
 import CanvasElementsLayer from './CanvasElementsLayer.vue'
@@ -96,6 +99,12 @@ const contextMenu = ref({
   type: 'canvas' as ActionContextType | 'element',
   canvasPosition: { x: 0, y: 0 },
 })
+
+// Module-specific context menu data (combined with widget actions)
+const moduleContextMenuData = ref<{
+  groups: ModuleContextMenuEvent['groups']
+  onSelect: ModuleContextMenuEvent['onSelect']
+} | null>(null)
 
 const widgets = computed(() => boardStore.widgets)
 const elements = computed(() => boardStore.elements)
@@ -236,8 +245,12 @@ const buildActionContext = (
   return {
     selectedWidget: boardStore.selectedWidget,
     selectedWidgetId: boardStore.selectedWidgetId,
+    selectedWidgetIds: boardStore.selectedWidgetIds,
     selectedElement: boardStore.selectedElement,
     selectedElementId: boardStore.selectedElementId,
+    selectedElementIds: boardStore.selectedElementIds,
+    isMultiSelection: boardStore.isMultiSelection,
+    selectionCount: boardStore.selectedWidgetIds.length + boardStore.selectedElementIds.length,
     activeTool: toolStore.activeTool,
     viewport: boardStore.viewport,
     widgets: boardStore.widgets,
@@ -263,35 +276,186 @@ const screenToCanvas = (screenX: number, screenY: number) => {
   return { x: canvasX, y: canvasY }
 }
 
-// Build context menu items from actions
-const contextMenuItems = computed<ContextMenuItemOrSeparator[]>(() => {
+// Build context menu items from actions with submenus
+const contextMenuGroups = computed<MenuContent>(() => {
   const ctx = buildActionContext(contextMenu.value.canvasPosition)
   const contextType = contextMenu.value.type === 'element' ? 'widget' : contextMenu.value.type
   const actions = actionRegistry.getAvailable(ctx, { context: contextType as ActionContextType })
 
-  const items: ContextMenuItemOrSeparator[] = []
-  let lastGroup = ''
-
+  // Group actions by their group property
+  const groupedActions: Record<string, typeof actions> = {}
   for (const action of actions) {
-    if (lastGroup && action.group !== lastGroup) {
-      items.push({ separator: true })
+    if (!groupedActions[action.group]) {
+      groupedActions[action.group] = []
     }
-    lastGroup = action.group
+    groupedActions[action.group].push(action)
+  }
 
-    items.push({
+  const groups: MenuContent = []
+
+  // Add module-specific groups at the top if present
+  if (moduleContextMenuData.value) {
+    for (const moduleGroup of moduleContextMenuData.value.groups) {
+      groups.push({
+        label: moduleGroup.label,
+        items: moduleGroup.items.map(item => ({
+          id: `module:${item.id}`,
+          label: item.label,
+          icon: item.icon,
+          disabled: item.disabled,
+          destructive: item.destructive,
+        })),
+      })
+    }
+  }
+
+  // For canvas context: create "Add Widget" submenu
+  if (contextType === 'canvas' && groupedActions['board']) {
+    const addWidgetActions = groupedActions['board'].filter(a => a.id.startsWith('board.add-'))
+
+    // Create submenu for widgets
+    const widgetItems: MenuItem[] = addWidgetActions.map(action => ({
+      id: action.id,
+      label: action.title.replace('Add ', ''),
+      icon: moduleRegistry.get(action.id.replace('board.add-', ''))?.icon || 'plus',
+      disabled: action.when ? !action.when(ctx) : false,
+    }))
+
+    if (widgetItems.length > 0) {
+      groups.push({
+        items: [{
+          id: 'submenu-modules',
+          label: 'Add Module',
+          icon: 'plus',
+          children: widgetItems,
+        }],
+      })
+    }
+  }
+
+  // Add element actions (shapes, text) as a separate group
+  if (groupedActions['element']) {
+    const elementItems: MenuItem[] = groupedActions['element'].map(action => ({
       id: action.id,
       label: action.title,
       icon: action.icon,
       shortcut: action.shortcutHint,
       disabled: action.when ? !action.when(ctx) : false,
-    })
+    }))
+
+    if (elementItems.length > 0) {
+      groups.push({
+        label: contextType === 'canvas' ? 'Draw' : undefined,
+        items: elementItems,
+      })
+    }
   }
 
-  return items
+  // Add tool actions as a group
+  if (groupedActions['tool']) {
+    const toolItems: MenuItem[] = groupedActions['tool'].map(action => ({
+      id: action.id,
+      label: action.title,
+      icon: action.icon,
+      shortcut: action.shortcutHint,
+      disabled: action.when ? !action.when(ctx) : false,
+    }))
+
+    if (toolItems.length > 0) {
+      groups.push({
+        label: 'Tools',
+        items: toolItems,
+      })
+    }
+  }
+
+  // Widget-specific actions - organized into logical groups
+  if (groupedActions['widget']) {
+    const allWidgetActions = groupedActions['widget']
+
+    // Helper to create menu item from action
+    const toMenuItem = (action: typeof allWidgetActions[0]): MenuItem => ({
+      id: action.id,
+      label: action.title,
+      icon: action.icon,
+      shortcut: action.shortcutHint,
+      disabled: action.when ? !action.when(ctx) : false,
+      destructive: action.id.includes('delete'),
+    })
+
+    // Categorize actions
+    const editActions = allWidgetActions.filter(a =>
+      ['widget.duplicate', 'widget.bring-to-front'].includes(a.id)
+    )
+    const dataActions = allWidgetActions.filter(a =>
+      a.id.includes('data') || a.id.includes('connect')
+    )
+    const settingsActions = allWidgetActions.filter(a =>
+      a.id.includes('settings')
+    )
+    const deleteActions = allWidgetActions.filter(a =>
+      a.id.includes('delete')
+    )
+
+    // Edit actions group
+    if (editActions.length > 0) {
+      groups.push({
+        label: 'Edit',
+        items: editActions.map(toMenuItem),
+      })
+    }
+
+    // Data actions group
+    if (dataActions.length > 0) {
+      groups.push({
+        label: 'Data',
+        items: dataActions.map(toMenuItem),
+      })
+    }
+
+    // Settings group
+    if (settingsActions.length > 0) {
+      groups.push({
+        items: settingsActions.map(toMenuItem),
+      })
+    }
+
+    // Delete action (always last, destructive)
+    if (deleteActions.length > 0) {
+      groups.push({
+        items: deleteActions.map(toMenuItem),
+      })
+    }
+  }
+
+  // View actions
+  if (groupedActions['view']) {
+    const viewItems: MenuItem[] = groupedActions['view'].map(action => ({
+      id: action.id,
+      label: action.title,
+      icon: action.icon,
+      shortcut: action.shortcutHint,
+      disabled: action.when ? !action.when(ctx) : false,
+    }))
+
+    if (viewItems.length > 0) {
+      groups.push({ items: viewItems })
+    }
+  }
+
+  return groups
 })
 
 // Handle context menu item selection
-const handleContextMenuSelect = async (item: ContextMenuItem) => {
+const handleContextMenuSelect = async (item: MenuItem) => {
+  // Check if this is a module-specific action
+  if (item.id.startsWith('module:') && moduleContextMenuData.value) {
+    const moduleItemId = item.id.replace('module:', '')
+    await moduleContextMenuData.value.onSelect(moduleItemId)
+    return
+  }
+
+  // Otherwise, execute action from ActionRegistry
   const ctx = buildActionContext(contextMenu.value.canvasPosition)
   await actionRegistry.execute(item.id, ctx)
 }
@@ -335,6 +499,30 @@ const handleWidgetContextMenu = (widgetId: string, e: MouseEvent) => {
 
 const closeContextMenu = () => {
   contextMenu.value.open = false
+  moduleContextMenuData.value = null
+}
+
+// Handle module context menu event from WidgetRenderer
+const handleModuleContextMenu = (widgetId: string, event: ModuleContextMenuEvent) => {
+  // Select the widget if not already selected
+  if (!boardStore.isSelected('widget', widgetId)) {
+    boardStore.selectWidget(widgetId)
+  }
+
+  // Store module-specific menu data
+  moduleContextMenuData.value = {
+    groups: event.groups,
+    onSelect: event.onSelect,
+  }
+
+  // Open context menu as widget type (to get widget actions)
+  contextMenu.value = {
+    open: true,
+    x: event.x,
+    y: event.y,
+    type: 'widget',
+    canvasPosition: { x: 0, y: 0 },
+  }
 }
 
 // Keyboard shortcuts - routed through ActionRegistry
@@ -357,6 +545,13 @@ const { isSpacePressed } = useKeyboardShortcuts({
   },
   onCommandPalette: () => {
     emit('openCommandPalette')
+  },
+  onWidgetScaleChange: (delta: number) => {
+    const selectedId = selectedWidgetIds.value[0]
+    if (selectedId) {
+      const currentScale = boardStore.getWidgetScale(selectedId)
+      boardStore.updateWidgetScale(selectedId, currentScale + delta)
+    }
   },
 })
 
@@ -392,6 +587,7 @@ const handleCanvasMouseDown = (e: MouseEvent) => {
   // Middle mouse button OR Space + left click = pan
   if (e.button === 1 || (e.button === 0 && (isSpacePressed.value || activeTool.value === 'hand'))) {
     e.preventDefault()
+    closeContextMenu()
     isPanning.value = true
     panStart.value = { x: e.clientX, y: e.clientY }
     viewportStart.value = { x: viewport.value.x, y: viewport.value.y }
@@ -625,6 +821,7 @@ const handleWheel = (e: WheelEvent) => {
   }
 
   e.preventDefault()
+  closeContextMenu()
 
   if (e.ctrlKey || e.metaKey) {
     const delta = -e.deltaY * ZOOM_SENSITIVITY
@@ -807,6 +1004,18 @@ const handleElementEditStart = (id: string, type: 'text' | 'label') => {
   }, 0)
 }
 
+// Handle right-click on canvas element
+const handleElementContextMenu = (id: string, e: MouseEvent) => {
+  boardStore.selectElement(id)
+  contextMenu.value = {
+    open: true,
+    x: e.clientX,
+    y: e.clientY,
+    type: 'element',
+    canvasPosition: { x: 0, y: 0 },
+  }
+}
+
 const saveTextEdit = () => {
   if (!editingElementId.value) return
 
@@ -929,6 +1138,11 @@ const handleWidgetDelete = (id: string) => {
   boardStore.removeWidget(id)
 }
 
+const handleWidgetScaleChange = (id: string, delta: number) => {
+  const currentScale = boardStore.getWidgetScale(id)
+  boardStore.updateWidgetScale(id, currentScale + delta)
+}
+
 const handleWidgetDragStart = () => {
   closeContextMenu()
 }
@@ -1018,6 +1232,7 @@ onUnmounted(() => {
         @element-move-start="handleElementMoveStart"
         @element-resize-start="handleElementResizeStart"
         @element-edit-start="handleElementEditStart"
+        @element-context-menu="handleElementContextMenu"
       />
 
       <!-- Widgets layer -->
@@ -1031,6 +1246,8 @@ onUnmounted(() => {
         :width="widget.rect.width"
         :height="widget.rect.height"
         :z-index="widget.zIndex"
+        :zoom="viewport.zoom"
+        :scale="widget.scale ?? 1"
         :selected="selectedWidgetIds.includes(widget.id)"
         :is-multi-selected="isMultiSelection && selectedWidgetIds.includes(widget.id)"
         :is-dragging="draggingWidgetIds.includes(widget.id)"
@@ -1044,9 +1261,14 @@ onUnmounted(() => {
         @dragstart="handleWidgetDragStart"
         @move-start="handleWidgetMoveStart"
         @open-menu="handleWidgetOpenMenu"
+        @scale-change="handleWidgetScaleChange"
         @contextmenu.native="(e: MouseEvent) => handleWidgetContextMenu(widget.id, e)"
       >
-        <WidgetRenderer :widget-id="widget.id" :module-id="widget.moduleId" />
+        <WidgetRenderer
+          :widget-id="widget.id"
+          :module-id="widget.moduleId"
+          @module-context-menu="(event) => handleModuleContextMenu(widget.id, event)"
+        />
       </WidgetFrame>
     </div>
 
@@ -1084,7 +1306,7 @@ onUnmounted(() => {
       :open="contextMenu.open"
       :x="contextMenu.x"
       :y="contextMenu.y"
-      :items="contextMenuItems"
+      :groups="contextMenuGroups"
       @close="closeContextMenu"
       @select="handleContextMenuSelect"
     />

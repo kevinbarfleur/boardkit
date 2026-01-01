@@ -33,8 +33,12 @@ const toolStore = useToolStore()
 const actionContext = computed<ActionContext>(() => ({
   selectedWidget: boardStore.selectedWidget,
   selectedWidgetId: boardStore.selectedWidgetId,
+  selectedWidgetIds: boardStore.selectedWidgetIds,
   selectedElement: boardStore.selectedElement,
   selectedElementId: boardStore.selectedElementId,
+  selectedElementIds: boardStore.selectedElementIds,
+  isMultiSelection: boardStore.isMultiSelection,
+  selectionCount: boardStore.selectedWidgetIds.length + boardStore.selectedElementIds.length,
   activeTool: toolStore.activeTool,
   viewport: boardStore.viewport,
   widgets: boardStore.widgets,

@@ -27,5 +27,8 @@ export {
   defaultFocusLensSettings,
 } from './modules'
 
+// Custom configuration components
+export { StatsCardMetricsConfig, GoogleCalendarSetup } from './modules'
+
 // Components
 export { TiptapEditor } from './components'

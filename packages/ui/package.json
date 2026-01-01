@@ -16,8 +16,10 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
+    "@vuepic/vue-datepicker": "^12.1.0",
     "@vueuse/core": "^10.7.0",
     "lucide-vue-next": "^0.562.0",
+    "nanoid": "^5.0.4",
     "perfect-freehand": "^1.2.2",
     "roughjs": "^4.6.6",
     "vue": "^3.4.0"

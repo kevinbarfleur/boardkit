@@ -23,10 +23,18 @@ export interface ActionContext {
   selectedWidget: Widget | null
   /** ID of the selected widget */
   selectedWidgetId: string | null
+  /** All selected widget IDs (for multi-selection) */
+  selectedWidgetIds: string[]
   /** Currently selected element, if any */
   selectedElement: CanvasElement | null
   /** ID of the selected element */
   selectedElementId: string | null
+  /** All selected element IDs (for multi-selection) */
+  selectedElementIds: string[]
+  /** Whether multiple items are selected */
+  isMultiSelection: boolean
+  /** Total count of selected items (widgets + elements) */
+  selectionCount: number
   /** Current active tool */
   activeTool: ToolType
   /** Current viewport state */
