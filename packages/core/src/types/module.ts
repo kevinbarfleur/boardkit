@@ -75,6 +75,13 @@ export interface ModuleDefinition<TState = unknown> {
    * Settings are optional customizations for an already-functional module.
    */
   settingsSchema?: SettingsSchema
+
+  /**
+   * Custom Vue components used in configuration sections.
+   * Maps component names (used in configurationSchema) to actual Vue components.
+   * Required for modules using custom configuration UI.
+   */
+  configurationComponents?: Record<string, Component>
 }
 
 /**

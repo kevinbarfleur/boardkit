@@ -91,6 +91,23 @@ export const useBoardStore = defineStore('board', () => {
   const moduleStates = computed(() => document.value?.modules ?? {})
   const title = computed(() => document.value?.meta.title ?? '')
 
+  /**
+   * Orphan widgets - widgets whose module is not registered.
+   * This can happen when a document contains widgets from plugins that aren't installed.
+   */
+  const orphanWidgets = computed(() => {
+    return widgets.value.filter((w) => !moduleRegistry.get(w.moduleId))
+  })
+
+  /** Whether there are any orphan widgets */
+  const hasOrphanWidgets = computed(() => orphanWidgets.value.length > 0)
+
+  /** Unique module IDs of orphan widgets */
+  const orphanModuleIds = computed(() => {
+    const ids = new Set(orphanWidgets.value.map((w) => w.moduleId))
+    return Array.from(ids)
+  })
+
   // Data Sharing Getters
   const dataSharing = computed(
     (): DataSharingState => document.value?.dataSharing ?? createEmptyDataSharingState()
@@ -350,6 +367,41 @@ export const useBoardStore = defineStore('board', () => {
       clearSelection()
     }
     markDirty(`Deleted ${moduleName}`)
+  }
+
+  /**
+   * Remove all orphan widgets (widgets whose module is not registered).
+   * This is typically used when loading a document that contains widgets
+   * from plugins that aren't installed.
+   */
+  function removeOrphanWidgets() {
+    if (!document.value) return
+
+    const orphans = orphanWidgets.value
+    if (orphans.length === 0) return
+
+    // Capture snapshot BEFORE mutation for undo
+    captureHistorySnapshot(`Removed ${orphans.length} orphan widget${orphans.length > 1 ? 's' : ''}`)
+
+    // Remove widgets in reverse order to avoid index shifting issues
+    for (const widget of orphans) {
+      // Clean up data sharing
+      cleanupWidgetDataSharing(widget.id)
+
+      // Remove from selection if selected
+      if (selection.value.some((s) => s.type === 'widget' && s.id === widget.id)) {
+        selection.value = selection.value.filter((s) => !(s.type === 'widget' && s.id === widget.id))
+      }
+
+      // Remove widget and its state
+      const index = document.value!.board.widgets.findIndex((w) => w.id === widget.id)
+      if (index !== -1) {
+        document.value!.board.widgets.splice(index, 1)
+        delete document.value!.modules[widget.id]
+      }
+    }
+
+    markDirty(`Removed ${orphans.length} orphan widget${orphans.length > 1 ? 's' : ''}`)
   }
 
   /**
@@ -1385,6 +1437,9 @@ export const useBoardStore = defineStore('board', () => {
     background,
     moduleStates,
     title,
+    orphanWidgets,
+    hasOrphanWidgets,
+    orphanModuleIds,
 
     // Getters - Selection
     selectedItems,
@@ -1415,6 +1470,7 @@ export const useBoardStore = defineStore('board', () => {
     // Actions - Widget
     addWidget,
     removeWidget,
+    removeOrphanWidgets,
     removeSelection,
     moveWidget,
     resizeWidget,

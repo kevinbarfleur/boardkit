@@ -1,11 +1,21 @@
+import { ref, type Ref } from 'vue'
 import type { ModuleDefinition } from '../types/module'
 
 /**
  * Registry for all available modules.
  * Modules must be registered before they can be used.
+ *
+ * The registry is reactive - Vue components can watch for changes
+ * using the `version` ref which increments on any mutation.
  */
 class ModuleRegistry {
   private modules: Map<string, ModuleDefinition> = new Map()
+
+  /**
+   * Reactive version counter - increments on any registry change.
+   * Use this in computed properties to react to registry changes.
+   */
+  readonly version: Ref<number> = ref(0)
 
   /**
    * Register a module with the registry.
@@ -16,6 +26,7 @@ class ModuleRegistry {
       throw new Error(`Module "${module.moduleId}" is already registered`)
     }
     this.modules.set(module.moduleId, module as ModuleDefinition)
+    this.version.value++
   }
 
   /**
@@ -52,7 +63,11 @@ class ModuleRegistry {
    * @returns true if the module was unregistered, false if it wasn't registered
    */
   unregister(moduleId: string): boolean {
-    return this.modules.delete(moduleId)
+    const result = this.modules.delete(moduleId)
+    if (result) {
+      this.version.value++
+    }
+    return result
   }
 
   /**
@@ -60,6 +75,7 @@ class ModuleRegistry {
    */
   clear(): void {
     this.modules.clear()
+    this.version.value++
   }
 }
 

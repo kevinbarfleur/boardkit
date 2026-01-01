@@ -18,7 +18,12 @@ const emit = defineEmits<{
 const boardStore = useBoardStore()
 const { openForWidget } = useSettingsPanel()
 
-const moduleDef = computed(() => moduleRegistry.get(props.moduleId))
+// Access moduleRegistry.version to make this computed reactive to registry changes
+// (e.g., when a plugin is disabled/uninstalled)
+const moduleDef = computed(() => {
+  moduleRegistry.version.value // trigger reactivity
+  return moduleRegistry.get(props.moduleId)
+})
 
 const moduleState = computed(() => {
   return boardStore.getModuleState(props.widgetId)

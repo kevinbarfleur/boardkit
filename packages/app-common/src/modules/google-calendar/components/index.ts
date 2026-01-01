@@ -1,5 +1,0 @@
-export { default as EventItem } from './EventItem.vue'
-export { default as EmptyState } from './EmptyState.vue'
-export { default as GoogleCalendarSetup } from './GoogleCalendarSetup.vue'
-export { default as EventDetailsPopover } from './EventDetailsPopover.vue'
-export { default as MeetingReminderModal } from './MeetingReminderModal.vue'

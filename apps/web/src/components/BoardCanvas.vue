@@ -4,6 +4,7 @@ import {
   useBoardStore,
   useToolStore,
   moduleRegistry,
+  pluginManager,
   useKeyboardShortcuts,
   actionRegistry,
   FONT_FAMILY_CSS,
@@ -27,11 +28,13 @@ import {
   type ContextMenuItemOrSeparator,
   type MenuItem,
   type MenuContent,
+  type MenuGroup,
 } from '@boardkit/ui'
 import WidgetRenderer from './WidgetRenderer.vue'
 import CanvasElementsLayer from './CanvasElementsLayer.vue'
 import ToolToolbar from './ToolToolbar.vue'
 import { useDataSharingUI } from '../composables/useDataSharingUI'
+import { useSettingsPanel } from '../composables/useSettingsPanel'
 
 const emit = defineEmits<{
   openCommandPalette: []
@@ -40,6 +43,7 @@ const emit = defineEmits<{
 const boardStore = useBoardStore()
 const toolStore = useToolStore()
 const dataSharingUI = useDataSharingUI()
+const { openAppSettings } = useSettingsPanel()
 const { theme } = useTheme()
 
 // Grid color based on theme (white for dark, black for light)
@@ -276,10 +280,45 @@ const screenToCanvas = (screenX: number, screenY: number) => {
   return { x: canvasX, y: canvasY }
 }
 
+// Check if the selected widget has a missing module (Not Found state)
+const isWidgetModuleMissing = computed(() => {
+  if (contextMenu.value.type !== 'widget') return false
+  const widget = boardStore.selectedWidget
+  if (!widget) return false
+  return !moduleRegistry.has(widget.moduleId)
+})
+
 // Build context menu items from actions with submenus
 const contextMenuGroups = computed<MenuContent>(() => {
   const ctx = buildActionContext(contextMenu.value.canvasPosition)
   const contextType = contextMenu.value.type === 'element' ? 'widget' : contextMenu.value.type
+
+  // Special case: widget with missing module (Not Found state)
+  // Only show "Install plugin" and "Delete" options
+  if (isWidgetModuleMissing.value) {
+    return [
+      {
+        items: [
+          {
+            id: 'orphan.install-plugin',
+            label: 'Install Plugin',
+            icon: 'puzzle',
+          },
+        ],
+      },
+      {
+        items: [
+          {
+            id: 'widget.delete',
+            label: 'Delete',
+            icon: 'trash-2',
+            destructive: true,
+          },
+        ],
+      },
+    ]
+  }
+
   const actions = actionRegistry.getAvailable(ctx, { context: contextType as ActionContextType })
 
   // Group actions by their group property
@@ -309,25 +348,47 @@ const contextMenuGroups = computed<MenuContent>(() => {
     }
   }
 
-  // For canvas context: create "Add Widget" submenu
+  // For canvas context: create "Add Widget" submenu with core/plugins separation
   if (contextType === 'canvas' && groupedActions['board']) {
     const addWidgetActions = groupedActions['board'].filter(a => a.id.startsWith('board.add-'))
 
-    // Create submenu for widgets
-    const widgetItems: MenuItem[] = addWidgetActions.map(action => ({
-      id: action.id,
-      label: action.title.replace('Add ', ''),
-      icon: moduleRegistry.get(action.id.replace('board.add-', ''))?.icon || 'plus',
-      disabled: action.when ? !action.when(ctx) : false,
-    }))
+    // Separate core modules from plugins
+    const coreItems: MenuItem[] = []
+    const pluginItems: MenuItem[] = []
 
-    if (widgetItems.length > 0) {
+    for (const action of addWidgetActions) {
+      const moduleId = action.id.replace('board.add-', '')
+      const menuItem: MenuItem = {
+        id: action.id,
+        label: action.title.replace('Add ', ''),
+        icon: moduleRegistry.get(moduleId)?.icon || 'plus',
+        disabled: action.when ? !action.when(ctx) : false,
+      }
+
+      // Check if this module comes from an installed plugin
+      if (pluginManager.isInstalled(moduleId)) {
+        pluginItems.push(menuItem)
+      } else {
+        coreItems.push(menuItem)
+      }
+    }
+
+    // Build submenu children with groups (separators between core and plugins)
+    const submenuGroups: MenuGroup[] = []
+    if (coreItems.length > 0) {
+      submenuGroups.push({ items: coreItems })
+    }
+    if (pluginItems.length > 0) {
+      submenuGroups.push({ label: 'Plugins', items: pluginItems })
+    }
+
+    if (submenuGroups.length > 0) {
       groups.push({
         items: [{
           id: 'submenu-modules',
           label: 'Add Module',
           icon: 'plus',
-          children: widgetItems,
+          children: submenuGroups,
         }],
       })
     }
@@ -452,6 +513,12 @@ const handleContextMenuSelect = async (item: MenuItem) => {
   if (item.id.startsWith('module:') && moduleContextMenuData.value) {
     const moduleItemId = item.id.replace('module:', '')
     await moduleContextMenuData.value.onSelect(moduleItemId)
+    return
+  }
+
+  // Handle orphan widget actions (Not Found state)
+  if (item.id === 'orphan.install-plugin') {
+    openAppSettings('plugins')
     return
   }
 

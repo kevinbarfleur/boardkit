@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
-import { useBoardStore, registerCoreActions, type BoardkitDocument } from '@boardkit/core'
-import { useTheme, BkModalProvider, BkToastProvider } from '@boardkit/ui'
+import { useBoardStore, registerCoreActions, pluginManager, type BoardkitDocument } from '@boardkit/core'
+import { useTheme, useToast, BkModalProvider, BkToastProvider } from '@boardkit/ui'
 import { registerModules } from './modules'
 import { registerDesktopActions } from './actions/desktopActions'
 import { usePersistence } from './composables/usePersistence'
@@ -20,9 +20,13 @@ registerModules()
 
 const boardStore = useBoardStore()
 const { initTheme } = useTheme()
+const toaster = useToast()
 const persistence = usePersistence()
 const vault = useVault()
 const { openAppSettings } = useSettingsPanel()
+
+// Track if we've already shown orphan widget notification for this session
+const shownOrphanNotification = ref<string | null>(null)
 
 const isCommandPaletteOpen = ref(false)
 const sidebarCollapsed = ref(false)
@@ -213,7 +217,40 @@ onMounted(async () => {
       toggleSidebarCollapse()
     })
   )
+
+  // Initialize plugin manager (loads enabled plugins)
+  await pluginManager.initialize()
 })
+
+// Watch for orphan widgets and show notification
+watch(
+  () => boardStore.hasOrphanWidgets,
+  (hasOrphans) => {
+    const currentPath = persistence.currentFilePath.value
+
+    // Only show notification once per document session
+    if (hasOrphans && currentPath && shownOrphanNotification.value !== currentPath) {
+      shownOrphanNotification.value = currentPath
+
+      const orphanCount = boardStore.orphanWidgets.length
+      const moduleIds = boardStore.orphanModuleIds
+
+      // Show toast with action to open settings
+      toaster.warning(
+        `${orphanCount} widget${orphanCount > 1 ? 's' : ''} use${orphanCount === 1 ? 's' : ''} uninstalled plugins: ${moduleIds.join(', ')}`,
+        {
+          title: 'Missing plugins detected',
+          duration: 10000,
+          action: {
+            label: 'Install plugins',
+            onClick: () => openAppSettings('plugins'),
+          },
+        }
+      )
+    }
+  },
+  { immediate: true }
+)
 
 onUnmounted(() => {
   // Stop file watching

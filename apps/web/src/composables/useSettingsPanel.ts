@@ -36,8 +36,8 @@ export function useSettingsPanel() {
     }
   }
 
-  const openAppSettings = () => {
-    state.value = { open: true, mode: 'app', widgetId: null, initialTab: null }
+  const openAppSettings = (tab?: string) => {
+    state.value = { open: true, mode: 'app', widgetId: null, initialTab: tab ?? null }
   }
 
   const close = () => {

@@ -4,5 +4,4 @@ export {
   TextModule,
   TodoModule,
   TaskRadarModule,
-  FocusLensModule,
 } from '@boardkit/app-common'
