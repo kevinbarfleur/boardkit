@@ -102,3 +102,6 @@ export {
   getSecretsVault,
   isSecretsVaultInitialized,
 } from './services'
+
+// Plugin System
+export * from './plugins'

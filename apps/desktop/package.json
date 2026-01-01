@@ -16,6 +16,7 @@
     "@boardkit/app-common": "workspace:*",
     "@boardkit/core": "workspace:*",
     "@boardkit/platform": "workspace:*",
+    "@boardkit/plugin-api": "workspace:*",
     "@boardkit/ui": "workspace:*",
     "@tauri-apps/api": "^2.0.0",
     "@tauri-apps/plugin-dialog": "^2.4.2",

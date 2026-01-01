@@ -13,6 +13,7 @@
     "@boardkit/app-common": "workspace:*",
     "@boardkit/core": "workspace:*",
     "@boardkit/platform": "workspace:*",
+    "@boardkit/plugin-api": "workspace:*",
     "@boardkit/ui": "workspace:*",
     "@vueuse/core": "^10.7.0",
     "jszip": "^3.10.1",

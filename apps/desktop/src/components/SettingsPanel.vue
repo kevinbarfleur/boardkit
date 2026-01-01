@@ -1,14 +1,11 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import {
   useBoardStore,
   moduleRegistry,
   useConfigurationProviders,
   isModuleConfigured,
   DEFAULT_WIDGET_VISIBILITY,
-  MIN_WIDGET_SCALE,
-  MAX_WIDGET_SCALE,
-  DEFAULT_WIDGET_SCALE,
   type WidgetVisibilityMode,
   type ModuleContext,
 } from '@boardkit/core'
@@ -18,21 +15,74 @@ import {
   BkIcon,
   BkToggle,
   BkSelect,
-  BkSlider,
   BkButtonGroup,
   BkFormRow,
   BkFormSection,
   BkModuleSettingsPanel,
+  BkPluginSettings,
+  BkTabs,
   useTheme,
   type ConfigPanelProvider,
+  type BkTab,
 } from '@boardkit/ui'
-import { StatsCardMetricsConfig, GoogleCalendarSetup } from '@boardkit/app-common'
+import { usePlugins } from '@boardkit/app-common'
 
 const boardStore = useBoardStore()
 const { isOpen, widgetId, initialTab, isAppSettings, close } = useSettingsPanel()
 const { getAllProviders, extractContractIdsFromSchema } = useConfigurationProviders()
 const vault = useVault()
 const { theme, setTheme } = useTheme()
+
+// Plugins
+const {
+  plugins,
+  loading: pluginsLoading,
+  installPlugin,
+  togglePlugin,
+  uninstallPlugin,
+  updatePlugin,
+  checkForUpdates,
+} = usePlugins()
+
+// App Settings Tabs
+const appSettingsTab = ref<'general' | 'plugins'>('general')
+
+const appSettingsTabs: BkTab[] = [
+  { id: 'general', label: 'General', icon: 'settings' },
+  { id: 'plugins', label: 'Plugins', icon: 'puzzle' },
+]
+
+// Sync appSettingsTab with initialTab when opening app settings
+watch(
+  () => [isOpen.value, isAppSettings.value, initialTab.value] as const,
+  ([open, isApp, tab]) => {
+    if (open && isApp && tab && (tab === 'general' || tab === 'plugins')) {
+      appSettingsTab.value = tab
+    }
+  },
+  { immediate: true }
+)
+
+// Plugin handlers
+function handlePluginInstall(url: string) {
+  installPlugin(url)
+}
+
+function handlePluginToggle(pluginId: string, enabled: boolean) {
+  togglePlugin(pluginId, enabled)
+}
+
+function handlePluginUpdate(pluginId: string) {
+  updatePlugin(pluginId)
+}
+
+function handlePluginUninstall(pluginId: string) {
+  uninstallPlugin(pluginId)
+}
+
+function handleCheckUpdates() {
+  checkForUpdates()
+}
 
 // =============================================================================
 // App Settings
@@ -114,12 +164,14 @@ function handleSettingsUpdate(key: string, value: unknown) {
 
 // =============================================================================
 // Custom Configuration Components
+// Retrieved from the module definition (supports both core modules and plugins)
 // =============================================================================
 
-const customComponents: Record<string, unknown> = {
-  StatsCardMetricsConfig,
-  GoogleCalendarSetup,
-}
+const customComponents = computed<Record<string, unknown>>(() => {
+  if (!moduleType.value) return {}
+  const moduleDef = moduleRegistry.get(moduleType.value)
+  return moduleDef?.configurationComponents ?? {}
+})
 
 // Construct module context for custom components that need full context access
 const moduleContext = computed<ModuleContext | null>(() => {
@@ -255,18 +307,6 @@ function updateWidgetVisibility(updates: {
 }
 
 // =============================================================================
-// Widget Scale
-// =============================================================================
-
-const widgetScale = computed(() => widget.value?.scale ?? DEFAULT_WIDGET_SCALE)
-const scalePercentage = computed(() => Math.round(widgetScale.value * 100))
-
-function updateWidgetScale(scale: number) {
-  if (!widgetId.value) return
-  boardStore.updateWidgetScale(widgetId.value, scale)
-}
-
-// =============================================================================
 // Options
 // =============================================================================
 
@@ -311,45 +351,70 @@ const visibilityOptions = [
         </button>
       </div>
 
+      <!-- Tabs -->
+      <div class="border-b border-border px-4">
+        <BkTabs
+          v-model="appSettingsTab"
+          :tabs="appSettingsTabs"
+          size="sm"
+        />
+      </div>
+
       <!-- Scrollable Content -->
       <div class="flex-1 overflow-y-auto p-4 space-y-4">
-        <!-- Vault Section -->
-        <BkFormSection title="Vault">
-          <div class="p-3">
-            <div class="flex items-center gap-3 mb-3">
-              <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
-                <BkIcon icon="folder" :size="16" class="text-primary" />
+        <!-- General Tab -->
+        <template v-if="appSettingsTab === 'general'">
+          <!-- Vault Section -->
+          <BkFormSection title="Vault">
+            <div class="p-3">
+              <div class="flex items-center gap-3 mb-3">
+                <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+                  <BkIcon icon="folder" :size="16" class="text-primary" />
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-medium text-foreground truncate">
+                    {{ vault.vaultName.value || 'No vault' }}
+                  </p>
+                  <p class="text-xs text-muted-foreground truncate">
+                    {{ vault.vaultPath.value || 'Not configured' }}
+                  </p>
+                </div>
               </div>
-              <div class="flex-1 min-w-0">
-                <p class="text-sm font-medium text-foreground truncate">
-                  {{ vault.vaultName.value || 'No vault' }}
-                </p>
-                <p class="text-xs text-muted-foreground truncate">
-                  {{ vault.vaultPath.value || 'Not configured' }}
-                </p>
-              </div>
+              <button
+                class="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm rounded-lg border border-border hover:bg-accent transition-colors"
+                @click="handleChangeVault"
+              >
+                <BkIcon icon="folder" :size="14" />
+                Change vault
+              </button>
             </div>
-            <button
-              class="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm rounded-lg border border-border hover:bg-accent transition-colors"
-              @click="handleChangeVault"
-            >
-              <BkIcon icon="folder" :size="14" />
-              Change vault
-            </button>
-          </div>
-        </BkFormSection>
+          </BkFormSection>
 
-        <!-- Appearance Section -->
-        <BkFormSection title="Appearance">
-          <BkFormRow label="Theme" icon="palette" layout="stacked">
-            <BkButtonGroup
-              :model-value="theme"
-              :options="themeOptions"
-              full-width
-              @update:model-value="(v) => setTheme(v as 'light' | 'dark' | 'system')"
-            />
-          </BkFormRow>
-        </BkFormSection>
+          <!-- Appearance Section -->
+          <BkFormSection title="Appearance">
+            <BkFormRow label="Theme" icon="palette" layout="stacked">
+              <BkButtonGroup
+                :model-value="theme"
+                :options="themeOptions"
+                full-width
+                @update:model-value="(v) => setTheme(v as 'light' | 'dark' | 'system')"
+              />
+            </BkFormRow>
+          </BkFormSection>
+        </template>
+
+        <!-- Plugins Tab -->
+        <template v-else-if="appSettingsTab === 'plugins'">
+          <BkPluginSettings
+            :plugins="plugins"
+            :loading="pluginsLoading"
+            @install="handlePluginInstall"
+            @toggle="handlePluginToggle"
+            @update="handlePluginUpdate"
+            @uninstall="handlePluginUninstall"
+            @check-updates="handleCheckUpdates"
+          />
+        </template>
       </div>
 
       <!-- Footer -->
@@ -436,29 +501,8 @@ const visibilityOptions = [
         </div>
       </div>
 
-      <!-- Footer with visibility and scale settings -->
-      <div class="shrink-0 border-t border-border overflow-hidden">
-        <!-- Scale Control -->
-        <div class="p-3 pb-2 border-b border-border/50">
-          <div class="flex items-center gap-2 mb-2">
-            <BkIcon icon="zoom-in" :size="12" class="text-muted-foreground" />
-            <span class="text-xs text-muted-foreground">Scale</span>
-          </div>
-          <div class="flex items-center gap-3">
-            <BkSlider
-              :model-value="widgetScale"
-              :min="MIN_WIDGET_SCALE"
-              :max="MAX_WIDGET_SCALE"
-              :step="0.1"
-              class="flex-1"
-              @update:model-value="updateWidgetScale"
-            />
-            <span class="text-xs text-muted-foreground w-10 text-right tabular-nums">
-              {{ scalePercentage }}%
-            </span>
-          </div>
-        </div>
-
+      <!-- Footer with visibility settings -->
+      <div class="shrink-0 border-t border-border">
         <!-- Visibility Controls -->
         <div class="p-3 space-y-3">
           <div class="flex items-center gap-2">

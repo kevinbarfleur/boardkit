@@ -1,12 +1,15 @@
 // Main entry point for @boardkit/app-common
 
-// Modules
+// Modules (core only - plugins are installed separately)
 export {
   registerModules,
   TextModule,
   TodoModule,
   TaskRadarModule,
-  FocusLensModule,
+  ScratchpadModule,
+  CounterModule,
+  TimerModule,
+  KanbanModule,
 } from './modules'
 
 // Module types
@@ -16,7 +19,13 @@ export type {
   TodoItem,
   TodoPriority,
   TaskRadarState,
-  FocusLensState,
+  ScratchpadState,
+  CounterState,
+  TimerState,
+  TimerSession,
+  KanbanState,
+  KanbanItem,
+  KanbanColumn,
 } from './modules'
 
 // Default settings
@@ -24,11 +33,15 @@ export {
   defaultTextSettings,
   defaultTodoSettings,
   defaultTaskRadarSettings,
-  defaultFocusLensSettings,
+  defaultScratchpadSettings,
+  defaultCounterSettings,
+  defaultTimerSettings,
+  defaultKanbanSettings,
+  defaultKanbanColumns,
 } from './modules'
-
-// Custom configuration components
-export { StatsCardMetricsConfig, GoogleCalendarSetup } from './modules'
 
 // Components
 export { TiptapEditor } from './components'
+
+// Composables
+export { usePlugins } from './composables/usePlugins'

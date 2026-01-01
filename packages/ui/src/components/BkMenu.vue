@@ -10,8 +10,9 @@ export interface MenuItem {
   shortcut?: string
   disabled?: boolean
   destructive?: boolean
-  /** Submenu items - if present, this item opens a submenu on hover */
-  children?: MenuItem[]
+  /** Submenu items - if present, this item opens a submenu on hover.
+   * Can be a simple list of items or grouped content with separators. */
+  children?: MenuItem[] | MenuGroup[]
 }
 
 export interface MenuGroup {
@@ -126,14 +127,23 @@ const setItemRef = (id: string, el: HTMLElement | null) => {
   }
 }
 
-// Find item with children by id
-const getSubmenuChildren = computed(() => {
+// Helper to check if children are grouped (MenuGroup[]) vs flat (MenuItem[])
+const isGroupedChildren = (children: MenuItem[] | MenuGroup[]): children is MenuGroup[] => {
+  return children.length > 0 && 'items' in children[0]
+}
+
+// Find item with children by id and normalize to MenuContent format
+const getSubmenuGroups = computed<MenuContent>(() => {
   if (!openSubmenuId.value) return []
 
   for (const group of props.groups) {
     const item = group.items.find(i => i.id === openSubmenuId.value)
     if (item?.children) {
-      return item.children
+      // If children are already grouped, use as-is; otherwise wrap in single group
+      if (isGroupedChildren(item.children)) {
+        return item.children
+      }
+      return [{ items: item.children }]
     }
   }
   return []
@@ -223,7 +233,7 @@ const getSubmenuChildren = computed(() => {
       leave-to-class="opacity-0 scale-95"
     >
       <div
-        v-if="openSubmenuId && getSubmenuChildren.length > 0"
+        v-if="openSubmenuId && getSubmenuGroups.length > 0"
         class="absolute z-10"
         :style="{
           top: `${submenuPosition.top}px`,
@@ -233,7 +243,7 @@ const getSubmenuChildren = computed(() => {
         @mouseleave="closeSubmenu"
       >
         <BkMenu
-          :groups="[{ items: getSubmenuChildren }]"
+          :groups="getSubmenuGroups"
           :min-width="minWidth"
           :preferred-side="submenuPosition.side"
           :depth="depth + 1"

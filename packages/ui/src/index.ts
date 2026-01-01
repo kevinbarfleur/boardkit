@@ -55,6 +55,12 @@ export { default as BkSchemaForm } from './components/BkSchemaForm.vue'
 // Modal Components
 export { default as BkModalProvider } from './components/BkModalProvider.vue'
 export { default as BkFormModal } from './components/BkFormModal.vue'
+export { default as BkFullScreenAlert } from './components/BkFullScreenAlert.vue'
+
+// Plugin Components
+export { default as BkPluginCard } from './components/BkPluginCard.vue'
+export type { PluginInfo } from './components/BkPluginCard.vue'
+export { default as BkPluginSettings } from './components/BkPluginSettings.vue'
 
 // Toast Components
 export { default as BkToastProvider } from './components/BkToastProvider.vue'
