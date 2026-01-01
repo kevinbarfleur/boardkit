@@ -563,6 +563,12 @@ const canvasCursor = computed(() => {
   return ''
 })
 
+// Navigation mode: when active, widgets should not receive pointer events
+// This allows canvas to handle all mouse interactions for panning
+const isNavigationMode = computed(() => {
+  return isPanning.value || isSpacePressed.value || activeTool.value === 'hand'
+})
+
 // Handle canvas click
 const handleCanvasClick = (e: MouseEvent) => {
   // Skip clearing selection if we just finished a marquee selection
@@ -816,8 +822,13 @@ const isInsideScrollableContainer = (element: HTMLElement): boolean => {
 
 const handleWheel = (e: WheelEvent) => {
   const target = e.target as HTMLElement
-  if (!e.ctrlKey && !e.metaKey && isInsideScrollableContainer(target)) {
-    return
+
+  // Pan mode is MODAL: when active, ignore scrollable containers
+  // This includes: Space key held, Hand tool selected, or middle-click panning
+  const isInPanMode = isSpacePressed.value || activeTool.value === 'hand' || isPanning.value
+
+  if (!e.ctrlKey && !e.metaKey && !isInPanMode && isInsideScrollableContainer(target)) {
+    return // Allow widget scroll only when NOT in pan mode
   }
 
   e.preventDefault()
@@ -1235,41 +1246,46 @@ onUnmounted(() => {
         @element-context-menu="handleElementContextMenu"
       />
 
-      <!-- Widgets layer -->
-      <WidgetFrame
-        v-for="widget in widgets"
-        :key="widget.id"
-        :id="widget.id"
-        :title="getModuleDisplayName(widget.moduleId)"
-        :x="widget.rect.x"
-        :y="widget.rect.y"
-        :width="widget.rect.width"
-        :height="widget.rect.height"
-        :z-index="widget.zIndex"
-        :zoom="viewport.zoom"
-        :scale="widget.scale ?? 1"
-        :selected="selectedWidgetIds.includes(widget.id)"
-        :is-multi-selected="isMultiSelection && selectedWidgetIds.includes(widget.id)"
-        :is-dragging="draggingWidgetIds.includes(widget.id)"
-        :drag-offset="draggingWidgetIds.includes(widget.id) ? dragOffset : { x: 0, y: 0 }"
-        :rest-mode="getWidgetVisibility(widget).restMode"
-        :hover-mode="getWidgetVisibility(widget).hoverMode"
-        @select="(id, event) => handleWidgetSelect(id, event)"
-        @move="handleWidgetMove"
-        @resize="handleWidgetResize"
-        @delete="handleWidgetDelete"
-        @dragstart="handleWidgetDragStart"
-        @move-start="handleWidgetMoveStart"
-        @open-menu="handleWidgetOpenMenu"
-        @scale-change="handleWidgetScaleChange"
-        @contextmenu.native="(e: MouseEvent) => handleWidgetContextMenu(widget.id, e)"
+      <!-- Widgets layer - pointer-events disabled during navigation mode -->
+      <div
+        class="widgets-layer"
+        :class="{ 'navigation-mode': isNavigationMode }"
       >
-        <WidgetRenderer
-          :widget-id="widget.id"
-          :module-id="widget.moduleId"
-          @module-context-menu="(event) => handleModuleContextMenu(widget.id, event)"
-        />
-      </WidgetFrame>
+        <WidgetFrame
+          v-for="widget in widgets"
+          :key="widget.id"
+          :id="widget.id"
+          :title="getModuleDisplayName(widget.moduleId)"
+          :x="widget.rect.x"
+          :y="widget.rect.y"
+          :width="widget.rect.width"
+          :height="widget.rect.height"
+          :z-index="widget.zIndex"
+          :zoom="viewport.zoom"
+          :scale="widget.scale ?? 1"
+          :selected="selectedWidgetIds.includes(widget.id)"
+          :is-multi-selected="isMultiSelection && selectedWidgetIds.includes(widget.id)"
+          :is-dragging="draggingWidgetIds.includes(widget.id)"
+          :drag-offset="draggingWidgetIds.includes(widget.id) ? dragOffset : { x: 0, y: 0 }"
+          :rest-mode="getWidgetVisibility(widget).restMode"
+          :hover-mode="getWidgetVisibility(widget).hoverMode"
+          @select="(id, event) => handleWidgetSelect(id, event)"
+          @move="handleWidgetMove"
+          @resize="handleWidgetResize"
+          @delete="handleWidgetDelete"
+          @dragstart="handleWidgetDragStart"
+          @move-start="handleWidgetMoveStart"
+          @open-menu="handleWidgetOpenMenu"
+          @scale-change="handleWidgetScaleChange"
+          @contextmenu.native="(e: MouseEvent) => handleWidgetContextMenu(widget.id, e)"
+        >
+          <WidgetRenderer
+            :widget-id="widget.id"
+            :module-id="widget.moduleId"
+            @module-context-menu="(event) => handleModuleContextMenu(widget.id, event)"
+          />
+        </WidgetFrame>
+      </div>
     </div>
 
     <!-- Tool Toolbar -->
@@ -1334,6 +1350,22 @@ onUnmounted(() => {
 
 .canvas-background {
   /* Background pattern applied via inline style */
+}
+
+/* Widgets layer - allows disabling pointer events during navigation */
+.widgets-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.widgets-layer > * {
+  pointer-events: auto;
+}
+
+/* Navigation mode: disable all widget interactions for seamless panning */
+.widgets-layer.navigation-mode > * {
+  pointer-events: none;
 }
 
 .cursor-crosshair {

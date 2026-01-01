@@ -127,6 +127,9 @@ const tools: Array<{
 
 function selectTool(tool: ToolType) {
   toolStore.setTool(tool)
+  // Blur the button to prevent space key conflicts
+  // (space should pan the canvas, not re-activate the focused button)
+  ;(document.activeElement as HTMLElement)?.blur()
 }
 
 function getShortcut(tool: ToolType): string {

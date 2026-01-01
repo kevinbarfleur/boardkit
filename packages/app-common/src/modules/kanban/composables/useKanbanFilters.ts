@@ -46,10 +46,10 @@ export function useKanbanFilters(items: Ref<KanbanItem[]>) {
       result = result.filter((item) => item.priority === filterPriority.value)
     }
 
-    // Tag filter (item must have ALL selected tags)
+    // Tag filter (item must have AT LEAST ONE selected tag - OR logic)
     if (filterTags.value.length > 0) {
       result = result.filter((item) =>
-        filterTags.value.every((tag) => (item.tags ?? []).includes(tag))
+        filterTags.value.some((tag) => (item.tags ?? []).includes(tag))
       )
     }
 
@@ -92,6 +92,13 @@ export function useKanbanFilters(items: Ref<KanbanItem[]>) {
   }
 
   /**
+   * Set filter tags directly (for multi-select)
+   */
+  function setFilterTags(tags: string[]) {
+    filterTags.value = tags
+  }
+
+  /**
    * Clear all filters
    */
   function clearFilters() {
@@ -113,6 +120,7 @@ export function useKanbanFilters(items: Ref<KanbanItem[]>) {
     setSearchQuery,
     setFilterPriority,
     toggleTagFilter,
+    setFilterTags,
     clearFilters,
   }
 }

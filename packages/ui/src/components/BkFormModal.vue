@@ -5,7 +5,7 @@
  * A modal dialog that renders a form based on a SettingsField schema.
  * Used internally by BkModalProvider.
  */
-import { computed } from 'vue'
+import { computed, watch, onUnmounted } from 'vue'
 import type { ModalConfig } from '../types/modal'
 import BkButton from './BkButton.vue'
 import BkIcon from './BkIcon.vue'
@@ -63,6 +63,19 @@ function handleKeydown(e: KeyboardEvent) {
     handleSubmit()
   }
 }
+
+// Scroll lock when modal is open
+watch(
+  () => props.open,
+  (isOpen) => {
+    document.body.style.overflow = isOpen ? 'hidden' : ''
+  },
+  { immediate: true }
+)
+
+onUnmounted(() => {
+  document.body.style.overflow = ''
+})
 </script>
 
 <template>

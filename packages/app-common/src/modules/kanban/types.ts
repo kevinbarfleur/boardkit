@@ -66,6 +66,7 @@ export interface KanbanState {
   // Behavior settings
   confirmDeleteCard: boolean
   confirmDeleteColumn: boolean
+  quickCardCreation: boolean
 }
 
 // === Tag Color Palette ===
@@ -103,6 +104,7 @@ export const defaultKanbanSettings: Omit<KanbanState, 'title' | 'columns' | 'ite
   // Behavior
   confirmDeleteCard: true,
   confirmDeleteColumn: true,
+  quickCardCreation: false,
 }
 
 export const defaultKanbanColumns: KanbanColumn[] = [

@@ -30,6 +30,7 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   delete: [itemId: string]
   click: [item: KanbanItem]
+  contextmenu: [item: KanbanItem, e: MouseEvent]
   dragstart: [e: DragEvent, itemId: string]
   dragover: [e: DragEvent, itemId: string]
   dragend: []
@@ -104,6 +105,12 @@ function handleDelete(e: Event) {
   e.stopPropagation()
   emit('delete', props.item.id)
 }
+
+function handleContextMenu(e: MouseEvent) {
+  e.preventDefault()
+  e.stopPropagation() // Prevent column context menu
+  emit('contextmenu', props.item, e)
+}
 </script>
 
 <template>
@@ -121,6 +128,7 @@ function handleDelete(e: Event) {
     @dragover="handleDragOver"
     @dragend="handleDragEnd"
     @click="handleClick"
+    @contextmenu="handleContextMenu"
   >
     <!-- Drop indicator -->
     <div

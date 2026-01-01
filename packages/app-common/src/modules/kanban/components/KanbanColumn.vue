@@ -15,6 +15,7 @@ interface Props {
   showTags?: boolean
   showChecklist?: boolean
   compactMode?: boolean
+  quickCardCreation?: boolean
   // Drag state
   draggedItemId?: string | null
   isDragOver?: boolean
@@ -30,6 +31,7 @@ const props = withDefaults(defineProps<Props>(), {
   showTags: true,
   showChecklist: true,
   compactMode: false,
+  quickCardCreation: false,
   draggedItemId: null,
   isDragOver: false,
   dragOverItemId: null,
@@ -38,10 +40,13 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   addItem: [columnId: string, title: string]
+  addItemFull: [columnId: string]
   deleteItem: [itemId: string]
   clickItem: [item: KanbanItem]
+  contextmenuItem: [item: KanbanItem, e: MouseEvent]
   editColumn: [column: KanbanColumnType]
   deleteColumn: [columnId: string]
+  contextmenuColumn: [column: KanbanColumnType, e: MouseEvent]
   // Drag events
   dragstart: [e: DragEvent, itemId: string]
   dragover: [e: DragEvent, columnId: string]
@@ -107,6 +112,23 @@ function handleDragLeave(e: DragEvent) {
 function handleDrop(e: DragEvent) {
   emit('drop', e, props.column.id)
 }
+
+function handleColumnContextMenu(e: MouseEvent) {
+  e.preventDefault()
+  emit('contextmenuColumn', props.column, e)
+}
+
+function handleCardContextMenu(item: KanbanItem, e: MouseEvent) {
+  emit('contextmenuItem', item, e)
+}
+
+function handleAddCardClick() {
+  if (props.quickCardCreation) {
+    isAddingItem.value = true
+  } else {
+    emit('addItemFull', props.column.id)
+  }
+}
 </script>
 
 <template>
@@ -117,9 +139,12 @@ function handleDrop(e: DragEvent) {
     @dragover="handleDragOver"
     @dragleave="handleDragLeave"
     @drop="handleDrop"
+    @contextmenu="handleColumnContextMenu"
   >
     <!-- Column header -->
-    <div class="group/header flex items-center justify-between px-3 py-2 border-b border-border/30">
+    <div
+      class="group/header flex items-center justify-between px-3 py-2 border-b border-border/30"
+    >
       <div class="flex items-center gap-2 min-w-0">
         <div
           class="w-2.5 h-2.5 rounded-full flex-shrink-0 ring-2"
@@ -153,12 +178,12 @@ function handleDrop(e: DragEvent) {
         <BkDropdown
           :items="columnMenuItems"
           align="right"
-          :min-width="140"
+          :min-width="180"
           @select="handleColumnMenuSelect"
         >
           <template #trigger>
             <button
-              class="p-0.5 text-muted-foreground hover:text-foreground rounded opacity-0 group-hover/header:opacity-100 transition-opacity"
+              class="p-0.5 text-muted-foreground/60 hover:text-foreground rounded transition-colors"
             >
               <BkIcon icon="more-horizontal" :size="14" />
             </button>
@@ -183,6 +208,7 @@ function handleDrop(e: DragEvent) {
         :compact-mode="compactMode"
         @delete="emit('deleteItem', $event)"
         @click="emit('clickItem', $event)"
+        @contextmenu="handleCardContextMenu"
         @dragstart="emit('dragstart', $event, item.id)"
         @dragover="handleDragOverItem($event, item.id)"
         @dragend="emit('dragend')"
@@ -228,7 +254,7 @@ function handleDrop(e: DragEvent) {
     <button
       v-if="!isAddingItem"
       class="w-full text-xs text-muted-foreground hover:text-foreground flex items-center justify-center gap-1.5 py-2 border-t border-border/30 hover:bg-muted/80 transition-colors rounded-b-xl"
-      @click="isAddingItem = true"
+      @click="handleAddCardClick"
     >
       <BkIcon icon="plus" :size="14" />
       Add card
