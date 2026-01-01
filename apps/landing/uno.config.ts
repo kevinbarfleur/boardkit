@@ -131,5 +131,6 @@ export default defineConfig({
     'i-lucide-arrow-right',
     'i-lucide-play',
     'i-lucide-star',
+    'i-lucide-code',
   ],
 })
