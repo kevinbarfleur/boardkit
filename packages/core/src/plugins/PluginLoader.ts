@@ -30,31 +30,72 @@ export async function fetchPluginFromGitHub(url: string): Promise<FetchedPlugin>
   const manifestResponse = await fetch(manifestUrl)
 
   if (!manifestResponse.ok) {
-    throw new Error(`Failed to fetch manifest from ${manifestUrl}: ${manifestResponse.status}`)
+    if (manifestResponse.status === 404) {
+      throw new Error(
+        `Could not find manifest.json at:\n  ${manifestUrl}\n\n` +
+          'Possible causes:\n' +
+          '  - The repository or path does not exist\n' +
+          '  - The plugin directory is missing manifest.json\n' +
+          '  - The branch/ref is incorrect\n\n' +
+          'Check the URL and try again.'
+      )
+    }
+    throw new Error(
+      `Failed to fetch manifest.json (HTTP ${manifestResponse.status})\n` +
+        `  URL: ${manifestUrl}\n` +
+        '  This may be a network issue or the repository may be private.'
+    )
   }
 
-  const manifestData = await manifestResponse.json()
+  let manifestData: unknown
+  try {
+    manifestData = await manifestResponse.json()
+  } catch {
+    throw new Error(
+      'manifest.json is not valid JSON.\n' +
+        '  Check for syntax errors (missing commas, quotes, etc.)\n' +
+        '  Use a JSON validator to find the issue.'
+    )
+  }
 
   // Validate manifest
   const validation = validateManifest(manifestData)
   if (!validation.valid) {
-    throw new Error(`Invalid manifest: ${validation.errors.join(', ')}`)
+    throw new Error(
+      'Invalid manifest.json:\n\n' +
+        validation.errors.map((e) => `  ${e.replace(/\n/g, '\n  ')}`).join('\n\n')
+    )
   }
 
   // Check compatibility
-  const compatibility = checkCompatibility(manifestData.minBoardkitVersion)
+  const compatibility = checkCompatibility((manifestData as PluginManifest).minBoardkitVersion)
   if (!compatibility.compatible) {
     throw new Error(compatibility.message || 'Plugin is not compatible with this version of Boardkit')
   }
 
   const manifest = manifestData as PluginManifest
 
-  // Fetch main.js
+  // Fetch main.js (compiled plugin bundle)
   const codeUrl = buildRawGitHubUrl(parsed, 'main.js')
   const codeResponse = await fetch(codeUrl)
 
   if (!codeResponse.ok) {
-    throw new Error(`Failed to fetch code from ${codeUrl}: ${codeResponse.status}`)
+    if (codeResponse.status === 404) {
+      throw new Error(
+        `Could not find main.js (compiled plugin bundle).\n\n` +
+          'The plugin needs to be built before installation:\n' +
+          '  cd /path/to/plugin\n' +
+          '  node scripts/build-plugin.js ' +
+          manifest.id +
+          '\n\n' +
+          'Make sure main.js is committed and pushed to the repository.'
+      )
+    }
+    throw new Error(
+      `Failed to fetch main.js (HTTP ${codeResponse.status})\n` +
+        `  URL: ${codeUrl}\n` +
+        '  This may be a network issue.'
+    )
   }
 
   const code = await codeResponse.text()
@@ -177,7 +218,21 @@ export async function loadPluginModule(code: string): Promise<PluginModule> {
 
     // Wait for the plugin to register (with timeout)
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('Plugin registration timeout')), 5000)
+      setTimeout(
+        () =>
+          reject(
+            new Error(
+              'Plugin registration timeout (5 seconds).\n\n' +
+                'The plugin did not call registerPlugin() in time.\n\n' +
+                'Possible causes:\n' +
+                '  - Plugin code has a syntax error\n' +
+                '  - Plugin was not built correctly (missing auto-registration footer)\n' +
+                '  - Plugin is missing "export default definePlugin(...)"\n\n' +
+                'Try rebuilding the plugin and check the console for errors.'
+            )
+          ),
+        5000
+      )
     })
 
     const module = await Promise.race([pluginPromise, timeoutPromise])
