@@ -60,10 +60,12 @@ boardkit/
 │   ├── web/              # Web application (Vue 3 + Vite + PWA)
 │   └── desktop/          # Desktop application (Tauri)
 ├── packages/
-│   ├── core/             # Core logic, stores, module SDK
+│   ├── core/             # Core logic, stores, module SDK, plugin system
 │   ├── ui/               # Design system and shared components
-│   └── platform/         # Platform adapters (storage, etc.)
-└── docs/                 # Specifications
+│   ├── platform/         # Platform adapters (storage, etc.)
+│   ├── plugin-api/       # Public API for plugin developers
+│   └── app-common/       # Shared code between web and desktop
+└── docs/                 # Specifications and guides
 ```
 
 ---
@@ -129,7 +131,9 @@ Boardkit includes native canvas drawing tools:
 
 ---
 
-## Built-in Modules
+## Built-in Modules (Core)
+
+These modules are bundled with Boardkit and always available:
 
 ### Text Module
 
@@ -158,14 +162,27 @@ Aggregate view of multiple todo lists.
 - Live updates
 - **Data Consumer**: Reads from `boardkit.todo.v1`
 
-### Focus Lens Module
+### Other Core Modules
 
-Single-task focus view.
+- **Timer**: Pomodoro timer with statistics
+- **Counter**: Simple counter widget
+- **Scratchpad**: Quick notes area
+- **Kanban**: Kanban board with columns
 
-- Connect to one Todo widget
-- Shows next actionable task
-- Auto-updates when tasks change
-- **Data Consumer**: Reads from `boardkit.todo.v1`
+---
+
+## Official Plugins
+
+These modules are available as plugins from [boardkit-official-plugins](https://github.com/kevinbarfleur/boardkit-official-plugins):
+
+| Plugin | Description |
+|--------|-------------|
+| **Habit Tracker** | Track daily habits with streaks and calendar view |
+| **Stats Card** | Display aggregated statistics from other widgets |
+| **Focus Lens** | Single-task focus view from a todo list |
+| **Google Calendar** | Display events from Google Calendar |
+
+Install plugins via **Settings → Plugins → Add from GitHub**
 
 ---
 
@@ -244,48 +261,68 @@ export function registerModules() {
 
 ## Data Sharing Between Modules
 
-Modules can share data through versioned contracts:
+Modules can share data through versioned contracts using the simplified API:
 
 ### As a Provider
 
 ```typescript
-import { useDataProvider } from '@boardkit/core'
-import { todoContract } from '@boardkit/core/contracts'
+import { useProvideData, todoContractV1 } from '@boardkit/core'
 
-const { publishData } = useDataProvider(
-  props.context.widgetId,
-  todoContract
-)
-
-// Publish when state changes
-watch(() => props.context.state, () => {
-  publishData({
+// Automatically publishes when state changes
+useProvideData(props.context, todoContractV1, {
+  project: (state) => ({
     widgetId: props.context.widgetId,
     title: state.title,
-    items: state.items,
-    progress: { done: completed, total: items.length }
+    items: state.items.map(({ id, label, completed }) => ({ id, label, completed })),
+    progress: { done: completedCount, total: state.items.length }
   })
-}, { deep: true, immediate: true })
+})
 ```
 
-### As a Consumer
+### As a Consumer (Single Provider)
 
 ```typescript
-import { useDataConsumer } from '@boardkit/core'
-import { todoContract } from '@boardkit/core/contracts'
+import { useConsumeData, todoContractV1 } from '@boardkit/core'
 
-const { connections, status } = useDataConsumer(
-  props.context.widgetId,
-  todoContract.id,
-  { multiSelect: true }
+const { status, data, connect, disconnect } = useConsumeData(
+  props.context,
+  todoContractV1
 )
 
-// Access connected data
-const allTodos = computed(() =>
-  connections.value
-    .filter(c => c.status === 'connected')
-    .flatMap(c => c.data?.items ?? [])
+// status: 'idle' | 'connecting' | 'connected' | 'error'
+// data: reactive projected data from the connected provider
+```
+
+### As a Consumer (Multiple Providers)
+
+```typescript
+import { useConsumeData, todoContractV1 } from '@boardkit/core'
+
+const { connections, allData } = useConsumeData(
+  props.context,
+  todoContractV1,
+  { multi: true }
 )
+
+// connections: array of { providerId, status, data }
+// allData: flattened array of all connected data
+```
+
+### Declarative Approach
+
+The recommended approach is to declare data sharing in `defineModule`:
+
+```typescript
+export const MyModule = defineModule<MyState>({
+  moduleId: 'my-module',
+  // ...
+  provides: [todoContractV1],  // This module provides todo data
+  consumes: [{                  // This module consumes from other modules
+    contract: todoContractV1,
+    multi: true,
+    stateKey: 'connectedProviders',
+  }],
+})
 ```
 
 ---
@@ -355,6 +392,8 @@ Visit `/playground` in the web app to see all UI components in action.
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | System architecture and data model |
 | [CONTRIBUTING.md](./CONTRIBUTING.md) | Contribution guidelines |
 | [SPECS_V0.md](./SPECS_V0.md) | V0 feature specifications |
+| [docs/MODULE_DEVELOPMENT.md](./docs/MODULE_DEVELOPMENT.md) | Guide for creating core modules |
+| [docs/PLUGIN_DEVELOPMENT.md](./docs/PLUGIN_DEVELOPMENT.md) | Guide for creating external plugins |
 | [docs/SPECS_CANVAS_NATIVE.md](./docs/SPECS_CANVAS_NATIVE.md) | Canvas elements specification |
 | [docs/SPECS_DATA_SHARING_POC.md](./docs/SPECS_DATA_SHARING_POC.md) | Data sharing system |
 | [packages/ui/DESIGN_SYSTEM.md](./packages/ui/DESIGN_SYSTEM.md) | Design system guide |
