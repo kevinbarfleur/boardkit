@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { BkIcon, BkSelect, BkMultiSelect } from '@boardkit/ui'
+import { BkIcon, BkSelect, BkMultiSelect, BkSearchInput } from '@boardkit/ui'
 import type { MultiSelectOption } from '@boardkit/ui'
 import type { KanbanPriority } from '../types'
 import { getTagColor } from '../types'
@@ -67,24 +67,11 @@ const completionRate = computed(() => {
   return Math.round((props.completed / props.total) * 100)
 })
 
-// Search state
-const localSearch = ref(props.searchQuery)
-
-// Sync local search with prop
-watch(() => props.searchQuery, (value) => {
-  localSearch.value = value
+// Search state - use computed for two-way binding
+const localSearch = computed({
+  get: () => props.searchQuery,
+  set: (value: string) => emit('update:searchQuery', value),
 })
-
-function handleSearchInput(e: Event) {
-  const value = (e.target as HTMLInputElement).value
-  localSearch.value = value
-  emit('update:searchQuery', value)
-}
-
-function handleClearSearch() {
-  localSearch.value = ''
-  emit('update:searchQuery', '')
-}
 </script>
 
 <template>
@@ -102,27 +89,12 @@ function handleClearSearch() {
     <!-- Center: Search + Filters (all h-8, text-sm) -->
     <div class="flex items-center gap-3 flex-1 max-w-xl">
       <!-- Search -->
-      <div class="relative flex-1 min-w-28">
-        <BkIcon
-          icon="search"
-          :size="14"
-          class="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
-        />
-        <input
-          :value="localSearch"
-          type="text"
-          placeholder="Search..."
-          class="w-full h-8 pl-8 pr-8 text-sm bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ring placeholder:text-muted-foreground transition-colors"
-          @input="handleSearchInput"
-        />
-        <button
-          v-if="localSearch"
-          class="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-          @click="handleClearSearch"
-        >
-          <BkIcon icon="x" :size="14" />
-        </button>
-      </div>
+      <BkSearchInput
+        v-model="localSearch"
+        placeholder="Search..."
+        size="sm"
+        class="flex-1 min-w-28"
+      />
 
       <!-- Priority filter -->
       <BkSelect
