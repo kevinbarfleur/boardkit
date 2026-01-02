@@ -107,84 +107,9 @@ const plugins = [
     <section>
       <h2 class="serif-heading">Core modules</h2>
       <p class="section-subtitle">Built-in, ship with every installation</p>
-      <ul class="modules-list">
-        <li v-for="mod in coreModules" :key="mod.name">
-          <a href="#"><strong>{{ mod.name }}</strong></a>
-          <span> — {{ mod.desc }}</span>
-        </li>
-      </ul>
     </section>
 
-    <!-- Plugins -->
-    <section class="plugins-section">
-      <h2 class="serif-heading">Official plugins</h2>
-      <p class="section-subtitle">Extend Boardkit with additional functionality</p>
-      <ul class="modules-list">
-        <li v-for="plugin in plugins" :key="plugin.name">
-          <a href="#"><strong>{{ plugin.name }}</strong></a>
-          <span> — {{ plugin.desc }}</span>
-        </li>
-      </ul>
-
-      <!-- Plugin Code Examples -->
-      <div class="code-examples">
-        <h3 class="code-title serif-heading">Build your own plugin</h3>
-        <p class="code-subtitle">Plugins are simple TypeScript modules with a clear API</p>
-
-        <div class="code-block">
-          <div class="code-header">
-            <span class="code-filename">manifest.json</span>
-          </div>
-          <pre class="code-content"><code>{
-  "id": "my-plugin",
-  "name": "My Plugin",
-  "version": "0.1.0",
-  "author": "You",
-  "description": "A custom widget for Boardkit",
-  "icon": "star",
-  "provides": ["my-plugin.data.v1"],
-  "consumes": []
-}</code></pre>
-        </div>
-
-        <div class="code-block">
-          <div class="code-header">
-            <span class="code-filename">src/index.ts</span>
-          </div>
-          <pre class="code-content"><code>import { definePlugin } from '@boardkit/plugin-api'
-import MyWidget from './MyWidget.vue'
-
-export default definePlugin({
-  pluginId: 'my-plugin',
-  displayName: 'My Plugin',
-  icon: 'star',
-  component: MyWidget,
-
-  defaultState: () => ({
-    title: 'My Widget',
-    items: [],
-  }),
-
-  minWidth: 200,
-  minHeight: 150,
-
-  settingsSchema: {
-    sections: [{
-      id: 'display',
-      title: 'Display',
-      fields: [{
-        key: 'showHeader',
-        type: 'toggle',
-        label: 'Show header',
-      }]
-    }]
-  }
-})</code></pre>
-        </div>
-      </div>
-    </section>
-
-    <!-- Modules Mosaic - Cloud arrangement -->
+    <!-- Core Modules Mosaic -->
     <section class="mosaic-section">
       <div class="mosaic-cloud">
         <!-- Row 1: Todo + Timer -->
@@ -251,6 +176,25 @@ export default definePlugin({
             </div>
             <span class="mosaic-label">Timer</span>
           </div>
+
+          <div class="mosaic-card" style="--rotation: -1deg;">
+            <div class="mosaic-preview">
+              <div class="mosaic-window small">
+                <div class="window-header">
+                  <div class="window-dots"><span /><span /><span /></div>
+                  <span class="window-title">Text</span>
+                </div>
+                <div class="window-content text-content">
+                  <div class="text-heading">Notes</div>
+                  <div class="text-paragraph">
+                    <span class="text-line">Meeting notes for</span>
+                    <span class="text-line">the Q2 roadmap...</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <span class="mosaic-label">Text</span>
+          </div>
         </div>
 
         <!-- Row 2: Kanban (center, wider) -->
@@ -295,78 +239,152 @@ export default definePlugin({
             <span class="mosaic-label">Kanban</span>
           </div>
         </div>
+      </div>
+    </section>
 
-        <!-- Row 3: Stats + Habits + Text -->
-        <div class="mosaic-row">
-          <div class="mosaic-card" style="--rotation: 2deg;">
-            <div class="mosaic-preview">
-              <div class="mosaic-window small">
-                <div class="window-header">
-                  <div class="window-dots"><span /><span /><span /></div>
-                  <span class="window-title">Stats</span>
-                </div>
-                <div class="window-content stats-content">
-                  <div class="stat-value">42</div>
-                  <div class="stat-label">Tasks done</div>
-                  <div class="stat-bar">
-                    <div class="stat-fill" style="width: 68%;" />
-                  </div>
-                </div>
-              </div>
-            </div>
-            <span class="mosaic-label">Stats</span>
-          </div>
+    <!-- Plugins Section -->
+    <section>
+      <h2 class="serif-heading">Official plugins</h2>
+      <p class="section-subtitle">Extend Boardkit with community-built widgets</p>
+    </section>
 
-          <div class="mosaic-card" style="--rotation: -2deg;">
-            <div class="mosaic-preview">
-              <div class="mosaic-window">
-                <div class="window-header">
-                  <div class="window-dots"><span /><span /><span /></div>
-                  <span class="window-title">Habits</span>
-                </div>
-                <div class="window-content habit-content">
-                  <div class="habit-row">
-                    <span class="habit-name">Exercise</span>
-                    <div class="habit-grid">
-                      <span class="filled" /><span class="filled" /><span /><span class="filled" /><span class="filled" /><span class="filled" /><span class="today" />
-                    </div>
+    <!-- Plugins Mosaic + Code Snippet -->
+    <section class="mosaic-section plugins-mosaic">
+      <div class="plugins-layout">
+        <!-- Plugin cards -->
+        <div class="mosaic-cloud compact">
+          <!-- Row 1: Stats + Habits -->
+          <div class="mosaic-row">
+            <div class="mosaic-card" style="--rotation: 2deg;">
+              <div class="mosaic-preview">
+                <div class="mosaic-window small">
+                  <div class="window-header">
+                    <div class="window-dots"><span /><span /><span /></div>
+                    <span class="window-title">Stats Card</span>
                   </div>
-                  <div class="habit-row">
-                    <span class="habit-name">Reading</span>
-                    <div class="habit-grid">
-                      <span class="filled" /><span /><span class="filled" /><span class="filled" /><span /><span class="filled" /><span />
-                    </div>
-                  </div>
-                  <div class="habit-row">
-                    <span class="habit-name">Meditate</span>
-                    <div class="habit-grid">
-                      <span class="filled" /><span class="filled" /><span class="filled" /><span class="filled" /><span class="filled" /><span class="filled" /><span class="filled today" />
+                  <div class="window-content stats-content">
+                    <div class="stat-value">42</div>
+                    <div class="stat-label">Tasks done</div>
+                    <div class="stat-bar">
+                      <div class="stat-fill" style="width: 68%;" />
                     </div>
                   </div>
                 </div>
               </div>
+              <span class="mosaic-label">Stats Card</span>
             </div>
-            <span class="mosaic-label">Habits</span>
-          </div>
 
-          <div class="mosaic-card" style="--rotation: 1.5deg;">
-            <div class="mosaic-preview">
-              <div class="mosaic-window small">
-                <div class="window-header">
-                  <div class="window-dots"><span /><span /><span /></div>
-                  <span class="window-title">Text</span>
-                </div>
-                <div class="window-content text-content">
-                  <div class="text-heading">Notes</div>
-                  <div class="text-paragraph">
-                    <span class="text-line">Meeting notes for</span>
-                    <span class="text-line">the Q2 roadmap...</span>
+            <div class="mosaic-card" style="--rotation: -2deg;">
+              <div class="mosaic-preview">
+                <div class="mosaic-window">
+                  <div class="window-header">
+                    <div class="window-dots"><span /><span /><span /></div>
+                    <span class="window-title">Habit Tracker</span>
+                  </div>
+                  <div class="window-content habit-content">
+                    <div class="habit-row">
+                      <span class="habit-name">Exercise</span>
+                      <div class="habit-grid">
+                        <span class="filled" /><span class="filled" /><span /><span class="filled" /><span class="filled" /><span class="filled" /><span class="today" />
+                      </div>
+                    </div>
+                    <div class="habit-row">
+                      <span class="habit-name">Reading</span>
+                      <div class="habit-grid">
+                        <span class="filled" /><span /><span class="filled" /><span class="filled" /><span /><span class="filled" /><span />
+                      </div>
+                    </div>
+                    <div class="habit-row">
+                      <span class="habit-name">Meditate</span>
+                      <div class="habit-grid">
+                        <span class="filled" /><span class="filled" /><span class="filled" /><span class="filled" /><span class="filled" /><span class="filled" /><span class="filled today" />
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
+              <span class="mosaic-label">Habit Tracker</span>
             </div>
-            <span class="mosaic-label">Text</span>
           </div>
+
+          <!-- Row 2: Task Radar + Focus Lens + Calendar -->
+          <div class="mosaic-row">
+            <div class="mosaic-card" style="--rotation: -1.5deg;">
+              <div class="mosaic-preview">
+                <div class="mosaic-window small">
+                  <div class="window-header">
+                    <div class="window-dots"><span /><span /><span /></div>
+                    <span class="window-title">Task Radar</span>
+                  </div>
+                  <div class="window-content radar-content">
+                    <div class="radar-ring">
+                      <div class="radar-dot urgent" style="--angle: 45deg; --dist: 20%;" />
+                      <div class="radar-dot high" style="--angle: 120deg; --dist: 45%;" />
+                      <div class="radar-dot medium" style="--angle: 200deg; --dist: 65%;" />
+                      <div class="radar-dot low" style="--angle: 300deg; --dist: 80%;" />
+                    </div>
+                    <div class="radar-label">4 tasks</div>
+                  </div>
+                </div>
+              </div>
+              <span class="mosaic-label">Task Radar</span>
+            </div>
+
+            <div class="mosaic-card" style="--rotation: 1deg;">
+              <div class="mosaic-preview">
+                <div class="mosaic-window small">
+                  <div class="window-header">
+                    <div class="window-dots"><span /><span /><span /></div>
+                    <span class="window-title">Focus Lens</span>
+                  </div>
+                  <div class="window-content focus-content">
+                    <div class="focus-task">Ship homepage</div>
+                    <div class="focus-meta">
+                      <span class="focus-tag">High</span>
+                      <span class="focus-time">2h left</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <span class="mosaic-label">Focus Lens</span>
+            </div>
+
+            <div class="mosaic-card" style="--rotation: 2.5deg;">
+              <div class="mosaic-preview">
+                <div class="mosaic-window small">
+                  <div class="window-header">
+                    <div class="window-dots"><span /><span /><span /></div>
+                    <span class="window-title">Calendar</span>
+                  </div>
+                  <div class="window-content calendar-content">
+                    <div class="cal-event blue">
+                      <span class="cal-time">10:00</span>
+                      <span class="cal-title">Team sync</span>
+                    </div>
+                    <div class="cal-event green">
+                      <span class="cal-time">14:00</span>
+                      <span class="cal-title">Review PR</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <span class="mosaic-label">Calendar</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mini code snippet (decorative) -->
+        <div class="code-snippet-mini">
+          <div class="snippet-header">
+            <span class="snippet-dot" /><span class="snippet-dot" /><span class="snippet-dot" />
+            <span class="snippet-title">plugin.ts</span>
+          </div>
+          <pre class="snippet-code"><code><span class="syn-keyword">export default</span> <span class="syn-func">definePlugin</span>({
+  <span class="syn-prop">pluginId</span>: <span class="syn-string">'my-widget'</span>,
+  <span class="syn-prop">icon</span>: <span class="syn-string">'star'</span>,
+  <span class="syn-prop">component</span>: MyWidget,
+})</code></pre>
+          <div class="snippet-caption">Build your own →</div>
         </div>
       </div>
     </section>
@@ -587,61 +605,212 @@ section li a {
   color: hsl(var(--muted-foreground));
 }
 
-/* Plugin Code Examples */
-.code-examples {
-  margin-top: 32px;
-  padding-top: 32px;
-  border-top: 1px solid hsl(var(--border));
+/* Plugins Layout */
+.plugins-layout {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  justify-content: center;
 }
 
-.code-title {
-  font-size: 22px;
-  font-weight: 500;
-  margin-bottom: 8px;
+.mosaic-cloud.compact {
+  gap: 8px;
 }
 
-.code-subtitle {
-  font-size: 14px;
-  color: hsl(var(--muted-foreground));
-  margin-bottom: 24px;
+.mosaic-cloud.compact .mosaic-row {
+  gap: 8px;
 }
 
-.code-block {
+/* Mini Code Snippet */
+.code-snippet-mini {
+  width: 180px;
   background: #0a0a0a;
   border: 1px solid hsl(var(--border));
   border-radius: 8px;
   overflow: hidden;
-  margin-bottom: 16px;
+  transform: rotate(2deg);
+  flex-shrink: 0;
+  align-self: center;
 }
 
-.code-header {
+.snippet-header {
   display: flex;
   align-items: center;
-  padding: 10px 14px;
+  gap: 4px;
+  padding: 6px 10px;
   background: #111;
   border-bottom: 1px solid hsl(var(--border));
 }
 
-.code-filename {
+.snippet-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #333;
+}
+
+.snippet-title {
   font-family: ui-monospace, 'SF Mono', Menlo, Monaco, monospace;
-  font-size: 12px;
+  font-size: 9px;
+  color: hsl(var(--muted-foreground));
+  margin-left: 4px;
+}
+
+.snippet-code {
+  margin: 0;
+  padding: 10px;
+  font-family: ui-monospace, 'SF Mono', Menlo, Monaco, monospace;
+  font-size: 9px;
+  line-height: 1.5;
+  color: hsl(var(--foreground));
+  background: transparent;
+  white-space: pre;
+}
+
+.snippet-code code {
+  font-family: inherit;
+}
+
+/* Syntax highlighting */
+.syn-keyword { color: #c586c0; }
+.syn-func { color: #dcdcaa; }
+.syn-prop { color: #9cdcfe; }
+.syn-string { color: #ce9178; }
+
+.snippet-caption {
+  padding: 6px 10px;
+  font-size: 9px;
+  color: hsl(var(--muted-foreground));
+  border-top: 1px solid hsl(var(--border));
+  font-family: 'Source Serif 4', serif;
+  font-style: italic;
+}
+
+/* Task Radar Widget */
+.radar-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+.radar-ring {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border: 1px solid #333;
+  position: relative;
+  background: radial-gradient(circle, transparent 30%, rgba(59, 130, 246, 0.05) 100%);
+}
+
+.radar-ring::before,
+.radar-ring::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid #2a2a2a;
+}
+
+.radar-ring::before {
+  inset: 8px;
+}
+
+.radar-ring::after {
+  inset: 16px;
+}
+
+.radar-dot {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  transform: rotate(var(--angle)) translateY(calc(-1 * var(--dist) * 25px)) translateX(-50%);
+}
+
+.radar-dot.urgent { background: #ef4444; }
+.radar-dot.high { background: #f59e0b; }
+.radar-dot.medium { background: #3b82f6; }
+.radar-dot.low { background: #22c55e; }
+
+.radar-label {
+  font-size: 8px;
+  color: hsl(var(--muted-foreground));
+  margin-top: 6px;
+}
+
+/* Focus Lens Widget */
+.focus-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 100%;
+  padding: 4px 0;
+}
+
+.focus-task {
+  font-size: 11px;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+  margin-bottom: 6px;
+}
+
+.focus-meta {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.focus-tag {
+  font-size: 8px;
+  padding: 2px 5px;
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  border-radius: 3px;
+}
+
+.focus-time {
+  font-size: 8px;
   color: hsl(var(--muted-foreground));
 }
 
-.code-content {
-  margin: 0;
-  padding: 16px;
-  overflow-x: auto;
-  font-family: ui-monospace, 'SF Mono', Menlo, Monaco, monospace;
-  font-size: 13px;
-  line-height: 1.6;
-  color: hsl(var(--foreground));
-  background: transparent;
+/* Calendar Widget */
+.calendar-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  justify-content: center;
+  height: 100%;
 }
 
-.code-content code {
-  font-family: inherit;
-  color: inherit;
+.cal-event {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 4px 6px;
+  border-radius: 3px;
+  font-size: 8px;
+}
+
+.cal-event.blue {
+  background: rgba(59, 130, 246, 0.15);
+  border-left: 2px solid #3b82f6;
+}
+
+.cal-event.green {
+  background: rgba(34, 197, 94, 0.15);
+  border-left: 2px solid #22c55e;
+}
+
+.cal-time {
+  color: hsl(var(--muted-foreground));
+  font-family: ui-monospace, monospace;
+}
+
+.cal-title {
+  color: hsl(var(--foreground));
 }
 
 /* Steps */
@@ -1233,6 +1402,18 @@ section li a {
 
   .column-name {
     font-size: 7px;
+  }
+
+  /* Plugins layout responsive */
+  .plugins-layout {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .code-snippet-mini {
+    transform: rotate(0);
+    width: 160px;
+    margin-top: 16px;
   }
 }
 </style>
