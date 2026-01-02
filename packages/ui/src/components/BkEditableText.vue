@@ -49,8 +49,7 @@ const sizeClasses = computed(() => {
 // Measure text width and update input size
 const updateInputWidth = () => {
   if (!measureRef.value) return
-  // Add a small buffer for cursor
-  const width = measureRef.value.offsetWidth + 4
+  const width = measureRef.value.offsetWidth
   inputWidth.value = `${width}px`
 }
 
@@ -97,14 +96,6 @@ const onKeydown = (e: KeyboardEvent) => {
 
 <template>
   <div class="editable-text-root" :style="{ maxWidth: props.maxWidth }">
-    <!-- Hidden span for measuring text width -->
-    <span
-      ref="measureRef"
-      class="measure-text"
-      :class="[sizeClasses, isTitle ? 'font-serif' : '']"
-      aria-hidden="true"
-    >{{ editValue || props.placeholder }}</span>
-
     <!-- Styled wrapper - handles ALL visual styling -->
     <div
       class="editable-wrapper"
@@ -116,6 +107,13 @@ const onKeydown = (e: KeyboardEvent) => {
       ]"
       @dblclick="startEditing"
     >
+      <!-- Hidden span for measuring text width (inside wrapper to inherit font) -->
+      <span
+        ref="measureRef"
+        class="measure-text"
+        aria-hidden="true"
+      >{{ editValue || props.placeholder }}</span>
+
       <!-- Edit mode - raw input, no styling -->
       <input
         v-if="isEditing"
@@ -123,7 +121,6 @@ const onKeydown = (e: KeyboardEvent) => {
         v-model="editValue"
         type="text"
         class="editable-input"
-        :class="[sizeClasses, isTitle ? 'font-serif' : '']"
         :style="{ width: inputWidth }"
         @blur="finishEditing"
         @keydown="onKeydown"
@@ -145,12 +142,13 @@ const onKeydown = (e: KeyboardEvent) => {
   position: relative;
 }
 
-/* Hidden span for measuring text width */
+/* Hidden span for measuring text width - inherits font from wrapper */
 .measure-text {
   position: absolute;
   visibility: hidden;
   white-space: pre;
   pointer-events: none;
+  font: inherit;
 }
 
 /* Wrapper handles ALL styling - consistent in both modes */
@@ -206,6 +204,7 @@ const onKeydown = (e: KeyboardEvent) => {
   font: inherit;
   color: hsl(var(--foreground));
   line-height: inherit;
+  min-width: 0;
 }
 
 /* Raw display span - no visual styling */
