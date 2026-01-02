@@ -39,3 +39,10 @@ coverage
 
 # Official plugins (separate repo)
 official-plugins
+
+# Large files - never commit
+*.dmg
+*.trace
+*.json.trace
+Trace*.json
+releases/
