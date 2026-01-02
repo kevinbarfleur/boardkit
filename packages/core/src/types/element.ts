@@ -244,21 +244,28 @@ export const FONT_FAMILY_LABELS: Record<FontFamily, string> = {
 // ============================================================================
 
 /**
+ * Fixed grid size in canvas coordinates (pixels).
+ * This matches the visual background pattern and ensures snap alignment.
+ * Style: Excalidraw-like fixed grid.
+ */
+export const GRID_SIZE = 20
+
+/**
  * Grid snapping configuration for the board.
+ * Simplified: only controls whether snap is enabled.
+ * Grid size is fixed at GRID_SIZE (20px) to match visual pattern.
  */
 export interface GridSettings {
   /** Whether snap to grid is enabled */
   enabled: boolean
-  /** Grid cell size in pixels (5-100). Default: 20 */
-  size: number
-  /** Whether to show visual grid overlay when enabled. Default: true */
-  showGrid: boolean
+  /** @deprecated Use GRID_SIZE constant instead. Kept for backwards compatibility. */
+  size?: number
+  /** @deprecated Grid overlay removed, background pattern serves as visual guide. */
+  showGrid?: boolean
 }
 
 export const DEFAULT_GRID_SETTINGS: GridSettings = {
   enabled: false,
-  size: 20,
-  showGrid: true,
 }
 
 // ============================================================================
@@ -296,4 +303,43 @@ export interface ArrowBinding {
   anchor: AnchorPosition
   /** Optional offset from anchor point for fine-tuning */
   offset?: Point
+}
+
+// ============================================================================
+// Connections (Intentional Element-to-Element Links)
+// ============================================================================
+
+/**
+ * Target type for connections - can be a canvas element or a widget.
+ */
+export type ConnectionTargetType = 'element' | 'widget'
+
+/**
+ * A connection represents an intentional link between two elements/widgets.
+ * Unlike arrow bindings, connections are explicit user-created relationships
+ * with orthogonal routing (90° angles).
+ *
+ * Connections are created via context menu "Connect from here" action.
+ * The arrow path is calculated dynamically based on element positions.
+ */
+export interface Connection {
+  /** Unique identifier (nanoid) */
+  id: string
+  /** ID of the source element or widget */
+  sourceId: string
+  /** Type of the source (canvas element or widget) */
+  sourceType: ConnectionTargetType
+  /** ID of the target element or widget */
+  targetId: string
+  /** Type of the target (canvas element or widget) */
+  targetType: ConnectionTargetType
+  /** Optional label for the connection */
+  label?: string
+  /** Optional style overrides */
+  style?: {
+    /** Stroke color (CSS color string) */
+    strokeColor?: string
+    /** Stroke width in pixels */
+    strokeWidth?: number
+  }
 }

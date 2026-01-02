@@ -86,6 +86,7 @@ export { default as GroupSelectionBox } from './components/GroupSelectionBox.vue
 export { default as ElementRenderer } from './components/ElementRenderer.vue'
 export { default as GridOverlay } from './components/GridOverlay.vue'
 export { default as AnchorPointsOverlay } from './components/AnchorPointsOverlay.vue'
+export { default as OrthogonalArrow } from './components/OrthogonalArrow.vue'
 
 // Menu types
 export type { MenuItem, MenuGroup, MenuContent } from './components/BkMenu.vue'

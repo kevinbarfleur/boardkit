@@ -1,20 +1,16 @@
-import { ref, computed, toRaw } from 'vue'
+import { ref, computed } from 'vue'
 import { nanoid } from 'nanoid'
 import type { BoardkitDocument } from '../types/document'
 
 /**
  * Deep clone a document, handling Vue reactive proxies.
- * Uses structuredClone (2-3x faster than JSON.parse/stringify).
+ * Uses JSON serialization to properly handle nested reactive proxies.
+ * Note: structuredClone + toRaw doesn't work with nested proxies.
  */
 function deepClone<T>(obj: T): T {
-  const start = performance.now()
-  // toRaw unwraps Vue reactive proxies for proper cloning
-  const result = structuredClone(toRaw(obj))
-  const duration = performance.now() - start
-  if (duration > 10) {
-    console.warn(`[Perf] deepClone took ${duration.toFixed(1)}ms`)
-  }
-  return result
+  // JSON.parse/stringify properly serializes nested Vue proxies
+  // and is safer than structuredClone(toRaw(obj)) which fails on nested proxies
+  return JSON.parse(JSON.stringify(obj))
 }
 
 /**
@@ -89,17 +85,9 @@ export function useHistory(options: { maxSize?: number } = {}) {
    * @param document - The document state BEFORE the action
    */
   function pushState(label: string, document: BoardkitDocument): void {
-    console.log('[History] pushState called:', {
-      label,
-      currentIndex: state.value.currentIndex,
-      stackLength: state.value.stack.length,
-      hasLiveSnapshot: !!state.value.liveSnapshot,
-    })
-
     // If we're in the middle of the stack (user did some undos),
     // truncate the stack to discard "future" entries
     if (state.value.currentIndex >= 0) {
-      console.log('[History] Truncating stack from index', state.value.currentIndex)
       state.value.stack = state.value.stack.slice(state.value.currentIndex)
       state.value.currentIndex = -1
     }
@@ -119,12 +107,6 @@ export function useHistory(options: { maxSize?: number } = {}) {
     if (state.value.stack.length > state.value.maxSize) {
       state.value.stack.pop()
     }
-
-    console.log('[History] After push:', {
-      stackLength: state.value.stack.length,
-      currentIndex: state.value.currentIndex,
-      labels: state.value.stack.slice(0, 5).map(e => e.label),
-    })
   }
 
   /**
@@ -134,35 +116,18 @@ export function useHistory(options: { maxSize?: number } = {}) {
    * @param currentDocument - The current document state (to save as liveSnapshot on first undo)
    */
   function undo(currentDocument?: BoardkitDocument): HistoryEntry | null {
-    console.log('[History] undo called:', {
-      canUndo: canUndo.value,
-      currentIndex: state.value.currentIndex,
-      stackLength: state.value.stack.length,
-      hasLiveSnapshot: !!state.value.liveSnapshot,
-      hasCurrentDocument: !!currentDocument,
-    })
-
     if (!canUndo.value) {
-      console.log('[History] Cannot undo - returning null')
       return null
     }
 
     // On first undo (from live state), save the current document
     if (state.value.currentIndex === -1 && currentDocument) {
-      console.log('[History] Saving live snapshot (first undo)')
       state.value.liveSnapshot = deepClone(currentDocument)
     }
 
     // Move to the next older state
     state.value.currentIndex++
     const entry = state.value.stack[state.value.currentIndex]
-
-    console.log('[History] After undo:', {
-      newIndex: state.value.currentIndex,
-      restoringLabel: entry?.label,
-      canRedo: state.value.currentIndex > -1,
-      hasLiveSnapshot: !!state.value.liveSnapshot,
-    })
 
     return entry
   }
@@ -173,28 +138,15 @@ export function useHistory(options: { maxSize?: number } = {}) {
    * Returns a special entry with the live snapshot when returning to live state.
    */
   function redo(): HistoryEntry | null {
-    console.log('[History] redo called:', {
-      canRedo: canRedo.value,
-      currentIndex: state.value.currentIndex,
-      stackLength: state.value.stack.length,
-      hasLiveSnapshot: !!state.value.liveSnapshot,
-    })
-
     if (!canRedo.value) {
-      console.log('[History] Cannot redo - returning null')
       return null
     }
 
     // Move to the next newer state
     state.value.currentIndex--
 
-    console.log('[History] After decrement:', {
-      newIndex: state.value.currentIndex,
-    })
-
     if (state.value.currentIndex === -1) {
       // We're back at live state - return the live snapshot
-      console.log('[History] Back at live state, returning liveSnapshot:', !!state.value.liveSnapshot)
       if (state.value.liveSnapshot) {
         return {
           id: 'live',
@@ -208,7 +160,6 @@ export function useHistory(options: { maxSize?: number } = {}) {
 
     // Return the entry at the new position
     const entry = state.value.stack[state.value.currentIndex]
-    console.log('[History] Returning entry:', entry?.label)
     return entry
   }
 
@@ -220,30 +171,17 @@ export function useHistory(options: { maxSize?: number } = {}) {
    * @param currentDocument - The current document state (to save as liveSnapshot if needed)
    */
   function goToEntry(entryId: string, currentDocument?: BoardkitDocument): HistoryEntry | null {
-    console.log('[History] goToEntry called:', {
-      entryId,
-      currentIndex: state.value.currentIndex,
-      hasCurrentDocument: !!currentDocument,
-    })
-
     const entryIndex = state.value.stack.findIndex((e) => e.id === entryId)
     if (entryIndex === -1) {
-      console.log('[History] Entry not found')
       return null
     }
 
     // If we're at live state, save it first
     if (state.value.currentIndex === -1 && currentDocument) {
-      console.log('[History] Saving live snapshot before jumping')
       state.value.liveSnapshot = deepClone(currentDocument)
     }
 
     state.value.currentIndex = entryIndex
-    console.log('[History] After goToEntry:', {
-      newIndex: state.value.currentIndex,
-      canRedo: state.value.currentIndex > -1,
-      hasLiveSnapshot: !!state.value.liveSnapshot,
-    })
     return state.value.stack[entryIndex]
   }
 
@@ -252,20 +190,13 @@ export function useHistory(options: { maxSize?: number } = {}) {
    * Returns the live snapshot to restore, or null if already at live.
    */
   function goToLive(): HistoryEntry | null {
-    console.log('[History] goToLive called:', {
-      currentIndex: state.value.currentIndex,
-      hasLiveSnapshot: !!state.value.liveSnapshot,
-    })
-
     if (state.value.currentIndex === -1) {
-      console.log('[History] Already at live state')
       return null
     }
 
     state.value.currentIndex = -1
 
     if (state.value.liveSnapshot) {
-      console.log('[History] Returning to live state with snapshot')
       return {
         id: 'live',
         label: 'Current state',
@@ -273,7 +204,6 @@ export function useHistory(options: { maxSize?: number } = {}) {
         snapshot: state.value.liveSnapshot,
       }
     }
-    console.log('[History] No live snapshot available')
     return null
   }
 

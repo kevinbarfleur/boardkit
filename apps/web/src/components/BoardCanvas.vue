@@ -26,7 +26,6 @@ import {
   WidgetFrame,
   BkContextMenu,
   BkDataSourcePicker,
-  GridOverlay,
   AnchorPointsOverlay,
   useTheme,
   type ContextMenuItem,
@@ -37,6 +36,7 @@ import {
 } from '@boardkit/ui'
 import WidgetRenderer from './WidgetRenderer.vue'
 import CanvasElementsLayer from './CanvasElementsLayer.vue'
+import ConnectionsLayer from './ConnectionsLayer.vue'
 import ToolToolbar from './ToolToolbar.vue'
 import { useDataSharingUI } from '../composables/useDataSharingUI'
 import { useSettingsPanel } from '../composables/useSettingsPanel'
@@ -128,6 +128,31 @@ const justFinishedMarquee = ref(false) // Flag to prevent click from clearing se
 const isEditingText = ref(false)
 const editingElementId = ref<string | null>(null)
 const editingType = ref<'text' | 'label'>('text')
+
+// Arrow binding state (for line/arrow drawing)
+// Tracks which shapes are candidates for binding (near endpoint)
+const bindingCandidates = ref<string[]>([])
+// Active binding target (when snapping to an anchor)
+const activeBinding = ref<{
+  elementId: string
+  anchor: AnchorPosition
+  point: { x: number; y: number }
+} | null>(null)
+
+// Connection mode state (for intentional connections via context menu)
+const isConnecting = ref(false)
+const connectionSource = ref<{
+  id: string
+  type: 'element' | 'widget'
+} | null>(null)
+const connectionPreviewEnd = ref<{ x: number; y: number } | null>(null)
+const selectedConnectionId = ref<string | null>(null)
+// Track hover target during connection mode (for reliable click detection)
+const connectionHoverTarget = ref<{
+  id: string
+  type: 'element' | 'widget'
+} | null>(null)
+
 const editValue = ref('')
 const textEditorRef = ref<HTMLTextAreaElement | null>(null)
 
@@ -136,7 +161,7 @@ const contextMenu = ref({
   open: false,
   x: 0,
   y: 0,
-  type: 'canvas' as ActionContextType | 'element',
+  type: 'canvas' as ActionContextType | 'element' | 'connection',
   canvasPosition: { x: 0, y: 0 },
 })
 
@@ -218,14 +243,15 @@ const backgroundStyle = computed(() => {
   const bg = background.value
   const zoom = viewport.value.zoom
 
-  // Pattern scales with zoom but clamped to avoid "gray background" effect
-  // Min 8px prevents dots/lines from being too dense when zoomed out
-  // Max 80px prevents pattern from being too sparse when zoomed in
-  const baseSize = Math.max(8, Math.min(80, 20 * zoom))
+  // Grid size is fixed at 20px in canvas coordinates
+  // Visual size scales with zoom: 20px canvas = 20*zoom screen pixels
+  // This ensures perfect alignment between visual grid and snap-to-grid
+  const baseSize = 20 * zoom
 
-  // Reduce opacity when zoomed out to make it less aggressive
-  // Full opacity at zoom >= 1, fades to 30% at zoom 0.1
-  const zoomOpacity = zoom >= 1 ? 1 : Math.max(0.3, zoom)
+  // Reduce opacity when zoomed out to improve visibility
+  // Full opacity at zoom >= 60%, fades progressively below
+  // At 50%: ~70% opacity, at 40%: ~50%, at 30%: ~30%, at 20%: ~10% (minimum)
+  const zoomOpacity = Math.min(1, Math.max(0.1, (zoom - 0.15) / 0.5))
 
   let backgroundImage = 'none'
   if (bg.pattern === 'dots') {
@@ -353,6 +379,8 @@ const isWidgetModuleMissing = computed(() => {
 // Build context menu items from actions with submenus
 const contextMenuGroups = computed<MenuContent>(() => {
   const ctx = buildActionContext(contextMenu.value.canvasPosition)
+  // Elements use 'widget' context to get generic actions (duplicate, delete)
+  // that work for both elements and widgets
   const contextType = contextMenu.value.type === 'element' ? 'widget' : contextMenu.value.type
 
   // Special case: widget with missing module (Not Found state)
@@ -474,6 +502,68 @@ const contextMenuGroups = computed<MenuContent>(() => {
     }
   }
 
+  // Element-specific actions (when right-clicking on a shape/element)
+  // We get element actions separately since they have contexts: ['canvas']
+  if (contextMenu.value.type === 'element' && ctx.selectedElementId) {
+    const elementActions = actionRegistry.getAvailable(ctx, { context: 'canvas', group: 'element' })
+
+    // Edit actions (duplicate, bring to front, send to back)
+    const editActions = elementActions.filter(a =>
+      ['element.duplicate', 'element.bring-to-front', 'element.send-to-back'].includes(a.id)
+    )
+    if (editActions.length > 0) {
+      groups.push({
+        items: editActions.map(action => ({
+          id: action.id,
+          label: action.title,
+          icon: action.icon,
+          shortcut: action.shortcutHint,
+          disabled: action.when ? !action.when(ctx) : false,
+        })),
+      })
+    }
+
+    // Connect action for shapes (rectangle, ellipse)
+    const element = boardStore.elements.find(e => e.id === ctx.selectedElementId)
+    if (element && (element.type === 'rectangle' || element.type === 'ellipse')) {
+      groups.push({
+        items: [{
+          id: 'connection.start-element',
+          label: 'Connect from here',
+          icon: 'link',
+        }],
+      })
+    }
+
+    // Delete action (always last, destructive)
+    const deleteAction = elementActions.find(a => a.id === 'element.delete')
+    if (deleteAction) {
+      groups.push({
+        items: [{
+          id: deleteAction.id,
+          label: deleteAction.title,
+          icon: deleteAction.icon,
+          shortcut: deleteAction.shortcutHint,
+          disabled: deleteAction.when ? !deleteAction.when(ctx) : false,
+          destructive: true,
+        }],
+      })
+    }
+  }
+
+  // Connection-specific actions (when right-clicking on a connection arrow)
+  if (contextMenu.value.type === 'connection' && selectedConnectionId.value) {
+    groups.push({
+      items: [{
+        id: 'connection.delete',
+        label: 'Delete Connection',
+        icon: 'trash-2',
+        destructive: true,
+      }],
+    })
+    return groups // Only show delete for connections
+  }
+
   // Add tool actions as a group
   if (groupedActions['tool']) {
     const toolItems: MenuItem[] = groupedActions['tool'].map(action => ({
@@ -493,7 +583,8 @@ const contextMenuGroups = computed<MenuContent>(() => {
   }
 
   // Widget-specific actions - organized into logical groups
-  if (groupedActions['widget']) {
+  // Only show for actual widgets (not elements that use 'widget' contextType)
+  if (groupedActions['widget'] && contextMenu.value.type === 'widget') {
     const allWidgetActions = groupedActions['widget']
 
     // Helper to create menu item from action
@@ -527,6 +618,15 @@ const contextMenuGroups = computed<MenuContent>(() => {
         items: editActions.map(toMenuItem),
       })
     }
+
+    // Connection action (for widgets only)
+    groups.push({
+      items: [{
+        id: 'connection.start-widget',
+        label: 'Connect from here',
+        icon: 'link',
+      }],
+    })
 
     // Data actions group
     if (dataActions.length > 0) {
@@ -581,6 +681,31 @@ const handleContextMenuSelect = async (item: MenuItem) => {
   // Handle orphan widget actions (Not Found state)
   if (item.id === 'orphan.install-plugin') {
     openAppSettings('plugins')
+    return
+  }
+
+  // Handle connection actions
+  if (item.id === 'connection.start-widget') {
+    const widgetId = boardStore.selectedWidgetId
+    if (widgetId) {
+      startConnection(widgetId, 'widget')
+    }
+    return
+  }
+
+  if (item.id === 'connection.start-element') {
+    const elementId = boardStore.selectedElementId
+    if (elementId) {
+      startConnection(elementId, 'element')
+    }
+    return
+  }
+
+  if (item.id === 'connection.delete') {
+    if (selectedConnectionId.value) {
+      boardStore.removeConnection(selectedConnectionId.value)
+      selectedConnectionId.value = null
+    }
     return
   }
 
@@ -663,11 +788,21 @@ const { isSpacePressed } = useKeyboardShortcuts({
       closeContextMenu()
       return true
     }
+    // Cancel connection mode on Escape
+    if (isConnecting.value) {
+      cancelConnection()
+      return true
+    }
     return false
   },
   onDrawingCancel: () => {
     if (isDrawing.value) {
       toolStore.cancelDrawing()
+      return true
+    }
+    // Cancel connection mode
+    if (isConnecting.value) {
+      cancelConnection()
       return true
     }
     return false
@@ -688,6 +823,7 @@ const { isSpacePressed } = useKeyboardShortcuts({
 const canvasCursor = computed(() => {
   if (isPanning.value) return 'cursor-grabbing'
   if (isSpacePressed.value || activeTool.value === 'hand') return 'cursor-grab'
+  if (isConnecting.value) return 'cursor-crosshair'
   if (isDrawingTool(activeTool.value)) return 'cursor-crosshair'
   return ''
 })
@@ -700,6 +836,11 @@ const isNavigationMode = computed(() => {
 
 // Handle canvas click
 const handleCanvasClick = (e: MouseEvent) => {
+  // Connection mode clicks are handled by capturing listener
+  if (isConnecting.value) {
+    return
+  }
+
   // Skip clearing selection if we just finished a marquee selection
   // (click event fires after mouseup, which would clear the selection we just made)
   if (justFinishedMarquee.value) {
@@ -713,6 +854,9 @@ const handleCanvasClick = (e: MouseEvent) => {
     target.classList.contains('canvas-background') ||
     target.classList.contains('canvas-transform')
   ) {
+    // Clear connection selection
+    selectedConnectionId.value = null
+
     // Exit group edit mode if we're inside one
     if (boardStore.isInsideGroup()) {
       boardStore.exitGroup()
@@ -776,6 +920,49 @@ const handleCanvasMouseDown = (e: MouseEvent) => {
 
 // Handle canvas mousemove - update drawing, panning, or marquee selection
 const handleCanvasMouseMove = (e: MouseEvent) => {
+  // Update connection preview endpoint and track hover target
+  if (isConnecting.value) {
+    const canvasPos = screenToCanvas(e.clientX, e.clientY)
+    connectionPreviewEnd.value = canvasPos
+
+    // Find element/widget under cursor by checking bounds
+    // Check widgets first (they're on top)
+    let foundTarget: { id: string; type: 'element' | 'widget' } | null = null
+
+    // Hit padding matches ElementRenderer's HIT_PADDING (6px) + stroke width allowance
+    // This ensures clicking on borders/strokes also detects the element
+    const hitPadding = 10 / viewport.value.zoom
+
+    for (const widget of boardStore.widgets) {
+      // Skip the source widget
+      if (connectionSource.value?.type === 'widget' && connectionSource.value.id === widget.id) continue
+      const { x, y, width, height } = widget.rect
+      if (canvasPos.x >= x - hitPadding && canvasPos.x <= x + width + hitPadding &&
+          canvasPos.y >= y - hitPadding && canvasPos.y <= y + height + hitPadding) {
+        foundTarget = { id: widget.id, type: 'widget' }
+        break
+      }
+    }
+
+    // If no widget found, check elements (shapes)
+    if (!foundTarget) {
+      for (const element of boardStore.elements) {
+        // Skip the source element and non-shape elements
+        if (connectionSource.value?.type === 'element' && connectionSource.value.id === element.id) continue
+        if (element.type !== 'rectangle' && element.type !== 'ellipse') continue
+
+        const { x, y, width, height } = element.rect
+        if (canvasPos.x >= x - hitPadding && canvasPos.x <= x + width + hitPadding &&
+            canvasPos.y >= y - hitPadding && canvasPos.y <= y + height + hitPadding) {
+          foundTarget = { id: element.id, type: 'element' }
+          break
+        }
+      }
+    }
+
+    connectionHoverTarget.value = foundTarget
+  }
+
   if (isPanning.value) {
     const dx = e.clientX - panStart.value.x
     const dy = e.clientY - panStart.value.y
@@ -794,7 +981,40 @@ const handleCanvasMouseMove = (e: MouseEvent) => {
 
   if (isDrawing.value) {
     const canvasPos = screenToCanvas(e.clientX, e.clientY)
-    toolStore.updateDrawing(canvasPos, e.shiftKey)
+
+    // For line/arrow tools, detect potential binding targets
+    if (activeTool.value === 'line' || activeTool.value === 'arrow') {
+      // Find shapes near the current endpoint (end of line being drawn)
+      const nearbyResult = findNearestShapeAndAnchor(
+        canvasPos,
+        elements.value,
+        [], // No exclusions during creation
+        30 / viewport.value.zoom // Threshold in canvas units (30px screen)
+      )
+
+      if (nearbyResult) {
+        // Found a shape nearby - update binding state
+        activeBinding.value = {
+          elementId: nearbyResult.elementId,
+          anchor: nearbyResult.anchor,
+          point: nearbyResult.point,
+        }
+        // Track this shape as a binding candidate
+        if (!bindingCandidates.value.includes(nearbyResult.elementId)) {
+          bindingCandidates.value = [nearbyResult.elementId]
+        }
+        // Snap the endpoint to the anchor point
+        toolStore.updateDrawing(nearbyResult.point, e.shiftKey)
+      } else {
+        // No shape nearby - clear binding state
+        activeBinding.value = null
+        bindingCandidates.value = []
+        toolStore.updateDrawing(canvasPos, e.shiftKey)
+      }
+    } else {
+      // Other tools - just update drawing
+      toolStore.updateDrawing(canvasPos, e.shiftKey)
+    }
     return
   }
 
@@ -967,16 +1187,34 @@ const handleCanvasMouseUp = (e: MouseEvent) => {
   }
 
   if (isDrawing.value) {
+    // Capture binding state before finishing
+    const endBinding = activeBinding.value
+    const isLineOrArrow = activeTool.value === 'line' || activeTool.value === 'arrow'
+
     const element = toolStore.finishDrawing()
     if (element) {
       // Add element to store (without id and zIndex, store will assign them)
       const { id, zIndex, ...elementData } = element
-      // Apply grid snapping to the element rect
-      if (grid.value.enabled) {
+      // Apply grid snapping to the element rect (skip if bound - binding takes precedence)
+      if (grid.value.enabled && !endBinding) {
         elementData.rect = boardStore.snapRectToGrid(elementData.rect)
       }
-      boardStore.addElement(elementData as Omit<CanvasElement, 'id' | 'zIndex'>)
+      const newElementId = boardStore.addElement(elementData as Omit<CanvasElement, 'id' | 'zIndex'>)
+
+      // Create end binding if we snapped to a shape during drawing
+      if (newElementId && isLineOrArrow && endBinding) {
+        boardStore.bindArrowToShape(
+          newElementId,
+          'end',
+          endBinding.elementId,
+          endBinding.anchor
+        )
+      }
     }
+
+    // Clear binding state
+    activeBinding.value = null
+    bindingCandidates.value = []
     return
   }
 
@@ -1687,6 +1925,102 @@ const handleTextEditorBlur = () => {
   }, 100)
 }
 
+// ============================================================================
+// Connection mode handlers
+// ============================================================================
+
+/**
+ * Start connection mode from an element or widget.
+ * Called from context menu "Connect from here" action.
+ */
+const startConnection = (id: string, type: 'element' | 'widget') => {
+  isConnecting.value = true
+  connectionSource.value = { id, type }
+  connectionPreviewEnd.value = null
+  boardStore.clearSelection()
+  closeContextMenu()
+}
+
+/**
+ * Cancel connection mode.
+ */
+const cancelConnection = () => {
+  isConnecting.value = false
+  connectionSource.value = null
+  connectionPreviewEnd.value = null
+  connectionHoverTarget.value = null
+}
+
+/**
+ * Complete connection to a target element or widget.
+ */
+const completeConnection = (targetId: string, targetType: 'element' | 'widget') => {
+  if (!connectionSource.value) return
+
+  // Don't connect to self
+  if (connectionSource.value.id === targetId) {
+    cancelConnection()
+    return
+  }
+
+  // Add the connection
+  boardStore.addConnection(
+    connectionSource.value.id,
+    connectionSource.value.type,
+    targetId,
+    targetType
+  )
+
+  cancelConnection()
+}
+
+/**
+ * Handle click during connection mode.
+ * Uses hover target tracking for reliable detection (instead of event.target).
+ */
+const handleConnectionClickCapture = (e: MouseEvent) => {
+  // Only handle in connection mode
+  if (!isConnecting.value) return
+
+  e.stopPropagation()
+  e.preventDefault()
+
+  // Use the tracked hover target (more reliable than event.target)
+  if (connectionHoverTarget.value) {
+    completeConnection(connectionHoverTarget.value.id, connectionHoverTarget.value.type)
+  } else {
+    // No target under cursor - cancel connection
+    cancelConnection()
+  }
+}
+
+/**
+ * Handle connection selection (click on existing connection).
+ */
+const handleConnectionSelect = (connectionId: string) => {
+  selectedConnectionId.value = connectionId
+  boardStore.clearSelection()
+}
+
+/**
+ * Handle connection context menu (right-click on connection).
+ */
+const handleConnectionContextMenu = (connectionId: string, event: MouseEvent) => {
+  event.preventDefault()
+  // Select the connection first
+  selectedConnectionId.value = connectionId
+  boardStore.clearSelection()
+
+  // Show context menu at mouse position
+  contextMenu.value = {
+    open: true,
+    x: event.clientX,
+    y: event.clientY,
+    type: 'connection' as ActionContextType | 'element' | 'connection',
+    canvasPosition: screenToCanvas(event.clientX, event.clientY),
+  }
+}
+
 // Widget event handlers
 const handleWidgetSelect = (id: string, event?: MouseEvent) => {
   const addToSelection = event?.shiftKey || event?.metaKey || event?.ctrlKey
@@ -1779,6 +2113,12 @@ onMounted(() => {
   document.addEventListener('mouseup', handleCanvasMouseUp)
   document.addEventListener('keydown', preventSpaceScroll)
 
+  // Add capturing listener for connection mode clicks
+  // This intercepts clicks BEFORE elements can stop propagation
+  if (canvasRef.value) {
+    canvasRef.value.addEventListener('click', handleConnectionClickCapture, true)
+  }
+
   // Track canvas size for grid overlay
   if (canvasRef.value) {
     resizeObserver = new ResizeObserver((entries) => {
@@ -1795,6 +2135,11 @@ onUnmounted(() => {
   document.removeEventListener('mousemove', handleCanvasMouseMove)
   document.removeEventListener('mouseup', handleCanvasMouseUp)
   document.removeEventListener('keydown', preventSpaceScroll)
+
+  // Remove capturing listener for connection mode
+  if (canvasRef.value) {
+    canvasRef.value.removeEventListener('click', handleConnectionClickCapture, true)
+  }
 
   // Cleanup ResizeObserver
   if (resizeObserver) {
@@ -1821,27 +2166,18 @@ defineExpose({
     @mousedown="handleCanvasMouseDown"
     @contextmenu="handleCanvasContextMenu"
   >
-    <!-- Grid Overlay (when snap-to-grid is enabled) -->
-    <GridOverlay
-      v-if="grid.enabled && grid.showGrid"
-      :grid-size="grid.size"
-      :zoom="viewport.zoom"
-      :viewport-x="viewport.x"
-      :viewport-y="viewport.y"
-      :canvas-width="canvasWidth"
-      :canvas-height="canvasHeight"
-      color="hsl(var(--border) / 0.3)"
-    />
-
     <!-- Canvas content with transform -->
     <div ref="canvasContentRef" class="canvas-transform absolute inset-0" :style="transformStyle">
       <!-- Elements SVG layer (below widgets by default, z-index controls final order) -->
       <CanvasElementsLayer
         :zoom="viewport.zoom"
+        :viewport="viewport"
         :drag-offset="dragOffset"
         :dragging-element-ids="draggingElementIds"
         :is-rotating-group="isRotatingGroup"
         :group-rotation="groupRotation"
+        :binding-candidates="bindingCandidates"
+        :active-binding="activeBinding"
         @element-select="(id, event) => handleElementSelect(id, event)"
         @element-move-start="handleElementMoveStart"
         @element-resize-start="handleElementResizeStart"
@@ -1852,6 +2188,20 @@ defineExpose({
         @group-move-start="handleGroupMoveStart"
         @group-resize-start="handleGroupResizeStart"
         @group-rotate-start="handleGroupRotateStart"
+      />
+
+      <!-- Connections SVG layer (between elements and widgets) -->
+      <ConnectionsLayer
+        :zoom="viewport.zoom"
+        :is-connecting="isConnecting"
+        :connection-source="connectionSource"
+        :preview-end="connectionPreviewEnd"
+        :selected-connection-id="selectedConnectionId"
+        :drag-offset="dragOffset"
+        :dragging-element-ids="draggingElementIds"
+        :dragging-widget-ids="draggingWidgetIds"
+        @select-connection="handleConnectionSelect"
+        @connection-contextmenu="handleConnectionContextMenu"
       />
 
       <!-- Widgets layer - pointer-events disabled during navigation mode -->

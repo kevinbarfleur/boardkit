@@ -3,7 +3,7 @@
  * This is the single source of truth for the document structure.
  */
 
-import type { CanvasElement, BoardBackground, GridSettings, ElementGroup } from './element'
+import type { CanvasElement, BoardBackground, GridSettings, ElementGroup, Connection } from './element'
 import { DEFAULT_BACKGROUND } from './element'
 import type { DataSharingState } from './dataContract'
 import { createEmptyDataSharingState } from './dataContract'
@@ -97,6 +97,8 @@ export interface BoardState {
   grid?: GridSettings
   /** Element groups for grouping functionality */
   groups?: ElementGroup[]
+  /** Connections between elements/widgets (orthogonal arrows) */
+  connections?: Connection[]
 }
 
 // ============================================================================
@@ -139,6 +141,7 @@ export function createEmptyDocument(title: string): BoardkitDocument {
       widgets: [],
       elements: [],
       background: { ...DEFAULT_BACKGROUND },
+      connections: [],
     },
     modules: {},
     dataSharing: createEmptyDataSharingState(),

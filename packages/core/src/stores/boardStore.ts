@@ -9,11 +9,11 @@ import {
   MAX_WIDGET_SCALE,
   DEFAULT_WIDGET_SCALE,
 } from '../types/document'
-import type { CanvasElement, BoardBackground, LineElement, DrawElement, GridSettings, Point, ElementGroup, AnchorPosition, ArrowBinding } from '../types/element'
+import type { CanvasElement, BoardBackground, LineElement, DrawElement, GridSettings, Point, ElementGroup, AnchorPosition, ArrowBinding, Connection, ConnectionTargetType } from '../types/element'
 import type { DataSharingState, DataPermission, DataLink } from '../types/dataContract'
 import { createEmptyDocument } from '../types/document'
 import { createEmptyDataSharingState } from '../types/dataContract'
-import { DEFAULT_BACKGROUND, DEFAULT_GRID_SETTINGS, isLineElement, isDrawElement } from '../types/element'
+import { DEFAULT_BACKGROUND, DEFAULT_GRID_SETTINGS, GRID_SIZE, isLineElement, isDrawElement } from '../types/element'
 import { moduleRegistry } from '../modules/ModuleRegistry'
 import { migrateDocument } from '../migrations'
 import { dataBus } from '../data/DataBus'
@@ -96,7 +96,6 @@ export const useBoardStore = defineStore('board', () => {
       clearTimeout(timer)
     }
     historyDebounceTimers.clear()
-    console.log('[BoardStore] Cleared all history debounce timers')
   }
 
   // ============================================================================
@@ -109,6 +108,7 @@ export const useBoardStore = defineStore('board', () => {
   const background = computed(() => document.value?.board.background ?? { ...DEFAULT_BACKGROUND })
   const grid = computed((): GridSettings => document.value?.board.grid ?? { ...DEFAULT_GRID_SETTINGS })
   const groups = computed((): ElementGroup[] => document.value?.board.groups ?? [])
+  const connections = computed((): Connection[] => document.value?.board.connections ?? [])
   const moduleStates = computed(() => document.value?.modules ?? {})
   const title = computed(() => document.value?.meta.title ?? '')
 
@@ -169,6 +169,13 @@ export const useBoardStore = defineStore('board', () => {
         map.set(memberId, group.id)
       }
     }
+    return map
+  })
+
+  /** Internal Map for O(1) connection lookups by ID */
+  const connectionMap = computed(() => {
+    const map = new Map<string, Connection>()
+    for (const c of connections.value) map.set(c.id, c)
     return map
   })
 
@@ -654,6 +661,9 @@ export const useBoardStore = defineStore('board', () => {
     // Capture snapshot BEFORE mutation for undo
     captureHistorySnapshot(`Deleted ${element.type}`)
 
+    // Clean up connections involving this element
+    cleanupConnectionsForElement(elementId)
+
     document.value.board.elements.splice(index, 1)
 
     if (selectedElementId.value === elementId) {
@@ -927,6 +937,9 @@ export const useBoardStore = defineStore('board', () => {
   function moveSelection(dx: number, dy: number, skipDirty = false) {
     if (!document.value || selection.value.length === 0) return
 
+    // Track moved element IDs to update bound arrows
+    const movedElementIds: string[] = []
+
     for (const item of selection.value) {
       if (item.type === 'widget') {
         const widget = widgetMap.value.get(item.id)
@@ -941,8 +954,14 @@ export const useBoardStore = defineStore('board', () => {
           element.rect.y += dy
           // Also move line/arrow/draw points
           translateElementPoints(element, dx, dy)
+          movedElementIds.push(item.id)
         }
       }
+    }
+
+    // Update arrows bound to moved shapes
+    for (const elementId of movedElementIds) {
+      updateBoundArrowsForElement(elementId)
     }
 
     if (!skipDirty) {
@@ -959,17 +978,40 @@ export const useBoardStore = defineStore('board', () => {
     const itemsToDelete = [...selection.value]
     clearSelection()
 
+    // Collect deleted element IDs for orphan cleanup
+    const deletedElementIds = new Set<string>()
+    const deletedWidgetIds = new Set<string>()
+
     for (const item of itemsToDelete) {
       if (item.type === 'widget') {
+        deletedWidgetIds.add(item.id)
         const index = document.value.board.widgets.findIndex((w) => w.id === item.id)
         if (index >= 0) {
+          cleanupWidgetDataSharing(item.id)
           document.value.board.widgets.splice(index, 1)
           delete document.value.modules[item.id]
         }
       } else {
+        deletedElementIds.add(item.id)
+        // Clean up connections for this element
+        cleanupConnectionsForElement(item.id)
         const index = document.value.board.elements.findIndex((e) => e.id === item.id)
         if (index >= 0) {
           document.value.board.elements.splice(index, 1)
+        }
+      }
+    }
+
+    // Clean up orphan bindings - arrows that were bound to deleted shapes
+    if (deletedElementIds.size > 0) {
+      for (const element of document.value.board.elements) {
+        if (isLineElement(element)) {
+          if (element.startBinding && deletedElementIds.has(element.startBinding.elementId)) {
+            element.startBinding = undefined
+          }
+          if (element.endBinding && deletedElementIds.has(element.endBinding.elementId)) {
+            element.endBinding = undefined
+          }
         }
       }
     }
@@ -1096,39 +1138,29 @@ export const useBoardStore = defineStore('board', () => {
   }
 
   /**
-   * Set grid cell size (5-100 pixels).
+   * @deprecated Grid size is now fixed at GRID_SIZE (20px). This function is kept for backwards compatibility.
    */
-  function setGridSize(size: number): void {
-    if (!document.value) return
-
-    if (!document.value.board.grid) {
-      document.value.board.grid = { ...DEFAULT_GRID_SETTINGS }
-    }
-    document.value.board.grid.size = Math.max(5, Math.min(100, size))
-    markDirty('Changed grid size')
+  function setGridSize(_size: number): void {
+    // No-op: Grid size is now fixed at GRID_SIZE (20px)
+    // Kept for backwards compatibility with existing code
   }
 
   /**
-   * Toggle grid visibility (show/hide visual grid overlay).
+   * @deprecated Grid overlay removed. Background pattern serves as visual guide.
    */
-  function setGridVisible(visible: boolean): void {
-    if (!document.value) return
-
-    if (!document.value.board.grid) {
-      document.value.board.grid = { ...DEFAULT_GRID_SETTINGS }
-    }
-    document.value.board.grid.showGrid = visible
-    markDirty(visible ? 'Showed grid' : 'Hid grid')
+  function setGridVisible(_visible: boolean): void {
+    // No-op: Grid overlay removed, background pattern is always visible
+    // Kept for backwards compatibility with existing code
   }
 
   /**
    * Snap a value to the grid.
+   * Uses fixed GRID_SIZE (20px) to match visual background pattern.
    * Returns the original value if grid is disabled.
    */
   function snapToGrid(value: number): number {
     if (!grid.value.enabled) return value
-    const size = grid.value.size
-    return Math.round(value / size) * size
+    return Math.round(value / GRID_SIZE) * GRID_SIZE
   }
 
   /**
@@ -1457,10 +1489,12 @@ export const useBoardStore = defineStore('board', () => {
     anchor: AnchorPosition
   ): boolean {
     const arrow = elementMap.value.get(arrowId) as LineElement | undefined
-    if (!arrow || arrow.type !== 'arrow') return false
+    if (!arrow) return false
+    if (arrow.type !== 'arrow' && arrow.type !== 'line') return false
 
     const target = elementMap.value.get(targetId)
-    if (!target || (target.type !== 'rectangle' && target.type !== 'ellipse')) return false
+    if (!target) return false
+    if (target.type !== 'rectangle' && target.type !== 'ellipse') return false
 
     const binding: ArrowBinding = {
       elementId: targetId,
@@ -1520,14 +1554,10 @@ export const useBoardStore = defineStore('board', () => {
 
     // Update the arrow endpoint using { start, end } structure
     if (endpoint === 'start') {
-      // Update start point
       arrow.points.start = { ...anchorPoint }
-      // Update rect to encompass new points
       updateArrowRectFromPoints(arrow)
     } else {
-      // Update end point
       arrow.points.end = { ...anchorPoint }
-      // Update rect to encompass new points
       updateArrowRectFromPoints(arrow)
     }
   }
@@ -1573,16 +1603,16 @@ export const useBoardStore = defineStore('board', () => {
   function updateBoundArrowsForElement(elementId: string): void {
     if (!document.value) return
 
-    // Find all arrows with bindings to this element
+    // Find all lines/arrows with bindings to this element
     for (const element of elements.value) {
-      if (element.type !== 'arrow') continue
+      if (element.type !== 'arrow' && element.type !== 'line') continue
 
-      const arrow = element as LineElement
-      if (arrow.startBinding?.elementId === elementId) {
-        updateArrowEndpointFromBinding(arrow, 'start')
+      const lineOrArrow = element as LineElement
+      if (lineOrArrow.startBinding?.elementId === elementId) {
+        updateArrowEndpointFromBinding(lineOrArrow, 'start')
       }
-      if (arrow.endBinding?.elementId === elementId) {
-        updateArrowEndpointFromBinding(arrow, 'end')
+      if (lineOrArrow.endBinding?.elementId === elementId) {
+        updateArrowEndpointFromBinding(lineOrArrow, 'end')
       }
     }
   }
@@ -1606,6 +1636,176 @@ export const useBoardStore = defineStore('board', () => {
     if (!arrow || arrow.type !== 'arrow') return undefined
 
     return endpoint === 'start' ? arrow.startBinding : arrow.endBinding
+  }
+
+  // ============================================================================
+  // Actions - Connections (Intentional Links)
+  // ============================================================================
+
+  /**
+   * Add a new connection between two elements/widgets.
+   * @param sourceId - ID of the source element or widget
+   * @param sourceType - Type of the source ('element' or 'widget')
+   * @param targetId - ID of the target element or widget
+   * @param targetType - Type of the target ('element' or 'widget')
+   * @returns The new connection ID, or null if creation failed
+   */
+  function addConnection(
+    sourceId: string,
+    sourceType: ConnectionTargetType,
+    targetId: string,
+    targetType: ConnectionTargetType
+  ): string | null {
+    if (!document.value) return null
+
+    // Validate source exists
+    if (sourceType === 'element') {
+      if (!elementMap.value.has(sourceId)) return null
+    } else {
+      if (!widgetMap.value.has(sourceId)) return null
+    }
+
+    // Validate target exists
+    if (targetType === 'element') {
+      if (!elementMap.value.has(targetId)) return null
+    } else {
+      if (!widgetMap.value.has(targetId)) return null
+    }
+
+    // Don't allow self-connections
+    if (sourceId === targetId) return null
+
+    // Check for duplicate connection
+    const existingConnection = connections.value.find(
+      (c) =>
+        (c.sourceId === sourceId && c.targetId === targetId) ||
+        (c.sourceId === targetId && c.targetId === sourceId)
+    )
+    if (existingConnection) return null
+
+    // Capture history
+    captureHistorySnapshot('Created connection')
+
+    // Ensure connections array exists
+    if (!document.value.board.connections) {
+      document.value.board.connections = []
+    }
+
+    const connection: Connection = {
+      id: nanoid(),
+      sourceId,
+      sourceType,
+      targetId,
+      targetType,
+    }
+
+    document.value.board.connections.push(connection)
+    markDirty('Created connection')
+
+    return connection.id
+  }
+
+  /**
+   * Remove a connection by ID.
+   */
+  function removeConnection(connectionId: string): boolean {
+    if (!document.value?.board.connections) return false
+
+    const index = document.value.board.connections.findIndex((c) => c.id === connectionId)
+    if (index === -1) return false
+
+    captureHistorySnapshot('Deleted connection')
+    document.value.board.connections.splice(index, 1)
+    markDirty('Deleted connection')
+
+    return true
+  }
+
+  /**
+   * Get all connections involving an element or widget.
+   * @param id - ID of the element or widget
+   * @param type - Type of the item ('element' or 'widget')
+   * @returns Array of connections where this item is source or target
+   */
+  function getConnectionsForItem(id: string, type: ConnectionTargetType): Connection[] {
+    return connections.value.filter(
+      (c) =>
+        (c.sourceId === id && c.sourceType === type) ||
+        (c.targetId === id && c.targetType === type)
+    )
+  }
+
+  /**
+   * Get all connections for an element (for use in moveElement/resizeElement).
+   */
+  function getConnectionsForElement(elementId: string): Connection[] {
+    return getConnectionsForItem(elementId, 'element')
+  }
+
+  /**
+   * Get all connections for a widget.
+   */
+  function getConnectionsForWidget(widgetId: string): Connection[] {
+    return getConnectionsForItem(widgetId, 'widget')
+  }
+
+  /**
+   * Clean up connections when an element is deleted.
+   * Removes all connections involving the deleted element.
+   */
+  function cleanupConnectionsForElement(elementId: string): void {
+    if (!document.value?.board.connections) return
+
+    document.value.board.connections = document.value.board.connections.filter(
+      (c) =>
+        !(
+          (c.sourceId === elementId && c.sourceType === 'element') ||
+          (c.targetId === elementId && c.targetType === 'element')
+        )
+    )
+  }
+
+  /**
+   * Clean up connections when a widget is deleted.
+   * Removes all connections involving the deleted widget.
+   */
+  function cleanupConnectionsForWidget(widgetId: string): void {
+    if (!document.value?.board.connections) return
+
+    document.value.board.connections = document.value.board.connections.filter(
+      (c) =>
+        !(
+          (c.sourceId === widgetId && c.sourceType === 'widget') ||
+          (c.targetId === widgetId && c.targetType === 'widget')
+        )
+    )
+  }
+
+  /**
+   * Update connection style.
+   */
+  function updateConnectionStyle(
+    connectionId: string,
+    style: { strokeColor?: string; strokeWidth?: number }
+  ): boolean {
+    const connection = connectionMap.value.get(connectionId)
+    if (!connection) return false
+
+    connection.style = { ...connection.style, ...style }
+    markDirty('Updated connection style')
+    return true
+  }
+
+  /**
+   * Update connection label.
+   */
+  function updateConnectionLabel(connectionId: string, label: string | undefined): boolean {
+    const connection = connectionMap.value.get(connectionId)
+    if (!connection) return false
+
+    connection.label = label
+    markDirty('Updated connection label')
+    return true
   }
 
   // ============================================================================
@@ -1661,8 +1861,6 @@ export const useBoardStore = defineStore('board', () => {
         // Immediate capture
         captureHistorySnapshot(label)
       }
-    } else if (options?.captureHistory && isRestoring.value) {
-      console.log('[BoardStore] Skipping history capture setup during restoration:', options?.historyLabel)
     }
 
     // Perform the mutation
@@ -1703,8 +1901,6 @@ export const useBoardStore = defineStore('board', () => {
         // Immediate capture
         captureHistorySnapshot(label)
       }
-    } else if (options?.captureHistory && isRestoring.value) {
-      console.log('[BoardStore] Skipping history capture setup during restoration:', options?.historyLabel)
     }
 
     document.value.modules[widgetId] = moduleDef.serialize(state)
@@ -1723,7 +1919,6 @@ export const useBoardStore = defineStore('board', () => {
    */
   function captureHistorySnapshot(label: string): void {
     if (isRestoring.value) {
-      console.log('[BoardStore] Skipping history capture during restoration:', label)
       return
     }
     if (document.value) {
@@ -1753,7 +1948,6 @@ export const useBoardStore = defineStore('board', () => {
    * Undo the last action by restoring the previous document state.
    */
   function undo(): boolean {
-    console.log('[BoardStore] undo called, hasDocument:', !!document.value)
     if (!document.value) return false
 
     // Clear any pending debounce timers before restoration
@@ -1761,7 +1955,6 @@ export const useBoardStore = defineStore('board', () => {
 
     // Pass current document to save as liveSnapshot on first undo
     const entry = history.undo(document.value)
-    console.log('[BoardStore] undo result:', { hasEntry: !!entry, label: entry?.label })
     if (entry) {
       // Set restoring flag to prevent module watchers from creating history entries
       isRestoring.value = true
@@ -1769,11 +1962,9 @@ export const useBoardStore = defineStore('board', () => {
       // Use nextTick equivalent: clear flag after Vue's reactivity system settles
       setTimeout(() => {
         isRestoring.value = false
-        console.log('[BoardStore] Restoration complete, isRestoring reset to false')
       }, 0)
       isDirty.value = true
       lastAction.value = `Undid: ${entry.label}`
-      console.log('[BoardStore] After undo - canRedo:', history.canRedo.value)
       return true
     }
     return false
@@ -1783,26 +1974,21 @@ export const useBoardStore = defineStore('board', () => {
    * Redo a previously undone action.
    */
   function redo(): boolean {
-    console.log('[BoardStore] redo called, canRedo:', history.canRedo.value)
-
     // Clear any pending debounce timers before restoration
     clearHistoryDebounceTimers()
 
     const entry = history.redo()
-    console.log('[BoardStore] redo result:', { hasEntry: !!entry, label: entry?.label, id: entry?.id })
     if (entry) {
       // Set restoring flag to prevent module watchers from creating history entries
       isRestoring.value = true
       document.value = deepClone(entry.snapshot)
       setTimeout(() => {
         isRestoring.value = false
-        console.log('[BoardStore] Restoration complete, isRestoring reset to false')
       }, 0)
       isDirty.value = true
       lastAction.value = entry.id === 'live' ? 'Returned to current state' : `Redid: ${entry.label}`
       return true
     }
-    console.log('[BoardStore] redo failed - no entry returned')
     return false
   }
 
@@ -1823,7 +2009,6 @@ export const useBoardStore = defineStore('board', () => {
       document.value = deepClone(entry.snapshot)
       setTimeout(() => {
         isRestoring.value = false
-        console.log('[BoardStore] Restoration complete, isRestoring reset to false')
       }, 0)
       isDirty.value = true
       lastAction.value = `Jumped to: ${entry.label}`
@@ -1846,7 +2031,6 @@ export const useBoardStore = defineStore('board', () => {
       document.value = deepClone(entry.snapshot)
       setTimeout(() => {
         isRestoring.value = false
-        console.log('[BoardStore] Restoration complete, isRestoring reset to false')
       }, 0)
       isDirty.value = true
       lastAction.value = 'Returned to current state'
@@ -1972,6 +2156,9 @@ export const useBoardStore = defineStore('board', () => {
    * Clean up data sharing state when a widget is deleted.
    */
   function cleanupWidgetDataSharing(widgetId: string): void {
+    // Clean up connections involving this widget
+    cleanupConnectionsForWidget(widgetId)
+
     if (!document.value?.dataSharing) return
 
     // Remove all permissions where widget is consumer or provider
@@ -2131,6 +2318,19 @@ export const useBoardStore = defineStore('board', () => {
     updateBoundArrowsForElement,
     isArrowBound,
     getArrowBinding,
+
+    // Getters - Connections
+    connections,
+    connectionMap,
+
+    // Actions - Connections
+    addConnection,
+    removeConnection,
+    getConnectionsForElement,
+    getConnectionsForWidget,
+    getConnectionsForItem,
+    updateConnectionStyle,
+    updateConnectionLabel,
 
     // Actions - Module State
     getModuleState,

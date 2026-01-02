@@ -174,14 +174,15 @@ const backgroundStyle = computed(() => {
   const bg = background.value
   const zoom = viewport.value.zoom
 
-  // Pattern scales with zoom but clamped to avoid "gray background" effect
-  // Min 8px prevents dots/lines from being too dense when zoomed out
-  // Max 80px prevents pattern from being too sparse when zoomed in
-  const baseSize = Math.max(8, Math.min(80, 20 * zoom))
+  // Grid size is fixed at 20px in canvas coordinates
+  // Visual size scales with zoom: 20px canvas = 20*zoom screen pixels
+  // This ensures perfect alignment between visual grid and snap-to-grid
+  const baseSize = 20 * zoom
 
-  // Reduce opacity when zoomed out to make it less aggressive
-  // Full opacity at zoom >= 1, fades to 30% at zoom 0.1
-  const zoomOpacity = zoom >= 1 ? 1 : Math.max(0.3, zoom)
+  // Reduce opacity when zoomed out to improve visibility
+  // Full opacity at zoom >= 60%, fades progressively below
+  // At 50%: ~70% opacity, at 40%: ~50%, at 30%: ~30%, at 20%: ~10% (minimum)
+  const zoomOpacity = Math.min(1, Math.max(0.1, (zoom - 0.15) / 0.5))
 
   let backgroundImage = 'none'
   if (bg.pattern === 'dots') {
@@ -1410,6 +1411,7 @@ defineExpose({
       <!-- Elements SVG layer (below widgets by default, z-index controls final order) -->
       <CanvasElementsLayer
         :zoom="viewport.zoom"
+        :viewport="viewport"
         :drag-offset="dragOffset"
         :dragging-element-ids="draggingElementIds"
         @element-select="(id, event) => handleElementSelect(id, event)"

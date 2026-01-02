@@ -264,8 +264,6 @@ export function usePersistence() {
       await loadHistory()
 
       // currentDocumentId is already synced to localStorage via useStorage
-
-      console.log('Opened document:', id)
       return true
     } catch (error) {
       console.error('Failed to open document:', error)
@@ -307,7 +305,6 @@ export function usePersistence() {
         await addToHistory(boardStore.lastAction)
       }
 
-      console.log('Document saved:', currentDocumentId.value)
       return true
     } catch (error) {
       console.error('Failed to save document:', error)
@@ -349,7 +346,6 @@ export function usePersistence() {
         if (exists) {
           const opened = await openDocument(currentDocumentId.value)
           if (opened) {
-            console.log('Restored document:', currentDocumentId.value)
             return
           }
         }
@@ -359,13 +355,11 @@ export function usePersistence() {
       if (documents.value.length > 0) {
         const opened = await openDocument(documents.value[0].id)
         if (opened) {
-          console.log('Opened most recent document:', documents.value[0].id)
           return
         }
       }
 
       // No documents at all, create a new one
-      console.log('Creating new document')
       await createDocument('Untitled Board')
     } finally {
       isLoading.value = false
@@ -377,8 +371,6 @@ export function usePersistence() {
     if (stopWatch) {
       stopWatch()
     }
-
-    console.log('Setting up autosave, currentDocumentId:', currentDocumentId.value)
 
     // Watch dirty state instead of deep watching the entire document (performance)
     // Using VueUse's useDebounceFn for automatic debouncing

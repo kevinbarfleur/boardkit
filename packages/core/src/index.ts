@@ -106,6 +106,19 @@ export {
   getAnchorPoint,
   findNearestShapeAndAnchor,
   calculateAutoAnchor,
+  // Orthogonal Router
+  calculateOrthogonalPath,
+  calculatePreviewPath,
+  calculateOptimalAnchor,
+  pathToSvgD,
+  getEndAngle,
+  getStartAngle,
+  getBoundsCenter,
+  getAnchorOnSide,
+  buildOrthogonalPath,
+  type Bounds,
+  type AnchorSide,
+  type AnchorResult,
 } from './utils'
 
 // Services
