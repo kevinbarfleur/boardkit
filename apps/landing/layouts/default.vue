@@ -128,9 +128,9 @@
 
 .footer-grid {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr;
-  gap: 32px;
-  margin-bottom: 32px;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 24px;
 }
 
 .footer-brand .logo {
@@ -170,13 +170,15 @@
 }
 
 /* Responsive */
-@media (max-width: 640px) {
+@media (max-width: 520px) {
   .nav {
-    gap: 16px;
+    gap: 12px;
+    font-size: 13px;
   }
 
   .footer-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
+    gap: 20px;
   }
 }
 </style>

@@ -656,8 +656,8 @@ section li a {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 16px;
-  max-width: 600px;
+  gap: 12px;
+  max-width: 100%;
   margin: 0 auto;
 }
 
@@ -686,8 +686,8 @@ section li a {
 }
 
 .mosaic-window {
-  width: 160px;
-  height: 120px;
+  width: 140px;
+  height: 110px;
   background: #0f0f0f;
   border-radius: 8px;
   overflow: hidden;
@@ -696,8 +696,8 @@ section li a {
 }
 
 .mosaic-window.wide {
-  width: 320px;
-  height: 100px;
+  width: 280px;
+  height: 95px;
 }
 
 .window-header {
@@ -1041,34 +1041,34 @@ section li a {
 }
 
 /* Responsive */
-@media (max-width: 640px) {
+@media (max-width: 520px) {
   .hero {
     flex-direction: column;
-    padding: 60px 0 40px;
+    padding: 48px 0 32px;
   }
 
   .hero-icon {
-    width: 64px;
-    height: 64px;
+    width: 56px;
+    height: 56px;
   }
 
   .hero-content h1 {
-    font-size: 32px;
+    font-size: 28px;
   }
 
   .mosaic {
-    gap: 12px;
+    gap: 10px;
   }
 
   .mosaic-window {
-    width: 140px;
-    height: 110px;
+    width: 130px;
+    height: 100px;
   }
 
   .mosaic-window.wide {
     width: 100%;
-    max-width: 300px;
-    height: 90px;
+    max-width: 280px;
+    height: 85px;
   }
 
   .kanban-card-item {
