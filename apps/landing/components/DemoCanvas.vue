@@ -126,7 +126,6 @@ function renderElement(element: CanvasElement): SVGGElement | null {
     text.setAttribute('fill', element.style.strokeColor)
     text.setAttribute('font-size', String(element.fontSize))
     text.setAttribute('font-family', element.fontFamily || "'Source Serif 4', serif")
-    text.setAttribute('font-style', 'italic')
     text.textContent = element.content
     g.appendChild(text)
   }

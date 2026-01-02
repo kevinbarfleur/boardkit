@@ -470,7 +470,6 @@ const plugins = [
 /* Typography - Serif for headings (matches app) */
 .serif-heading {
   font-family: 'Source Serif 4', serif;
-  font-style: italic;
 }
 
 /* Links */
@@ -514,7 +513,6 @@ a:hover {
   font-weight: 600;
   line-height: 1.1;
   margin-bottom: 4px;
-  font-style: italic;
 }
 
 .hero-tagline {
@@ -526,7 +524,6 @@ a:hover {
 .hero-description {
   font-size: 15px;
   color: hsl(var(--muted-foreground));
-  font-style: italic;
   margin-bottom: 20px;
 }
 
@@ -588,7 +585,6 @@ section li a {
   font-size: 14px;
   color: hsl(var(--muted-foreground));
   margin-bottom: 16px;
-  font-style: italic;
 }
 
 /* Modules list */
@@ -683,7 +679,6 @@ section li a {
   color: hsl(var(--muted-foreground));
   border-top: 1px solid hsl(var(--border));
   font-family: 'Source Serif 4', serif;
-  font-style: italic;
 }
 
 /* Task Radar Widget */
@@ -834,7 +829,6 @@ section li a {
   font-family: 'Source Serif 4', serif;
   font-size: 22px;
   font-weight: 600;
-  font-style: italic;
   color: hsl(var(--foreground));
 }
 
@@ -1051,7 +1045,6 @@ section li a {
   text-align: center;
   font-family: 'Source Serif 4', serif;
   font-size: 15px;
-  font-style: italic;
   color: hsl(var(--muted-foreground));
   margin-top: 8px;
 }
