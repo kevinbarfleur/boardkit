@@ -109,194 +109,189 @@ const modules = [
       </ul>
     </section>
 
-    <!-- Modules Mosaic -->
+    <!-- Modules Mosaic - Cloud arrangement -->
     <section class="mosaic-section">
-      <div class="mosaic">
-        <!-- Todo -->
-        <div class="mosaic-card" style="--rotation: -2deg; --offset-y: 0px;">
-          <div class="mosaic-preview">
-            <div class="mosaic-window">
-              <div class="window-header">
-                <div class="window-dots"><span /><span /><span /></div>
-                <span class="window-title">Todo</span>
-              </div>
-              <div class="window-content">
-                <div class="fake-todo">
-                  <div class="fake-checkbox checked">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                      <polyline points="20 6 9 17 4 12" />
+      <div class="mosaic-cloud">
+        <!-- Row 1: Todo + Timer -->
+        <div class="mosaic-row">
+          <div class="mosaic-card" style="--rotation: -3deg;">
+            <div class="mosaic-preview">
+              <div class="mosaic-window">
+                <div class="window-header">
+                  <div class="window-dots"><span /><span /><span /></div>
+                  <span class="window-title">Todo</span>
+                </div>
+                <div class="window-content">
+                  <div class="fake-todo">
+                    <div class="fake-checkbox checked">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    </div>
+                    <span class="fake-label done">Buy groceries</span>
+                  </div>
+                  <div class="fake-todo">
+                    <div class="fake-checkbox checked">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    </div>
+                    <span class="fake-label done">Read article</span>
+                  </div>
+                  <div class="fake-todo">
+                    <div class="fake-checkbox" />
+                    <span class="fake-label">Finish report</span>
+                  </div>
+                  <div class="fake-todo add">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="add-icon">
+                      <line x1="12" y1="5" x2="12" y2="19" />
+                      <line x1="5" y1="12" x2="19" y2="12" />
                     </svg>
+                    <span>Add task</span>
                   </div>
-                  <span class="fake-label done">Buy groceries</span>
                 </div>
-                <div class="fake-todo">
-                  <div class="fake-checkbox checked">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                      <polyline points="20 6 9 17 4 12" />
+              </div>
+            </div>
+            <span class="mosaic-label">Todo</span>
+          </div>
+
+          <div class="mosaic-card" style="--rotation: 2deg;">
+            <div class="mosaic-preview">
+              <div class="mosaic-window">
+                <div class="window-header">
+                  <div class="window-dots"><span /><span /><span /></div>
+                  <span class="window-title">Timer</span>
+                </div>
+                <div class="window-content timer-content">
+                  <div class="timer-ring-wrapper">
+                    <svg class="timer-ring" viewBox="0 0 120 120">
+                      <circle cx="60" cy="60" r="52" class="timer-bg" />
+                      <circle cx="60" cy="60" r="52" class="timer-progress" style="--progress: 0.65;" />
                     </svg>
+                    <div class="timer-time">16:15</div>
                   </div>
-                  <span class="fake-label done">Read article</span>
-                </div>
-                <div class="fake-todo">
-                  <div class="fake-checkbox" />
-                  <span class="fake-label">Finish report</span>
-                </div>
-                <div class="fake-todo add">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="add-icon">
-                    <line x1="12" y1="5" x2="12" y2="19" />
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                  </svg>
-                  <span>Add task</span>
+                  <div class="timer-session">Session 2/4</div>
                 </div>
               </div>
             </div>
+            <span class="mosaic-label">Timer</span>
           </div>
-          <span class="mosaic-label">Todo</span>
         </div>
 
-        <!-- Timer -->
-        <div class="mosaic-card" style="--rotation: 1.5deg; --offset-y: 12px;">
-          <div class="mosaic-preview">
-            <div class="mosaic-window">
-              <div class="window-header">
-                <div class="window-dots"><span /><span /><span /></div>
-                <span class="window-title">Timer</span>
-              </div>
-              <div class="window-content timer-content">
-                <div class="timer-ring-wrapper">
-                  <svg class="timer-ring" viewBox="0 0 120 120">
-                    <circle cx="60" cy="60" r="52" class="timer-bg" />
-                    <circle cx="60" cy="60" r="52" class="timer-progress" style="--progress: 0.65;" />
-                  </svg>
-                  <div class="timer-time">16:15</div>
+        <!-- Row 2: Kanban (center, wider) -->
+        <div class="mosaic-row center">
+          <div class="mosaic-card" style="--rotation: -1deg;">
+            <div class="mosaic-preview">
+              <div class="mosaic-window wide">
+                <div class="window-header">
+                  <div class="window-dots"><span /><span /><span /></div>
+                  <span class="window-title">Kanban</span>
                 </div>
-                <div class="timer-session">Session 2/4</div>
+                <div class="window-content kanban-content">
+                  <div class="kanban-column">
+                    <div class="column-header">
+                      <span class="column-dot" style="background: #f59e0b;" />
+                      <span class="column-name">To Do</span>
+                      <span class="column-count">2</span>
+                    </div>
+                    <div class="kanban-card-item">Design review</div>
+                    <div class="kanban-card-item">API docs</div>
+                  </div>
+                  <div class="kanban-column">
+                    <div class="column-header">
+                      <span class="column-dot" style="background: #3b82f6;" />
+                      <span class="column-name">In Progress</span>
+                      <span class="column-count">1</span>
+                    </div>
+                    <div class="kanban-card-item">Homepage</div>
+                  </div>
+                  <div class="kanban-column">
+                    <div class="column-header">
+                      <span class="column-dot" style="background: #22c55e;" />
+                      <span class="column-name">Done</span>
+                      <span class="column-count">3</span>
+                    </div>
+                    <div class="kanban-card-item">Login flow</div>
+                    <div class="kanban-card-item">User tests</div>
+                  </div>
+                </div>
               </div>
             </div>
+            <span class="mosaic-label">Kanban</span>
           </div>
-          <span class="mosaic-label">Timer</span>
         </div>
 
-        <!-- Kanban -->
-        <div class="mosaic-card kanban-card" style="--rotation: -1deg; --offset-y: -8px;">
-          <div class="mosaic-preview">
-            <div class="mosaic-window wide">
-              <div class="window-header">
-                <div class="window-dots"><span /><span /><span /></div>
-                <span class="window-title">Kanban</span>
-              </div>
-              <div class="window-content kanban-content">
-                <div class="kanban-column">
-                  <div class="column-header">
-                    <span class="column-dot" style="background: #f59e0b;" />
-                    <span class="column-name">To Do</span>
-                    <span class="column-count">2</span>
-                  </div>
-                  <div class="kanban-card-item">Design review</div>
-                  <div class="kanban-card-item">API docs</div>
+        <!-- Row 3: Stats + Habits + Text -->
+        <div class="mosaic-row">
+          <div class="mosaic-card" style="--rotation: 2deg;">
+            <div class="mosaic-preview">
+              <div class="mosaic-window small">
+                <div class="window-header">
+                  <div class="window-dots"><span /><span /><span /></div>
+                  <span class="window-title">Stats</span>
                 </div>
-                <div class="kanban-column">
-                  <div class="column-header">
-                    <span class="column-dot" style="background: #3b82f6;" />
-                    <span class="column-name">In Progress</span>
-                    <span class="column-count">1</span>
+                <div class="window-content stats-content">
+                  <div class="stat-value">42</div>
+                  <div class="stat-label">Tasks done</div>
+                  <div class="stat-bar">
+                    <div class="stat-fill" style="width: 68%;" />
                   </div>
-                  <div class="kanban-card-item">Homepage</div>
-                </div>
-                <div class="kanban-column">
-                  <div class="column-header">
-                    <span class="column-dot" style="background: #22c55e;" />
-                    <span class="column-name">Done</span>
-                    <span class="column-count">3</span>
-                  </div>
-                  <div class="kanban-card-item">Login flow</div>
-                  <div class="kanban-card-item">User tests</div>
                 </div>
               </div>
             </div>
+            <span class="mosaic-label">Stats</span>
           </div>
-          <span class="mosaic-label">Kanban</span>
-        </div>
 
-        <!-- Stats -->
-        <div class="mosaic-card" style="--rotation: 2deg; --offset-y: 20px;">
-          <div class="mosaic-preview">
-            <div class="mosaic-window">
-              <div class="window-header">
-                <div class="window-dots"><span /><span /><span /></div>
-                <span class="window-title">Stats</span>
-              </div>
-              <div class="window-content stats-content">
-                <div class="stat-value">42</div>
-                <div class="stat-label">Tasks completed</div>
-                <div class="stat-bar">
-                  <div class="stat-fill" style="width: 68%;" />
+          <div class="mosaic-card" style="--rotation: -2deg;">
+            <div class="mosaic-preview">
+              <div class="mosaic-window">
+                <div class="window-header">
+                  <div class="window-dots"><span /><span /><span /></div>
+                  <span class="window-title">Habits</span>
                 </div>
-                <div class="stat-sublabel">68% of goal</div>
+                <div class="window-content habit-content">
+                  <div class="habit-row">
+                    <span class="habit-name">Exercise</span>
+                    <div class="habit-grid">
+                      <span class="filled" /><span class="filled" /><span /><span class="filled" /><span class="filled" /><span class="filled" /><span class="today" />
+                    </div>
+                  </div>
+                  <div class="habit-row">
+                    <span class="habit-name">Reading</span>
+                    <div class="habit-grid">
+                      <span class="filled" /><span /><span class="filled" /><span class="filled" /><span /><span class="filled" /><span />
+                    </div>
+                  </div>
+                  <div class="habit-row">
+                    <span class="habit-name">Meditate</span>
+                    <div class="habit-grid">
+                      <span class="filled" /><span class="filled" /><span class="filled" /><span class="filled" /><span class="filled" /><span class="filled" /><span class="filled today" />
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
+            <span class="mosaic-label">Habits</span>
           </div>
-          <span class="mosaic-label">Stats</span>
-        </div>
 
-        <!-- Habits -->
-        <div class="mosaic-card" style="--rotation: -1.5deg; --offset-y: 5px;">
-          <div class="mosaic-preview">
-            <div class="mosaic-window">
-              <div class="window-header">
-                <div class="window-dots"><span /><span /><span /></div>
-                <span class="window-title">Habits</span>
-              </div>
-              <div class="window-content habit-content">
-                <div class="habit-row">
-                  <span class="habit-name">Exercise</span>
-                  <div class="habit-grid">
-                    <span class="filled" /><span class="filled" /><span /><span class="filled" /><span class="filled" /><span class="filled" /><span class="today" />
-                  </div>
+          <div class="mosaic-card" style="--rotation: 1.5deg;">
+            <div class="mosaic-preview">
+              <div class="mosaic-window small">
+                <div class="window-header">
+                  <div class="window-dots"><span /><span /><span /></div>
+                  <span class="window-title">Text</span>
                 </div>
-                <div class="habit-row">
-                  <span class="habit-name">Reading</span>
-                  <div class="habit-grid">
-                    <span class="filled" /><span /><span class="filled" /><span class="filled" /><span /><span class="filled" /><span />
-                  </div>
-                </div>
-                <div class="habit-row">
-                  <span class="habit-name">Meditate</span>
-                  <div class="habit-grid">
-                    <span class="filled" /><span class="filled" /><span class="filled" /><span class="filled" /><span class="filled" /><span class="filled" /><span class="filled today" />
+                <div class="window-content text-content">
+                  <div class="text-heading">Notes</div>
+                  <div class="text-paragraph">
+                    <span class="text-line">Meeting notes for</span>
+                    <span class="text-line">the Q2 roadmap...</span>
                   </div>
                 </div>
               </div>
             </div>
+            <span class="mosaic-label">Text</span>
           </div>
-          <span class="mosaic-label">Habits</span>
-        </div>
-
-        <!-- Text -->
-        <div class="mosaic-card" style="--rotation: 1deg; --offset-y: -5px;">
-          <div class="mosaic-preview">
-            <div class="mosaic-window">
-              <div class="window-header">
-                <div class="window-dots"><span /><span /><span /></div>
-                <span class="window-title">Text</span>
-              </div>
-              <div class="window-content text-content">
-                <div class="text-heading">Meeting notes</div>
-                <div class="text-paragraph">
-                  <span class="text-line">Discussed the new feature</span>
-                  <span class="text-line">roadmap for Q2. Key points:</span>
-                </div>
-                <div class="text-list">
-                  <span class="text-bullet">Launch by March</span>
-                  <span class="text-bullet">Beta in February</span>
-                </div>
-              </div>
-              <div class="text-footer">
-                <span>42 words</span>
-              </div>
-            </div>
-          </div>
-          <span class="mosaic-label">Text</span>
         </div>
       </div>
     </section>
@@ -647,47 +642,49 @@ section li a {
   justify-content: center;
 }
 
-/* Mosaic */
+/* Mosaic - Cloud layout */
 .mosaic-section {
-  padding: 24px 0 48px;
+  padding: 32px 0 48px;
+  margin: 0 -40px; /* Slight overflow from container */
 }
 
-.mosaic {
+.mosaic-cloud {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.mosaic-row {
+  display: flex;
   justify-content: center;
   gap: 12px;
-  max-width: 100%;
-  margin: 0 auto;
+}
+
+.mosaic-row.center {
+  /* Center row can be slightly wider */
 }
 
 .mosaic-card {
-  transform: rotate(var(--rotation, 0deg)) translateY(var(--offset-y, 0px));
+  transform: rotate(var(--rotation, 0deg));
   transition: transform 0.2s ease;
 }
 
 .mosaic-card:hover {
-  transform: rotate(0deg) translateY(-4px) scale(1.02);
+  transform: rotate(0deg) translateY(-3px) scale(1.02);
   z-index: 10;
-}
-
-.mosaic-card.kanban-card {
-  flex-basis: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
 }
 
 .mosaic-preview {
   background: #1a1a1a;
   border-radius: 10px;
-  padding: 6px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), 0 0 0 1px hsl(var(--border));
+  padding: 5px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), 0 0 0 1px hsl(var(--border));
 }
 
 .mosaic-window {
-  width: 140px;
-  height: 110px;
+  width: 145px;
+  height: 105px;
   background: #0f0f0f;
   border-radius: 8px;
   overflow: hidden;
@@ -696,8 +693,13 @@ section li a {
 }
 
 .mosaic-window.wide {
-  width: 280px;
-  height: 95px;
+  width: 310px;
+  height: 90px;
+}
+
+.mosaic-window.small {
+  width: 115px;
+  height: 90px;
 }
 
 .window-header {
@@ -1056,19 +1058,32 @@ section li a {
     font-size: 28px;
   }
 
-  .mosaic {
-    gap: 10px;
+  .mosaic-section {
+    margin: 0 -20px;
+  }
+
+  .mosaic-cloud {
+    gap: 8px;
+  }
+
+  .mosaic-row {
+    flex-wrap: wrap;
+    gap: 8px;
   }
 
   .mosaic-window {
-    width: 130px;
-    height: 100px;
+    width: 120px;
+    height: 95px;
   }
 
   .mosaic-window.wide {
-    width: 100%;
-    max-width: 280px;
-    height: 85px;
+    width: 260px;
+    height: 80px;
+  }
+
+  .mosaic-window.small {
+    width: 100px;
+    height: 80px;
   }
 
   .kanban-card-item {

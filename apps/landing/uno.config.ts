@@ -7,6 +7,9 @@ import {
 } from 'unocss'
 
 export default defineConfig({
+  // Block UnoCSS from generating 'container' class (we use custom CSS)
+  blocklist: ['container'],
+
   presets: [
     presetUno({
       dark: 'class',
@@ -66,7 +69,6 @@ export default defineConfig({
 
   shortcuts: {
     // Layout
-    'container-landing': 'max-w-6xl mx-auto px-6 lg:px-8',
     'section-padding': 'py-16 md:py-24 lg:py-32',
 
     // Typography

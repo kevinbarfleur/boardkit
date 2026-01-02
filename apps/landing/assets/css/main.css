@@ -42,9 +42,9 @@ body {
 
 /* Container - Narrow central column (spine) */
 .container {
-  max-width: 480px;
+  max-width: 600px;
   margin: 0 auto;
-  padding: 0 20px;
+  padding: 0 24px;
 }
 
 /* Links */
