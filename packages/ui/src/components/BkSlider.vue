@@ -68,7 +68,8 @@ const percentage = computed(() => {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  min-width: 100px;
+  width: 120px;
+  flex-shrink: 0;
 }
 
 .slider-header {

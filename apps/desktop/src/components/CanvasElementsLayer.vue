@@ -33,6 +33,7 @@ const emit = defineEmits<{
   elementSelect: [id: string, event: MouseEvent]
   elementMoveStart: [id: string, event: MouseEvent]
   elementResizeStart: [id: string, handle: string, event: MouseEvent]
+  elementRotateStart: [id: string, event: MouseEvent]
   elementEditStart: [id: string, type: 'text' | 'label']
   elementContextMenu: [id: string, event: MouseEvent]
 }>()
@@ -88,6 +89,10 @@ function handleElementEditStart(id: string, type: 'text' | 'label') {
 function handleElementContextMenu(id: string, event: MouseEvent) {
   emit('elementContextMenu', id, event)
 }
+
+function handleElementRotateStart(id: string, event: MouseEvent) {
+  emit('elementRotateStart', id, event)
+}
 </script>
 
 <template>
@@ -108,6 +113,7 @@ function handleElementContextMenu(id: string, event: MouseEvent) {
       @select="handleElementSelect"
       @move-start="handleElementMoveStart"
       @resize-start="handleElementResizeStart"
+      @rotate-start="handleElementRotateStart"
       @edit-start="handleElementEditStart"
       @context-menu="handleElementContextMenu"
     />

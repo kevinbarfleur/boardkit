@@ -2,8 +2,8 @@
 /**
  * SelectionHandles
  *
- * Resize handles displayed around a selected element.
- * This component renders SVG handles at corners and edges.
+ * Resize and rotation handles displayed around a selected element.
+ * This component renders SVG handles at corners, edges, and a rotation handle above.
  */
 
 interface Props {
@@ -15,16 +15,29 @@ interface Props {
   cornersOnly?: boolean
   /** Size of the handles */
   handleSize?: number
+  /** Whether to show the rotation handle */
+  showRotationHandle?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   cornersOnly: false,
   handleSize: 8,
+  showRotationHandle: true,
 })
 
 const emit = defineEmits<{
   resizeStart: [handle: string, event: MouseEvent]
+  rotateStart: [event: MouseEvent]
 }>()
+
+import { computed } from 'vue'
+
+// Rotation handle position (above the element)
+const ROTATION_HANDLE_OFFSET = 24 // Distance above the top edge
+const ROTATION_HANDLE_SIZE = 10
+
+const rotationHandleX = computed(() => props.width / 2)
+const rotationHandleY = computed(() => -ROTATION_HANDLE_OFFSET)
 
 // Handle positions
 const handles = [
@@ -52,6 +65,11 @@ function handleMouseDown(handle: string, event: MouseEvent) {
   event.stopPropagation()
   emit('resizeStart', handle, event)
 }
+
+function handleRotateMouseDown(event: MouseEvent) {
+  event.stopPropagation()
+  emit('rotateStart', event)
+}
 </script>
 
 <template>
@@ -69,7 +87,7 @@ function handleMouseDown(handle: string, event: MouseEvent) {
       stroke-dasharray="4 2"
     />
 
-    <!-- Handles -->
+    <!-- Resize Handles -->
     <rect
       v-for="handle in handles.filter((h) => !h.edge || !cornersOnly)"
       :key="handle.id"
@@ -84,6 +102,31 @@ function handleMouseDown(handle: string, event: MouseEvent) {
       :style="{ cursor: handle.cursor }"
       @mousedown="handleMouseDown(handle.id, $event)"
     />
+
+    <!-- Rotation Handle (above element) -->
+    <g v-if="showRotationHandle && !cornersOnly" class="rotation-handle-group">
+      <!-- Line connecting to top edge -->
+      <line
+        class="rotation-line"
+        :x1="rotationHandleX"
+        :y1="0"
+        :x2="rotationHandleX"
+        :y2="rotationHandleY"
+        stroke="hsl(217 91% 60%)"
+        stroke-width="1"
+        stroke-dasharray="2 2"
+      />
+      <!-- Rotation handle circle -->
+      <circle
+        class="rotation-handle"
+        :cx="rotationHandleX"
+        :cy="rotationHandleY"
+        :r="ROTATION_HANDLE_SIZE / 2"
+        stroke="hsl(217 91% 60%)"
+        stroke-width="1"
+        @mousedown="handleRotateMouseDown"
+      />
+    </g>
   </g>
 </template>
 
@@ -99,5 +142,23 @@ function handleMouseDown(handle: string, event: MouseEvent) {
 
 .bounding-box {
   pointer-events: none;
+}
+
+.rotation-line {
+  pointer-events: none;
+}
+
+.rotation-handle {
+  pointer-events: auto;
+  fill: hsl(var(--popover));
+  cursor: grab;
+}
+
+.rotation-handle:hover {
+  fill: hsl(217 91% 60%);
+}
+
+.rotation-handle:active {
+  cursor: grabbing;
 }
 </style>

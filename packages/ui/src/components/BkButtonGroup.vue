@@ -53,6 +53,7 @@ const handleClick = (value: T, optionDisabled?: boolean) => {
 
 const containerClasses = computed(() => {
   const base = [
+    'bk-button-group',
     'inline-flex items-center gap-1 p-1 rounded-lg',
     'bg-muted/60',
   ]
@@ -141,3 +142,14 @@ const getButtonStyle = (option: ButtonGroupOption<T>) => {
     </button>
   </div>
 </template>
+
+<style scoped>
+.bk-button-group {
+  width: 120px;
+  flex-shrink: 0;
+}
+
+.bk-button-group.w-full {
+  width: 100%;
+}
+</style>

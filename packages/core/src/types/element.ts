@@ -55,6 +55,8 @@ export interface BaseElement {
   zIndex: number
   /** Visual style properties */
   style: ElementStyle
+  /** Rotation angle in radians (0 = no rotation). Default: 0 */
+  angle?: number
   /** Optional: prevent modifications */
   locked?: boolean
 }

@@ -25,6 +25,8 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   newBoard: []
   export: []
+  exportPng: []
+  exportSvg: []
   import: []
   openCommandPalette: []
   undo: []
@@ -60,6 +62,12 @@ const fileMenuGroups = [
       { id: 'export', label: 'Export as .boardkit', icon: 'download' },
     ],
   },
+  {
+    items: [
+      { id: 'export-png', label: 'Export as PNG', icon: 'image' },
+      { id: 'export-svg', label: 'Export as SVG', icon: 'file-code' },
+    ],
+  },
 ]
 
 const handleFileMenu = (item: { id: string }) => {
@@ -72,6 +80,12 @@ const handleFileMenu = (item: { id: string }) => {
       break
     case 'export':
       emit('export')
+      break
+    case 'export-png':
+      emit('exportPng')
+      break
+    case 'export-svg':
+      emit('exportSvg')
       break
   }
 }
