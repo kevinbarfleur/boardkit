@@ -73,6 +73,7 @@ export const TaskRadarModule = defineModule<TaskRadarState>({
   moduleId: 'task-radar',
   version: '0.1.0',
   displayName: 'Task Radar',
+  icon: 'radar',
   component: TaskRadarWidget,
   defaultState: () => ({
     title: 'Task Radar',

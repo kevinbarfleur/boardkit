@@ -44,7 +44,7 @@ defineExpose({
       :aria-controls="props.listboxId"
       :aria-activedescendant="props.activeDescendant"
       :placeholder="props.placeholder"
-      class="flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+      class="flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground/60"
       autocomplete="off"
       autocorrect="off"
       spellcheck="false"

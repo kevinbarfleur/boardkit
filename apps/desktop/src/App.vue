@@ -1,20 +1,20 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
-import { useBoardStore, registerCoreActions, pluginManager, type BoardkitDocument } from '@boardkit/core'
-import { useTheme, useToast, BkModalProvider, BkToastProvider } from '@boardkit/ui'
-import { useCanvasExport, useSidebarState } from '@boardkit/app-common'
+import { invoke } from '@tauri-apps/api/core'
+import { useBoardStore, registerCoreActions, registerCoreMenus, pluginManager, menuActionBus, type BoardkitDocument } from '@boardkit/core'
+import { useTheme, useToast, BkModalProvider, BkToastProvider, BkMenuBar } from '@boardkit/ui'
+import { useCanvasExport } from '@boardkit/app-common'
 import { registerModules } from './modules'
 import { registerDesktopActions } from './actions/desktopActions'
 import { usePersistence } from './composables/usePersistence'
 import { useVault } from './composables/useVault'
 import { useSettingsPanel } from './composables/useSettingsPanel'
 import BoardCanvas from './components/BoardCanvas.vue'
-import Toolbar from './components/Toolbar.vue'
 import CommandPalette from './components/CommandPalette.vue'
 import SettingsPanel from './components/SettingsPanel.vue'
 import VaultSetupModal from './components/VaultSetupModal.vue'
-import VaultSidebar from './components/VaultSidebar.vue'
+import FilePickerModal from './components/FilePickerModal.vue'
 import ElementPropertiesPanel from './components/ElementPropertiesPanel.vue'
 
 // Register all modules before using the store
@@ -35,9 +35,10 @@ const boardCanvasRef = ref<InstanceType<typeof BoardCanvas> | null>(null)
 const shownOrphanNotification = ref<string | null>(null)
 
 const isCommandPaletteOpen = ref(false)
-const { sidebarCollapsed, toggleSidebarCollapse } = useSidebarState()
+const isFilePickerOpen = ref(false)
 const isInitialized = ref(false)
 const unlisteners: UnlistenFn[] = []
+let unsubscribeMenuActions: (() => void) | null = null
 
 const openCommandPalette = () => {
   isCommandPaletteOpen.value = true
@@ -174,6 +175,23 @@ const handleChangeVault = async () => {
   }
 }
 
+const handleRevealInFinder = async () => {
+  const vaultPath = vault.vaultPath.value
+  if (vaultPath) {
+    try {
+      await invoke('show_in_folder', { path: vaultPath })
+    } catch (error) {
+      console.error('Failed to reveal in Finder:', error)
+      toaster.error('Failed to reveal in Finder')
+    }
+  }
+}
+
+const handleOpenSecrets = () => {
+  // TODO: Open secrets modal (will be implemented later)
+  toaster.info('Board Secrets feature coming soon')
+}
+
 const handleExternalChange = (doc: BoardkitDocument) => {
   // For now, just reload the document (last-write-wins)
   // In the future, we could show a notification and let user decide
@@ -197,11 +215,41 @@ onMounted(async () => {
     persistence.setupFileWatching(handleExternalChange)
   }
 
+  // Register core menus
+  registerCoreMenus()
+
   // Register core actions after Pinia store is ready
   registerCoreActions()
 
   // Register desktop-specific actions
   registerDesktopActions()
+
+  // Subscribe to menu action events
+  unsubscribeMenuActions = menuActionBus.subscribe((event) => {
+    switch (event.type) {
+      case 'board.new':
+        handleNewBoard()
+        break
+      case 'board.open':
+        isFilePickerOpen.value = true
+        break
+      case 'board.export':
+        handleExport()
+        break
+      case 'app.settings':
+        handleOpenSettings()
+        break
+      case 'vault.change':
+        handleChangeVault()
+        break
+      case 'vault.secrets':
+        handleOpenSecrets()
+        break
+      case 'vault.reveal':
+        handleRevealInFinder()
+        break
+    }
+  })
 
   // Listen for Tauri menu events
   unlisteners.push(
@@ -253,12 +301,6 @@ onMounted(async () => {
     })
   )
 
-  unlisteners.push(
-    await listen('menu-toggle-sidebar', () => {
-      toggleSidebarCollapse()
-    })
-  )
-
   // Initialize plugin manager (loads enabled plugins)
   await pluginManager.initialize()
 })
@@ -299,6 +341,11 @@ onUnmounted(() => {
 
   // Cleanup all listeners
   unlisteners.forEach((unlisten) => unlisten())
+
+  // Cleanup menu action subscription
+  if (unsubscribeMenuActions) {
+    unsubscribeMenuActions()
+  }
 })
 </script>
 
@@ -312,50 +359,42 @@ onUnmounted(() => {
       />
 
       <!-- Main App (after vault is configured) -->
-      <div v-else class="h-screen w-screen overflow-hidden flex">
-        <!-- Vault Sidebar -->
-        <VaultSidebar
-          :files="vault.files.value"
-          :active-file-path="persistence.currentFilePath.value"
-          :vault-name="vault.vaultName.value"
-          :is-loading="persistence.isLoading.value"
-          :collapsed="sidebarCollapsed"
-          @select="handleSelectFile"
-          @create="handleCreateFile"
-          @delete="handleDeleteFile"
-          @rename="handleRenameFile"
-          @duplicate="handleDuplicateFile"
-          @open-settings="handleOpenSettings"
-          @toggle-collapse="toggleSidebarCollapse"
+      <div v-else class="h-screen w-screen overflow-hidden flex flex-col">
+        <!-- Unified App Bar -->
+        <BkMenuBar
+          platform="desktop"
+          :is-saving="persistence.isSaving.value"
+          :last-saved="persistence.lastSaved.value"
+          :can-undo="persistence.canUndo.value"
+          :can-redo="persistence.canRedo.value"
+          :undo-entries="persistence.undoEntries.value"
+          :redo-entries="persistence.redoEntries.value"
+          @open-command-palette="openCommandPalette"
+          @undo="handleUndo"
+          @redo="handleRedo"
+          @go-to-history="handleGoToHistory"
+          @go-to-latest="handleGoToLatest"
+          @title-change="handleTitleChange"
         />
 
         <!-- Main Content -->
-        <div class="flex-1 flex flex-col min-w-0 relative">
-          <Toolbar
-            :is-saving="persistence.isSaving.value"
-            :last-saved="persistence.lastSaved.value"
-            :can-undo="persistence.canUndo.value"
-            :can-redo="persistence.canRedo.value"
-            :undo-entries="persistence.undoEntries.value"
-            :redo-entries="persistence.redoEntries.value"
-            @new-board="handleNewBoard"
-            @export="handleExport"
-            @export-png="handleExportPng"
-            @export-svg="handleExportSvg"
-            @import="handleImport"
-            @open-command-palette="openCommandPalette"
-            @undo="handleUndo"
-            @redo="handleRedo"
-            @go-to-history="handleGoToHistory"
-            @go-to-latest="handleGoToLatest"
-            @title-change="handleTitleChange"
-          />
+        <div class="flex-1 flex flex-col min-w-0 relative overflow-hidden">
           <BoardCanvas ref="boardCanvasRef" @open-command-palette="openCommandPalette" />
           <ElementPropertiesPanel />
         </div>
 
+        <!-- Modals -->
         <CommandPalette :open="isCommandPaletteOpen" @close="closeCommandPalette" />
         <SettingsPanel />
+        <FilePickerModal
+          :open="isFilePickerOpen"
+          :files="vault.files.value"
+          :active-file-path="persistence.currentFilePath.value"
+          :is-loading="persistence.isLoading.value"
+          @close="isFilePickerOpen = false"
+          @select="handleSelectFile"
+          @create="handleCreateFile"
+        />
       </div>
     </BkModalProvider>
   </BkToastProvider>

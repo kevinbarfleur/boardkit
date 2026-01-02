@@ -1,18 +1,17 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
-import { registerCoreActions, useBoardStore, pluginManager } from '@boardkit/core'
-import { useTheme, useToast } from '@boardkit/ui'
-import { useCanvasExport, useSidebarState } from '@boardkit/app-common'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { registerCoreActions, registerCoreMenus, useBoardStore, pluginManager, menuActionBus } from '@boardkit/core'
+import { useTheme, useToast, BkMenuBar } from '@boardkit/ui'
+import { useCanvasExport } from '@boardkit/app-common'
 import { registerModules } from '../modules'
 import { registerWebActions } from '../actions/webActions'
 import { usePersistence } from '../composables/usePersistence'
 import { useDocumentList } from '../composables/useDocumentList'
 import { useSettingsPanel } from '../composables/useSettingsPanel'
 import BoardCanvas from '../components/BoardCanvas.vue'
-import Toolbar from '../components/Toolbar.vue'
 import CommandPalette from '../components/CommandPalette.vue'
 import SettingsPanel from '../components/SettingsPanel.vue'
-import DocumentSidebar from '../components/DocumentSidebar.vue'
+import DocumentPickerModal from '../components/DocumentPickerModal.vue'
 import ElementPropertiesPanel from '../components/ElementPropertiesPanel.vue'
 
 // Register all modules before using the store
@@ -33,7 +32,10 @@ const boardCanvasRef = ref<InstanceType<typeof BoardCanvas> | null>(null)
 const shownOrphanNotification = ref<string | null>(null)
 
 const isCommandPaletteOpen = ref(false)
-const { sidebarCollapsed, toggleSidebarCollapse } = useSidebarState()
+const isDocumentPickerOpen = ref(false)
+
+// Menu action bus unsubscribe function
+let unsubscribeMenuActions: (() => void) | null = null
 
 const openCommandPalette = () => {
   isCommandPaletteOpen.value = true
@@ -155,17 +157,44 @@ onMounted(async () => {
   // Sync document list with persistence
   await documentList.refreshDocumentList()
 
+  // Register core menus
+  registerCoreMenus()
+
   // Register core actions after Pinia store is ready
   registerCoreActions()
 
   // Register web-specific actions
   registerWebActions()
 
+  // Subscribe to menu action events
+  unsubscribeMenuActions = menuActionBus.subscribe((event) => {
+    switch (event.type) {
+      case 'board.new':
+        handleCreateDocument()
+        break
+      case 'board.open':
+        isDocumentPickerOpen.value = true
+        break
+      case 'board.export':
+        persistence.exportToFile()
+        break
+      case 'app.settings':
+        handleOpenSettings()
+        break
+    }
+  })
+
   // Setup autosave
   persistence.setupAutosave()
 
   // Initialize plugin manager (loads enabled plugins)
   await pluginManager.initialize()
+})
+
+onUnmounted(() => {
+  if (unsubscribeMenuActions) {
+    unsubscribeMenuActions()
+  }
 })
 
 // Watch for orphan widgets and show notification
@@ -200,47 +229,40 @@ watch(
 </script>
 
 <template>
-  <div class="h-screen w-screen overflow-hidden flex">
-    <!-- Document Sidebar -->
-    <DocumentSidebar
-      :documents="documentList.documents.value"
-      :active-document-id="documentList.currentDocumentId.value"
-      :is-loading="documentList.isLoading.value"
-      :collapsed="sidebarCollapsed"
-      @select="handleSelectDocument"
-      @create="handleCreateDocument"
-      @delete="handleDeleteDocument"
-      @rename="handleRenameDocument"
-      @duplicate="handleDuplicateDocument"
-      @open-settings="handleOpenSettings"
-      @toggle-collapse="toggleSidebarCollapse"
+  <div class="h-screen w-screen overflow-hidden flex flex-col">
+    <!-- Unified App Bar -->
+    <BkMenuBar
+      platform="web"
+      :is-saving="persistence.isSaving.value"
+      :last-saved="persistence.lastSaved.value"
+      :can-undo="persistence.canUndo.value"
+      :can-redo="persistence.canRedo.value"
+      :undo-entries="persistence.undoEntries.value"
+      :redo-entries="persistence.redoEntries.value"
+      @open-command-palette="openCommandPalette"
+      @undo="handleUndo"
+      @redo="handleRedo"
+      @go-to-history="handleGoToHistory"
+      @go-to-latest="handleGoToLatest"
     />
 
     <!-- Main Content -->
-    <div class="flex-1 flex flex-col min-w-0 relative">
-      <Toolbar
-        :is-saving="persistence.isSaving.value"
-        :last-saved="persistence.lastSaved.value"
-        :can-undo="persistence.canUndo.value"
-        :can-redo="persistence.canRedo.value"
-        :undo-entries="persistence.undoEntries.value"
-        :redo-entries="persistence.redoEntries.value"
-        @new-board="handleCreateDocument"
-        @export="persistence.exportToFile()"
-        @export-png="handleExportPng"
-        @export-svg="handleExportSvg"
-        @import="persistence.importFromFile()"
-        @open-command-palette="openCommandPalette"
-        @undo="handleUndo"
-        @redo="handleRedo"
-        @go-to-history="handleGoToHistory"
-        @go-to-latest="handleGoToLatest"
-      />
+    <div class="flex-1 flex flex-col min-w-0 relative overflow-hidden">
       <BoardCanvas ref="boardCanvasRef" @open-command-palette="openCommandPalette" />
       <ElementPropertiesPanel />
     </div>
 
+    <!-- Modals -->
     <CommandPalette :open="isCommandPaletteOpen" @close="closeCommandPalette" />
     <SettingsPanel />
+    <DocumentPickerModal
+      :open="isDocumentPickerOpen"
+      :documents="documentList.documents.value"
+      :active-document-id="documentList.currentDocumentId.value"
+      :is-loading="documentList.isLoading.value"
+      @close="isDocumentPickerOpen = false"
+      @select="handleSelectDocument"
+      @create="handleCreateDocument"
+    />
   </div>
 </template>

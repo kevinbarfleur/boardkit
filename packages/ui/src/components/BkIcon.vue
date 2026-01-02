@@ -109,6 +109,21 @@ import {
   MapPin,
   HelpCircle,
   RefreshCw,
+  // Additional icons (CommandPalette, menus)
+  Radar,
+  Grid3x3,
+  FolderOpen,
+  MoveUp,
+  MoveDown,
+  MoveLeft,
+  MoveRight,
+  Group,
+  Ungroup,
+  Maximize2,
+  SearchX,
+  Focus,
+  KeyRound,
+  ExternalLink,
   type LucideIcon,
 } from 'lucide-vue-next'
 
@@ -222,6 +237,21 @@ const iconComponents: Record<string, LucideIcon> = {
   'map-pin': MapPin,
   'help-circle': HelpCircle,
   'refresh-cw': RefreshCw,
+  // Additional icons (CommandPalette, menus)
+  radar: Radar,
+  'grid-3x3': Grid3x3,
+  'folder-open': FolderOpen,
+  'move-up': MoveUp,
+  'move-down': MoveDown,
+  'move-left': MoveLeft,
+  'move-right': MoveRight,
+  group: Group,
+  ungroup: Ungroup,
+  'maximize-2': Maximize2,
+  'search-x': SearchX,
+  focus: Focus,
+  'key-round': KeyRound,
+  'external-link': ExternalLink,
 }
 
 export type IconName = keyof typeof iconComponents

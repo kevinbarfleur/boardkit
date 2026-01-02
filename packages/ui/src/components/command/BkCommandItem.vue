@@ -24,6 +24,17 @@ const state = useCommandState()
 const itemId = generateItemId()
 const itemRef = ref<HTMLDivElement | null>(null)
 
+// Check if this item is visible (matches search filter)
+const isVisible = computed(() => {
+  const query = state.search.value.toLowerCase().trim()
+  if (!query) return true
+
+  const valueMatch = props.value.toLowerCase().includes(query)
+  const keywordMatch = props.keywords?.some(k => k.toLowerCase().includes(query))
+
+  return valueMatch || keywordMatch
+})
+
 // Check if this item is selected
 const isSelected = computed(() => {
   const selectedItem = state.selectedItem.value
@@ -77,6 +88,7 @@ const handleMouseEnter = () => {
 
 <template>
   <div
+    v-show="isVisible"
     ref="itemRef"
     :id="itemId"
     role="option"
@@ -85,7 +97,7 @@ const handleMouseEnter = () => {
     :data-value="props.value"
     :data-disabled="props.disabled || undefined"
     :data-selected="isSelected || undefined"
-    class="relative flex cursor-pointer select-none items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-none transition-colors"
+    class="relative flex cursor-pointer select-none items-center gap-3 rounded-lg px-3 py-2 text-sm outline-none transition-all duration-150"
     :class="[
       props.disabled
         ? 'opacity-50 pointer-events-none'
@@ -101,14 +113,14 @@ const handleMouseEnter = () => {
       v-if="props.icon"
       :icon="props.icon"
       :size="16"
-      class="shrink-0 text-muted-foreground"
+      class="shrink-0 text-muted-foreground transition-colors"
     />
     <div class="flex-1 min-w-0 truncate">
       <slot />
     </div>
     <kbd
       v-if="props.shortcut"
-      class="ml-auto text-xs text-muted-foreground tracking-widest"
+      class="ml-auto text-xs text-muted-foreground/60 font-mono tracking-wide bg-muted/40 px-1.5 py-0.5 rounded"
     >
       {{ props.shortcut }}
     </kbd>

@@ -155,14 +155,10 @@ const handleContextMenuSelect = (item: { id: string }) => {
       <!-- Expanded header -->
       <template v-if="!collapsed">
         <div class="flex items-center gap-3 min-w-0">
-          <!-- Boardkit Logo -->
-          <div class="flex h-8 w-8 items-center justify-center rounded-md bg-muted p-1.5 shrink-0">
-            <svg viewBox="0 0 24 24" fill="none" class="w-full h-full">
-              <rect x="3" y="3" width="8" height="8" rx="1.5" class="fill-foreground/30" />
-              <rect x="13" y="3" width="8" height="8" rx="1.5" class="fill-foreground/45" />
-              <rect x="3" y="13" width="8" height="8" rx="1.5" class="fill-foreground/60" />
-              <rect x="13" y="13" width="8" height="8" rx="1.5" class="fill-foreground/80" />
-            </svg>
+          <!-- Boardkit Logo - BK Overlapping -->
+          <div class="flex h-8 w-8 items-center justify-center rounded-full bg-foreground shrink-0 select-none" style="font-family: 'Source Serif 4', serif;">
+            <span class="relative z-10 text-sm font-semibold text-background">B</span>
+            <span class="-ml-1 text-sm font-semibold text-background/55">K</span>
           </div>
           <span class="text-sm font-medium text-foreground truncate">
             {{ props.vaultName || 'Vault' }}
@@ -181,15 +177,12 @@ const handleContextMenuSelect = (item: { id: string }) => {
       <template v-else>
         <BkTooltip :content="props.vaultName || 'Vault'" side="right">
           <button
-            class="flex h-9 w-9 items-center justify-center rounded-md bg-muted p-1.5 hover:bg-accent transition-colors"
+            class="flex h-9 w-9 items-center justify-center rounded-full bg-foreground hover:scale-105 transition-transform select-none"
+            style="font-family: 'Source Serif 4', serif;"
             @click="emit('toggleCollapse')"
           >
-            <svg viewBox="0 0 24 24" fill="none" class="w-full h-full">
-              <rect x="3" y="3" width="8" height="8" rx="1.5" class="fill-foreground/30" />
-              <rect x="13" y="3" width="8" height="8" rx="1.5" class="fill-foreground/45" />
-              <rect x="3" y="13" width="8" height="8" rx="1.5" class="fill-foreground/60" />
-              <rect x="13" y="13" width="8" height="8" rx="1.5" class="fill-foreground/80" />
-            </svg>
+            <span class="relative z-10 text-sm font-semibold text-background">B</span>
+            <span class="-ml-1 text-sm font-semibold text-background/55">K</span>
           </button>
         </BkTooltip>
       </template>

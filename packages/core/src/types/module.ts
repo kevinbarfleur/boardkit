@@ -2,6 +2,7 @@ import type { Component } from 'vue'
 import type { DataContract } from './dataContract'
 import type { ConfigurationSchema } from './configurationSchema'
 import type { SettingsSchema } from './settingsSchema'
+import type { MenuContribution } from './menu'
 
 /**
  * Module SDK Types
@@ -82,6 +83,13 @@ export interface ModuleDefinition<TState = unknown> {
    * Required for modules using custom configuration UI.
    */
   configurationComponents?: Record<string, Component>
+
+  /**
+   * Menu contributions for the application menu bar.
+   * Allows modules to add new top-level menus or items to existing menus.
+   * Menu items can reference action IDs from ActionRegistry.
+   */
+  menuContributions?: MenuContribution
 }
 
 /**

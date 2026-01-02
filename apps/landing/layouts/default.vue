@@ -12,7 +12,9 @@
     <!-- Header -->
     <header class="header landing-content">
       <div class="container">
-        <NuxtLink to="/" class="logo">Boardkit</NuxtLink>
+        <NuxtLink to="/" class="logo-mark">
+          <span class="letter-b">B</span><span class="letter-k">K</span>
+        </NuxtLink>
         <nav class="nav">
           <a href="#features">Features</a>
           <a href="#pricing">Pricing</a>
@@ -32,7 +34,9 @@
       <div class="container">
         <div class="footer-grid">
           <div class="footer-brand">
-            <NuxtLink to="/" class="logo">Boardkit</NuxtLink>
+            <NuxtLink to="/" class="logo-mark footer-logo">
+              <span class="letter-b">B</span><span class="letter-k">K</span>
+            </NuxtLink>
             <p>The offline-first modular whiteboard.</p>
           </div>
           <div class="footer-col">
@@ -109,16 +113,39 @@
   align-items: center;
 }
 
-.logo {
+/* Logo Mark - BK in white circle */
+.logo-mark {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: hsl(var(--foreground));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
   font-family: 'Source Serif 4', serif;
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 600;
-  color: hsl(var(--foreground));
+  line-height: 1;
+  transition: transform 0.15s ease;
+  user-select: none;
+}
+
+.logo-mark:hover {
+  transform: scale(1.05);
   text-decoration: none;
 }
 
-.logo:hover {
-  text-decoration: none;
+.logo-mark .letter-b {
+  color: hsl(var(--background));
+  position: relative;
+  z-index: 2;
+}
+
+.logo-mark .letter-k {
+  color: hsl(var(--background));
+  margin-left: -5px;
+  opacity: 0.55;
 }
 
 .nav {
@@ -153,9 +180,8 @@
   margin-bottom: 24px;
 }
 
-.footer-brand .logo {
-  display: inline-block;
-  margin-bottom: 8px;
+.footer-brand .footer-logo {
+  margin-bottom: 12px;
 }
 
 .footer-brand p {

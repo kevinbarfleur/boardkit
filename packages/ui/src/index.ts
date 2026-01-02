@@ -68,6 +68,9 @@ export { default as BkPluginSettings } from './components/BkPluginSettings.vue'
 export { default as BkToastProvider } from './components/BkToastProvider.vue'
 export { default as BkToast } from './components/BkToast.vue'
 
+// Menu Bar
+export { default as BkMenuBar } from './components/BkMenuBar.vue'
+
 // Canvas Tool Components
 export { default as BkToolbar } from './components/BkToolbar.vue'
 export { default as BkToolButton } from './components/BkToolButton.vue'

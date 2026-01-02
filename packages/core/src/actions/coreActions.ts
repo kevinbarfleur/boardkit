@@ -7,6 +7,42 @@ import { createElementActions } from './elementActions'
 import { createDataActions } from './dataActions'
 
 /**
+ * Menu Action Bus
+ *
+ * Event bus for menu bar actions that need to be handled by the app layer.
+ * Actions like "New Board", "Open...", "Export..." emit events that the
+ * app (web or desktop) subscribes to and handles appropriately.
+ */
+export type MenuActionEvent =
+  | { type: 'board.new' }
+  | { type: 'board.open' }
+  | { type: 'board.export' }
+  | { type: 'app.settings' }
+  | { type: 'vault.change' }
+  | { type: 'vault.secrets' }
+  | { type: 'vault.reveal' }
+
+type MenuActionEventHandler = (event: MenuActionEvent) => void
+
+class MenuActionBus {
+  private handlers: Set<MenuActionEventHandler> = new Set()
+
+  subscribe(handler: MenuActionEventHandler): () => void {
+    this.handlers.add(handler)
+    return () => this.handlers.delete(handler)
+  }
+
+  emit(eventType: MenuActionEvent['type']): void {
+    const event = { type: eventType } as MenuActionEvent
+    for (const handler of this.handlers) {
+      handler(event)
+    }
+  }
+}
+
+export const menuActionBus = new MenuActionBus()
+
+/**
  * Core actions for Boardkit.
  * These are the fundamental operations available in the application.
  */
@@ -29,8 +65,8 @@ function createCoreActions(): ActionDefinition[] {
       title: `Add ${module.displayName}`,
       subtitle: 'Create a new widget on the board',
       keywords: ['create', 'new', 'widget', module.moduleId, module.displayName.toLowerCase()],
-      icon: 'plus',
-      group: 'board',
+      icon: module.icon ?? 'plus',
+      group: 'module',
       contexts: ['global', 'canvas'],
       priority: 100,
       run: (ctx) => {
@@ -200,6 +236,154 @@ function createCoreActions(): ActionDefinition[] {
     },
 
     // ============================================
+    // MENU BAR ACTIONS
+    // These emit events for apps to handle.
+    // ============================================
+    {
+      id: 'board.new',
+      title: 'New Board',
+      subtitle: 'Create a new board',
+      keywords: ['new', 'create', 'board'],
+      icon: 'plus',
+      group: 'board',
+      contexts: ['global'],
+      shortcutHint: '⌘N',
+      priority: 200,
+      run: () => {
+        menuActionBus.emit('board.new')
+      },
+    },
+    {
+      id: 'board.open',
+      title: 'Open Board',
+      subtitle: 'Open an existing board',
+      keywords: ['open', 'load', 'board'],
+      icon: 'folder-open',
+      group: 'board',
+      contexts: ['global'],
+      shortcutHint: '⌘O',
+      priority: 199,
+      run: () => {
+        menuActionBus.emit('board.open')
+      },
+    },
+    {
+      id: 'board.export',
+      title: 'Export',
+      subtitle: 'Export the current board',
+      keywords: ['export', 'download', 'save'],
+      icon: 'download',
+      group: 'board',
+      contexts: ['global'],
+      shortcutHint: '⇧⌘E',
+      priority: 195,
+      run: () => {
+        menuActionBus.emit('board.export')
+      },
+    },
+    {
+      id: 'app.settings',
+      title: 'Settings',
+      subtitle: 'Open application settings',
+      keywords: ['settings', 'preferences', 'options'],
+      icon: 'settings',
+      group: 'board',
+      contexts: ['global'],
+      shortcutHint: '⌘,',
+      priority: 50,
+      run: () => {
+        menuActionBus.emit('app.settings')
+      },
+    },
+    {
+      id: 'edit.cut',
+      title: 'Cut',
+      subtitle: 'Cut selected items to clipboard',
+      keywords: ['cut', 'remove'],
+      icon: 'scissors',
+      group: 'widget',
+      contexts: ['global', 'widget'],
+      shortcutHint: '⌘X',
+      priority: 75,
+      when: (ctx) => ctx.selectionCount > 0,
+      run: () => {
+        store.cutSelection()
+      },
+    },
+    {
+      id: 'edit.copy',
+      title: 'Copy',
+      subtitle: 'Copy selected items to clipboard',
+      keywords: ['copy', 'duplicate'],
+      icon: 'copy',
+      group: 'widget',
+      contexts: ['global', 'widget'],
+      shortcutHint: '⌘C',
+      priority: 74,
+      when: (ctx) => ctx.selectionCount > 0,
+      run: () => {
+        store.copySelection()
+      },
+    },
+    {
+      id: 'edit.paste',
+      title: 'Paste',
+      subtitle: 'Paste items from clipboard',
+      keywords: ['paste', 'insert'],
+      icon: 'clipboard',
+      group: 'widget',
+      contexts: ['global', 'canvas'],
+      shortcutHint: '⌘V',
+      priority: 73,
+      when: () => store.hasClipboardContent(),
+      run: () => {
+        store.pasteFromClipboard()
+      },
+    },
+    {
+      id: 'vault.change',
+      title: 'Change Vault',
+      subtitle: 'Select a different vault folder',
+      keywords: ['vault', 'folder', 'change'],
+      icon: 'folder',
+      group: 'board',
+      contexts: ['global'],
+      priority: 40,
+      when: (ctx) => ctx.platform === 'desktop',
+      run: () => {
+        menuActionBus.emit('vault.change')
+      },
+    },
+    {
+      id: 'vault.secrets',
+      title: 'Board Secrets',
+      subtitle: 'Manage secrets for this board',
+      keywords: ['secrets', 'keys', 'credentials'],
+      icon: 'key-round',
+      group: 'board',
+      contexts: ['global'],
+      priority: 39,
+      when: (ctx) => ctx.platform === 'desktop',
+      run: () => {
+        menuActionBus.emit('vault.secrets')
+      },
+    },
+    {
+      id: 'vault.reveal',
+      title: 'Reveal in Finder',
+      subtitle: 'Open vault folder in Finder',
+      keywords: ['reveal', 'finder', 'open'],
+      icon: 'external-link',
+      group: 'board',
+      contexts: ['global'],
+      priority: 38,
+      when: (ctx) => ctx.platform === 'desktop',
+      run: () => {
+        menuActionBus.emit('vault.reveal')
+      },
+    },
+
+    // ============================================
     // SELECTION ACTIONS
     // ============================================
     {
@@ -226,6 +410,7 @@ function createCoreActions(): ActionDefinition[] {
       title: 'Nudge Up',
       subtitle: 'Move selected widget up by 1px (or 10px with Shift)',
       keywords: ['nudge', 'move', 'up'],
+      icon: 'move-up',
       group: 'widget',
       contexts: ['global'],
       shortcutHint: '↑',
@@ -243,6 +428,7 @@ function createCoreActions(): ActionDefinition[] {
       title: 'Nudge Down',
       subtitle: 'Move selected widget down by 1px (or 10px with Shift)',
       keywords: ['nudge', 'move', 'down'],
+      icon: 'move-down',
       group: 'widget',
       contexts: ['global'],
       shortcutHint: '↓',
@@ -260,6 +446,7 @@ function createCoreActions(): ActionDefinition[] {
       title: 'Nudge Left',
       subtitle: 'Move selected widget left by 1px (or 10px with Shift)',
       keywords: ['nudge', 'move', 'left'],
+      icon: 'move-left',
       group: 'widget',
       contexts: ['global'],
       shortcutHint: '←',
@@ -277,6 +464,7 @@ function createCoreActions(): ActionDefinition[] {
       title: 'Nudge Right',
       subtitle: 'Move selected widget right by 1px (or 10px with Shift)',
       keywords: ['nudge', 'move', 'right'],
+      icon: 'move-right',
       group: 'widget',
       contexts: ['global'],
       shortcutHint: '→',

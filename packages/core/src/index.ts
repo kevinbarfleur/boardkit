@@ -7,8 +7,13 @@ export { moduleRegistry, ModuleRegistry } from './modules/ModuleRegistry'
 
 // Actions
 export { actionRegistry, ActionRegistry } from './actions/ActionRegistry'
-export { registerCoreActions, refreshCoreActions } from './actions/coreActions'
+export { registerCoreActions, refreshCoreActions, menuActionBus } from './actions/coreActions'
+export type { MenuActionEvent } from './actions/coreActions'
 export { dataSharingEventBus } from './actions/dataActions'
+
+// Menu System
+export { menuRegistry, MenuRegistry } from './menu/MenuRegistry'
+export { coreMenus, registerCoreMenus } from './menu/coreMenus'
 
 // Stores
 export {

@@ -14,6 +14,7 @@ import { fetchPluginFromGitHub, loadInstalledPlugin, checkForUpdate } from './Pl
 import { moduleRegistry } from '../modules/ModuleRegistry'
 import { actionRegistry } from '../actions/ActionRegistry'
 import { refreshCoreActions } from '../actions/coreActions'
+import { menuRegistry } from '../menu/MenuRegistry'
 
 /**
  * Plugin Manager
@@ -486,6 +487,11 @@ export class PluginManager {
       actionRegistry.registerModuleActions(module.moduleId, (module as any).actions)
     }
 
+    // Register menu contributions if any
+    if ('menuContributions' in module && (module as any).menuContributions) {
+      menuRegistry.registerContribution(module.moduleId, (module as any).menuContributions)
+    }
+
     // Refresh core actions to include the new "Add X" action for this module
     refreshCoreActions()
 
@@ -507,6 +513,9 @@ export class PluginManager {
 
     // Unregister actions
     actionRegistry.unregisterModule(module.moduleId)
+
+    // Unregister menu contributions
+    menuRegistry.unregisterContribution(module.moduleId)
 
     // Refresh core actions to remove the "Add X" action for this module
     refreshCoreActions()

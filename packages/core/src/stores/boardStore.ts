@@ -68,6 +68,13 @@ export const useBoardStore = defineStore('board', () => {
   const isDirty = ref(false)
   const lastAction = ref<string>('Initial state')
 
+  // Clipboard for cut/copy/paste operations
+  const clipboard = ref<{
+    type: 'widget' | 'element'
+    data: Widget | CanvasElement
+    isCut: boolean
+  } | null>(null)
+
   // Flag to prevent history captures during document restoration (undo/redo/goToEntry)
   const isRestoring = ref(false)
 
@@ -1156,6 +1163,146 @@ export const useBoardStore = defineStore('board', () => {
   }
 
   // ============================================================================
+  // Actions - Clipboard (Cut/Copy/Paste)
+  // ============================================================================
+
+  /**
+   * Copy the current selection to the clipboard.
+   */
+  function copySelection(): boolean {
+    if (selection.value.length === 0) return false
+
+    // For now, only support single selection
+    const item = selection.value[0]
+
+    if (item.type === 'widget') {
+      const widget = widgetMap.value.get(item.id)
+      if (!widget || !document.value) return false
+
+      const moduleState = document.value.modules[item.id]
+      clipboard.value = {
+        type: 'widget',
+        data: deepClone({ ...widget, moduleState }),
+        isCut: false,
+      }
+      return true
+    } else {
+      const element = elementMap.value.get(item.id)
+      if (!element) return false
+
+      clipboard.value = {
+        type: 'element',
+        data: deepClone(element),
+        isCut: false,
+      }
+      return true
+    }
+  }
+
+  /**
+   * Cut the current selection (copy + delete).
+   */
+  function cutSelection(): boolean {
+    if (!copySelection()) return false
+
+    clipboard.value!.isCut = true
+
+    // Delete the original
+    const item = selection.value[0]
+    if (item.type === 'widget') {
+      removeWidget(item.id)
+    } else {
+      removeElement(item.id)
+    }
+
+    return true
+  }
+
+  /**
+   * Paste from the clipboard.
+   */
+  function pasteFromClipboard(): string | null {
+    if (!clipboard.value || !document.value) return null
+
+    const offset = 20
+
+    if (clipboard.value.type === 'widget') {
+      const widgetData = clipboard.value.data as Widget & { moduleState?: unknown }
+      const newId = nanoid()
+
+      // Capture history before mutation
+      const moduleDef = moduleRegistry.get(widgetData.moduleId)
+      const moduleName = moduleDef?.displayName ?? 'widget'
+      captureHistorySnapshot(`Pasted ${moduleName}`)
+
+      const newWidget: Widget = {
+        id: newId,
+        moduleId: widgetData.moduleId,
+        rect: {
+          x: widgetData.rect.x + offset,
+          y: widgetData.rect.y + offset,
+          width: widgetData.rect.width,
+          height: widgetData.rect.height,
+        },
+        zIndex: maxZIndex.value + 1,
+        visibility: widgetData.visibility ? { ...widgetData.visibility } : undefined,
+        scale: widgetData.scale,
+      }
+
+      document.value.board.widgets.push(newWidget)
+
+      // Clone the module state
+      if (widgetData.moduleState !== undefined) {
+        document.value.modules[newId] = deepClone(widgetData.moduleState)
+      } else if (moduleDef) {
+        document.value.modules[newId] = moduleDef.serialize(moduleDef.defaultState())
+      }
+
+      selectWidget(newId)
+      markDirty(`Pasted ${moduleName}`)
+
+      // Clear clipboard if it was a cut
+      if (clipboard.value.isCut) {
+        clipboard.value = null
+      }
+
+      return newId
+    } else {
+      const elementData = clipboard.value.data as CanvasElement
+      const newId = nanoid()
+
+      captureHistorySnapshot(`Pasted ${elementData.type}`)
+
+      const newElement = deepClone(elementData) as CanvasElement
+      newElement.id = newId
+      newElement.rect.x += offset
+      newElement.rect.y += offset
+      newElement.zIndex = maxZIndex.value + 1
+
+      // Move line/arrow/draw points too
+      translateElementPoints(newElement, offset, offset)
+
+      document.value.board.elements.push(newElement)
+      selectElement(newId)
+      markDirty(`Pasted ${elementData.type}`)
+
+      // Clear clipboard if it was a cut
+      if (clipboard.value.isCut) {
+        clipboard.value = null
+      }
+
+      return newId
+    }
+  }
+
+  /**
+   * Check if clipboard has content.
+   */
+  function hasClipboardContent(): boolean {
+    return clipboard.value !== null
+  }
+
+  // ============================================================================
   // Actions - Grouping
   // ============================================================================
 
@@ -1994,6 +2141,13 @@ export const useBoardStore = defineStore('board', () => {
     markDirty,
     markClean,
     captureHistorySnapshot,
+
+    // Actions - Clipboard
+    clipboard,
+    copySelection,
+    cutSelection,
+    pasteFromClipboard,
+    hasClipboardContent,
 
     // Actions - Undo/Redo
     undo,

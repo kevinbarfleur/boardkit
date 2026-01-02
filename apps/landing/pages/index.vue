@@ -68,13 +68,8 @@ const plugins = [
   <div>
     <!-- Hero -->
     <div class="hero">
-      <div class="hero-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="3" width="7" height="7" />
-          <rect x="14" y="3" width="7" height="7" />
-          <rect x="14" y="14" width="7" height="7" />
-          <rect x="3" y="14" width="7" height="7" />
-        </svg>
+      <div class="hero-logo">
+        <span class="letter-b">B</span><span class="letter-k">K</span>
       </div>
       <div class="hero-content">
         <h1 class="serif-heading">Boardkit</h1>
@@ -491,21 +486,27 @@ a:hover {
   align-items: flex-start;
 }
 
-.hero-icon {
-  width: 80px;
-  height: 80px;
-  background: #262626;
-  border-radius: 50%;
+/* Hero Logo - Overlapping BK Monogram */
+.hero-logo {
+  font-family: 'Source Serif 4', serif;
+  font-size: 56px;
+  font-weight: 600;
+  color: hsl(var(--foreground));
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  justify-content: center;
+  line-height: 1;
+  user-select: none;
 }
 
-.hero-icon svg {
-  width: 36px;
-  height: 36px;
-  stroke: hsl(var(--foreground));
+.hero-logo .letter-b {
+  position: relative;
+  z-index: 2;
+}
+
+.hero-logo .letter-k {
+  margin-left: -14px;
+  opacity: 0.65;
 }
 
 .hero-content h1 {

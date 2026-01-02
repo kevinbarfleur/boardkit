@@ -1,6 +1,7 @@
 import type { ModuleDefinition } from '../types/module'
 import { consumerRegistry } from '../data/ConsumerRegistry'
 import { dataContractRegistry } from '../data/DataContractRegistry'
+import { menuRegistry } from '../menu/MenuRegistry'
 
 /**
  * Define a Boardkit module.
@@ -62,6 +63,11 @@ export function defineModule<TState>(
         dataContractRegistry.register(contract)
       }
     }
+  }
+
+  // Auto-register menu contributions
+  if (definition.menuContributions) {
+    menuRegistry.registerContribution(definition.moduleId, definition.menuContributions)
   }
 
   return {

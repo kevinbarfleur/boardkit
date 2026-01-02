@@ -19,6 +19,11 @@ import { KEY_TO_TOOL } from '../types/tool'
  * - Ctrl + Y: Redo (Windows style)
  * - Cmd/Ctrl + D: Duplicate selected widget/element
  * - Cmd/Ctrl + 0: Reset view
+ * - Cmd/Ctrl + Plus/=: Zoom in
+ * - Cmd/Ctrl + Minus: Zoom out
+ * - Cmd/Ctrl + X: Cut selected widget/element
+ * - Cmd/Ctrl + C: Copy selected widget/element
+ * - Cmd/Ctrl + V: Paste from clipboard
  * - Cmd/Ctrl + ': Toggle grid snapping
  * - Cmd/Ctrl + K: Open command palette
  * - Arrow keys: Nudge selected widget/element (1px)
@@ -282,6 +287,46 @@ export function useKeyboardShortcuts(
       e.preventDefault()
       const ctx = buildActionContext()
       actionRegistry.execute('board.redo', ctx)
+      return
+    }
+
+    // Cmd/Ctrl + Plus or = - Zoom in
+    if (hasCmdOrCtrl(e) && (key === '+' || key === '=')) {
+      e.preventDefault()
+      const ctx = buildActionContext()
+      actionRegistry.execute('view.zoom-in', ctx)
+      return
+    }
+
+    // Cmd/Ctrl + Minus - Zoom out
+    if (hasCmdOrCtrl(e) && key === '-') {
+      e.preventDefault()
+      const ctx = buildActionContext()
+      actionRegistry.execute('view.zoom-out', ctx)
+      return
+    }
+
+    // Cmd/Ctrl + X - Cut
+    if (key === 'x' && hasCmdOrCtrl(e)) {
+      e.preventDefault()
+      const ctx = buildActionContext()
+      actionRegistry.execute('edit.cut', ctx)
+      return
+    }
+
+    // Cmd/Ctrl + C - Copy
+    if (key === 'c' && hasCmdOrCtrl(e)) {
+      e.preventDefault()
+      const ctx = buildActionContext()
+      actionRegistry.execute('edit.copy', ctx)
+      return
+    }
+
+    // Cmd/Ctrl + V - Paste
+    if (key === 'v' && hasCmdOrCtrl(e)) {
+      e.preventDefault()
+      const ctx = buildActionContext()
+      actionRegistry.execute('edit.paste', ctx)
       return
     }
 

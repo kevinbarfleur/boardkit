@@ -4,14 +4,21 @@ import BkIcon from './BkIcon.vue'
 
 export interface HistoryItem {
   id: string
-  action: string
+  /** Description of the action - supports both 'label' and 'action' for backwards compatibility */
+  label?: string
+  action?: string
   timestamp: number
 }
 
 interface HistoryGroup {
-  action: string
+  label: string
   items: HistoryItem[]
   isExpanded: boolean
+}
+
+/** Helper to get the label from an item (supports both 'label' and 'action' properties) */
+function getItemLabel(item: HistoryItem): string {
+  return item.label ?? item.action ?? 'Unknown action'
 }
 
 interface Props {
@@ -41,19 +48,20 @@ const emit = defineEmits<{
 // Track which groups are expanded
 const expandedGroups = ref<Set<number>>(new Set())
 
-// Group consecutive items with the same action
+// Group consecutive items with the same label
 const groupedItems = computed<HistoryGroup[]>(() => {
   const limited = props.items.slice(0, props.maxItems)
   const groups: HistoryGroup[] = []
 
   for (const item of limited) {
     const lastGroup = groups[groups.length - 1]
+    const itemLabel = getItemLabel(item)
 
-    if (lastGroup && lastGroup.action === item.action) {
+    if (lastGroup && lastGroup.label === itemLabel) {
       lastGroup.items.push(item)
     } else {
       groups.push({
-        action: item.action,
+        label: itemLabel,
         items: [item],
         isExpanded: false,
       })
@@ -139,7 +147,7 @@ const handleSelect = (id: string) => {
             :style="{ width: 'calc(100% - 12px)' }"
             @click="handleSelect(group.items[0].id)"
           >
-            <span class="text-sm text-foreground truncate">{{ group.action }}</span>
+            <span class="text-sm text-foreground truncate">{{ group.label }}</span>
             <span class="text-xs text-muted-foreground">{{ formatTimestamp(group.items[0].timestamp) }}</span>
           </button>
 
@@ -157,7 +165,7 @@ const handleSelect = (id: string) => {
               />
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2">
-                  <span class="text-sm text-foreground truncate">{{ group.action }}</span>
+                  <span class="text-sm text-foreground truncate">{{ group.label }}</span>
                   <span class="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full shrink-0">
                     {{ group.items.length }}
                   </span>
@@ -169,13 +177,13 @@ const handleSelect = (id: string) => {
             <!-- Expanded group items -->
             <div v-if="isGroupExpanded(groupIndex)" class="ml-4 border-l border-border">
               <button
-                v-for="(item, itemIndex) in group.items"
+                v-for="item in group.items"
                 :key="item.id"
                 class="w-full mx-1.5 pl-3 pr-2.5 py-1.5 text-left rounded-md flex flex-col gap-0.5 bg-transparent transition-colors hover:bg-accent"
                 :style="{ width: 'calc(100% - 12px)' }"
                 @click="handleSelect(item.id)"
               >
-                <span class="text-sm text-foreground truncate">{{ item.action }}</span>
+                <span class="text-sm text-foreground truncate">{{ group.label }}</span>
                 <span class="text-xs text-muted-foreground">{{ formatTimestamp(item.timestamp) }}</span>
               </button>
             </div>

@@ -75,9 +75,9 @@ const groupedActions = computed(() => {
 
 const groupLabels: Record<ActionGroup, string> = {
   board: 'Board',
-  widget: 'Widget',
-  element: 'Element',
-  tool: 'Tool',
+  widget: 'Widgets',
+  element: 'Elements',
+  tool: 'Tools',
   view: 'View',
   module: 'Modules',
 }
@@ -104,20 +104,19 @@ const close = () => {
   >
     <template #default="{ listboxId, activeDescendant }">
       <BkCommandInput
-        placeholder="Rechercher des commandes..."
+        placeholder="Search commands..."
         :listbox-id="listboxId"
         :active-descendant="activeDescendant"
       />
 
       <BkCommandList :id="listboxId" label="Commands">
-        <BkCommandEmpty>
-          Aucun résultat trouvé.
-        </BkCommandEmpty>
+        <BkCommandEmpty />
 
-        <template v-for="(actions, group) in groupedActions" :key="group">
+        <template v-for="(actions, groupKey) in groupedActions" :key="groupKey">
           <BkCommandGroup
             v-if="actions.length > 0"
-            :heading="groupLabels[group as ActionGroup]"
+            :heading="groupLabels[groupKey as ActionGroup]"
+            :group="groupKey"
           >
             <BkCommandItem
               v-for="action in actions"
@@ -126,7 +125,7 @@ const close = () => {
               :icon="action.icon"
               :shortcut="action.shortcutHint"
               :keywords="[action.title, ...(action.keywords || [])]"
-              :group="group"
+              :group="groupKey"
               @select="handleSelect"
             >
               {{ action.title }}
