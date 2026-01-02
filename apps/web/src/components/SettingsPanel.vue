@@ -344,7 +344,7 @@ const visibilityOptions = [
           <BkIcon icon="settings" :size="14" class="text-muted-foreground" />
         </div>
         <div class="flex-1 min-w-0">
-          <h2 class="text-sm font-medium text-foreground">Settings</h2>
+          <h2 class="text-sm font-medium font-serif text-foreground">Settings</h2>
         </div>
         <button
           class="inline-flex h-7 w-7 items-center justify-center rounded-lg transition-colors hover:bg-accent"
@@ -432,7 +432,7 @@ const visibilityOptions = [
           <BkIcon :icon="moduleIcon" :size="14" class="text-muted-foreground" />
         </div>
         <div class="flex-1 min-w-0">
-          <h2 class="text-sm font-medium text-foreground truncate">{{ moduleLabel }}</h2>
+          <h2 class="text-sm font-medium font-serif text-foreground truncate">{{ moduleLabel }}</h2>
         </div>
         <button
           class="inline-flex h-7 w-7 items-center justify-center rounded-lg transition-colors hover:bg-accent"

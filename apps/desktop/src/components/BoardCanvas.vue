@@ -172,15 +172,26 @@ const transformStyle = computed(() => ({
 // Background pattern style
 const backgroundStyle = computed(() => {
   const bg = background.value
-  const baseSize = 20 * viewport.value.zoom
+  const zoom = viewport.value.zoom
+
+  // Pattern scales with zoom but clamped to avoid "gray background" effect
+  // Min 8px prevents dots/lines from being too dense when zoomed out
+  // Max 80px prevents pattern from being too sparse when zoomed in
+  const baseSize = Math.max(8, Math.min(80, 20 * zoom))
+
+  // Reduce opacity when zoomed out to make it less aggressive
+  // Full opacity at zoom >= 1, fades to 30% at zoom 0.1
+  const zoomOpacity = zoom >= 1 ? 1 : Math.max(0.3, zoom)
 
   let backgroundImage = 'none'
   if (bg.pattern === 'dots') {
-    backgroundImage = `radial-gradient(circle, rgba(${gridColor.value}, 0.1) 1px, transparent 1px)`
+    const opacity = 0.1 * zoomOpacity
+    backgroundImage = `radial-gradient(circle, rgba(${gridColor.value}, ${opacity}) 1px, transparent 1px)`
   } else if (bg.pattern === 'grid') {
+    const opacity = 0.05 * zoomOpacity
     backgroundImage = `
-      linear-gradient(rgba(${gridColor.value}, 0.05) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(${gridColor.value}, 0.05) 1px, transparent 1px)
+      linear-gradient(rgba(${gridColor.value}, ${opacity}) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(${gridColor.value}, ${opacity}) 1px, transparent 1px)
     `
   }
 

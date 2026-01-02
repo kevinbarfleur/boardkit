@@ -8,6 +8,11 @@
 
 export type KanbanPriority = 'low' | 'medium' | 'high'
 
+// === Sort ===
+
+export type KanbanSortField = 'manual' | 'title' | 'priority' | 'dueDate' | 'createdAt'
+export type KanbanSortDirection = 'asc' | 'desc'
+
 // === Checklist ===
 
 export interface ChecklistItem {
@@ -30,6 +35,9 @@ export interface KanbanItem {
   priority?: KanbanPriority
   tags: string[] // Direct tag values (auto-colored)
   checklist: ChecklistItem[]
+  // Archiving
+  archived?: boolean
+  archivedAt?: string
 }
 
 // === Column ===
@@ -41,6 +49,9 @@ export interface KanbanColumn {
   wipLimit: number | null
   order: number
   isCollapsed?: boolean
+  // Persistent sorting
+  sortBy?: KanbanSortField
+  sortDirection?: KanbanSortDirection
 }
 
 // === State ===
@@ -56,6 +67,7 @@ export interface KanbanState {
   showItemCount: boolean
   showCompletionRate: boolean
   compactMode: boolean
+  showArchived?: boolean
 
   // Feature settings
   showDueDate: boolean

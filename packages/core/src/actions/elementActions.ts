@@ -158,6 +158,61 @@ export function createElementActions(): ActionDefinition[] {
     },
 
     // ============================================
+    // GROUPING
+    // ============================================
+    {
+      id: 'element.group',
+      title: 'Group',
+      subtitle: 'Group selected elements together',
+      keywords: ['group', 'combine', 'merge', 'elements'],
+      icon: 'group',
+      group: 'element',
+      contexts: ['global', 'canvas'],
+      shortcutHint: '⌘G',
+      priority: 65,
+      when: (ctx) => ctx.selectedElementIds.length >= 2,
+      run: (ctx) => {
+        // Only group elements that are not already grouped
+        const elementIds = ctx.selectedElementIds
+        if (elementIds.length >= 2) {
+          boardStore.createGroup(elementIds)
+        }
+      },
+    },
+    {
+      id: 'element.ungroup',
+      title: 'Ungroup',
+      subtitle: 'Ungroup selected elements',
+      keywords: ['ungroup', 'separate', 'split', 'elements'],
+      icon: 'ungroup',
+      group: 'element',
+      contexts: ['global', 'canvas'],
+      shortcutHint: '⌘⇧G',
+      priority: 64,
+      when: (ctx) => {
+        // Show ungroup if any selected element is in a group
+        if (ctx.selectedElementIds.length === 0) return false
+        for (const id of ctx.selectedElementIds) {
+          if (boardStore.getGroupForElement(id)) return true
+        }
+        return false
+      },
+      run: (ctx) => {
+        // Ungroup all groups containing selected elements
+        const groupsToUngroup = new Set<string>()
+        for (const id of ctx.selectedElementIds) {
+          const group = boardStore.getGroupForElement(id)
+          if (group) {
+            groupsToUngroup.add(group.id)
+          }
+        }
+        for (const groupId of groupsToUngroup) {
+          boardStore.ungroup(groupId)
+        }
+      },
+    },
+
+    // ============================================
     // SELECTION
     // ============================================
     {

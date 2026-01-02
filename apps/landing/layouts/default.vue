@@ -3,11 +3,14 @@
 
 <template>
   <div class="landing">
-    <!-- Grain texture overlay -->
-    <div class="grain-overlay" aria-hidden="true" />
+    <!-- Interactive canvas background (client-side only) -->
+    <ClientOnly>
+      <DemoCanvas />
+      <DemoToolbar />
+    </ClientOnly>
 
     <!-- Header -->
-    <header class="header">
+    <header class="header landing-content">
       <div class="container">
         <NuxtLink to="/" class="logo">Boardkit</NuxtLink>
         <nav class="nav">
@@ -20,12 +23,12 @@
     </header>
 
     <!-- Main content -->
-    <main class="container">
+    <main class="container landing-content">
       <slot />
     </main>
 
     <!-- Footer -->
-    <footer class="footer">
+    <footer class="footer landing-content">
       <div class="container">
         <div class="footer-grid">
           <div class="footer-brand">
@@ -56,6 +59,9 @@
         </div>
       </div>
     </footer>
+
+    <!-- Grain texture overlay (topmost) -->
+    <div class="grain-overlay" aria-hidden="true" />
   </div>
 </template>
 
@@ -63,6 +69,12 @@
 .landing {
   min-height: 100vh;
   position: relative;
+}
+
+/* Content sections */
+.landing-content {
+  position: relative;
+  z-index: 10;
 }
 
 /* Grain overlay */
@@ -79,10 +91,16 @@
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3CfeComponentTransfer%3E%3CfeFuncR type='discrete' tableValues='0 1'/%3E%3CfeFuncG type='discrete' tableValues='0 1'/%3E%3CfeFuncB type='discrete' tableValues='0 1'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
 }
 
-/* Header */
+/* Header - sticky navigation with backdrop blur */
 .header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
   padding: 20px 0;
   border-bottom: 1px solid hsl(var(--border));
+  background: rgba(23, 23, 23, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .header .container {
@@ -120,10 +138,13 @@
   color: hsl(var(--foreground));
 }
 
-/* Footer */
+/* Footer with backdrop blur */
 .footer {
   border-top: 1px solid hsl(var(--border));
   padding: 40px 0;
+  background: rgba(23, 23, 23, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .footer-grid {

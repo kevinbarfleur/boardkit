@@ -3,7 +3,7 @@
  * This is the single source of truth for the document structure.
  */
 
-import type { CanvasElement, BoardBackground } from './element'
+import type { CanvasElement, BoardBackground, GridSettings, ElementGroup } from './element'
 import { DEFAULT_BACKGROUND } from './element'
 import type { DataSharingState } from './dataContract'
 import { createEmptyDataSharingState } from './dataContract'
@@ -93,6 +93,10 @@ export interface BoardState {
   elements: CanvasElement[]
   /** Board background configuration */
   background: BoardBackground
+  /** Grid snapping settings */
+  grid?: GridSettings
+  /** Element groups for grouping functionality */
+  groups?: ElementGroup[]
 }
 
 // ============================================================================

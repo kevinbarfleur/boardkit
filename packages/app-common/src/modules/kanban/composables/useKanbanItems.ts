@@ -10,6 +10,22 @@ import type { KanbanState, KanbanItem, ChecklistItem } from '../types'
 export function useKanbanItems(contextGetter: MaybeRefOrGetter<ModuleContext<KanbanState>>) {
   const items = computed(() => toValue(contextGetter).state.items || [])
   const columns = computed(() => toValue(contextGetter).state.columns || [])
+  const showArchived = computed(() => toValue(contextGetter).state.showArchived ?? false)
+
+  /**
+   * Get active (non-archived) items
+   */
+  const activeItems = computed(() => items.value.filter((i) => !i.archived))
+
+  /**
+   * Get archived items
+   */
+  const archivedItems = computed(() => items.value.filter((i) => i.archived))
+
+  /**
+   * Count of archived items
+   */
+  const archivedCount = computed(() => archivedItems.value.length)
 
   /**
    * Get all unique tags from all items
@@ -24,10 +40,12 @@ export function useKanbanItems(contextGetter: MaybeRefOrGetter<ModuleContext<Kan
 
   /**
    * Get items for a specific column, sorted by order
+   * Filters out archived items unless showArchived state is true
    */
   function getColumnItems(columnId: string): KanbanItem[] {
+    const includeArch = showArchived.value
     return items.value
-      .filter((item) => item.columnId === columnId)
+      .filter((item) => item.columnId === columnId && (includeArch || !item.archived))
       .sort((a, b) => a.order - b.order)
   }
 
@@ -234,10 +252,60 @@ export function useKanbanItems(contextGetter: MaybeRefOrGetter<ModuleContext<Kan
     return { done, total }
   }
 
+  // === Archive operations ===
+
+  /**
+   * Archive an item
+   */
+  function archiveItem(itemId: string) {
+    const item = items.value.find((i) => i.id === itemId)
+    if (!item || item.archived) return
+
+    updateItem(itemId, {
+      archived: true,
+      archivedAt: new Date().toISOString(),
+    })
+  }
+
+  /**
+   * Unarchive an item
+   */
+  function unarchiveItem(itemId: string) {
+    const item = items.value.find((i) => i.id === itemId)
+    if (!item || !item.archived) return
+
+    const itemIndex = items.value.findIndex((i) => i.id === itemId)
+    const newItems = [...items.value]
+    const { archived, archivedAt, ...rest } = item
+    newItems[itemIndex] = rest as KanbanItem
+
+    toValue(contextGetter).updateState(
+      { items: newItems },
+      {
+        captureHistory: true,
+        historyLabel: `Restored card: ${truncate(item.title, 25)}`,
+      }
+    )
+  }
+
+  /**
+   * Toggle show archived state
+   */
+  function toggleShowArchived() {
+    toValue(contextGetter).updateState(
+      { showArchived: !showArchived.value },
+      { captureHistory: false }
+    )
+  }
+
   return {
     items,
     columns,
     allTags,
+    activeItems,
+    archivedItems,
+    archivedCount,
+    showArchived,
     getColumnItems,
     getColumnName,
     addItem,
@@ -249,5 +317,8 @@ export function useKanbanItems(contextGetter: MaybeRefOrGetter<ModuleContext<Kan
     toggleChecklistItem,
     removeChecklistItem,
     getChecklistProgress,
+    archiveItem,
+    unarchiveItem,
+    toggleShowArchived,
   }
 }

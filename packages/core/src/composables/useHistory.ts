@@ -1,6 +1,21 @@
-import { ref, computed } from 'vue'
+import { ref, computed, toRaw } from 'vue'
 import { nanoid } from 'nanoid'
 import type { BoardkitDocument } from '../types/document'
+
+/**
+ * Deep clone a document, handling Vue reactive proxies.
+ * Uses structuredClone (2-3x faster than JSON.parse/stringify).
+ */
+function deepClone<T>(obj: T): T {
+  const start = performance.now()
+  // toRaw unwraps Vue reactive proxies for proper cloning
+  const result = structuredClone(toRaw(obj))
+  const duration = performance.now() - start
+  if (duration > 10) {
+    console.warn(`[Perf] deepClone took ${duration.toFixed(1)}ms`)
+  }
+  return result
+}
 
 /**
  * History Entry - represents a snapshot of the document at a point in time.
@@ -97,7 +112,7 @@ export function useHistory(options: { maxSize?: number } = {}) {
       id: nanoid(),
       label,
       timestamp: Date.now(),
-      snapshot: JSON.parse(JSON.stringify(document)),
+      snapshot: deepClone(document),
     })
 
     // Enforce max size
@@ -135,7 +150,7 @@ export function useHistory(options: { maxSize?: number } = {}) {
     // On first undo (from live state), save the current document
     if (state.value.currentIndex === -1 && currentDocument) {
       console.log('[History] Saving live snapshot (first undo)')
-      state.value.liveSnapshot = JSON.parse(JSON.stringify(currentDocument))
+      state.value.liveSnapshot = deepClone(currentDocument)
     }
 
     // Move to the next older state
@@ -220,7 +235,7 @@ export function useHistory(options: { maxSize?: number } = {}) {
     // If we're at live state, save it first
     if (state.value.currentIndex === -1 && currentDocument) {
       console.log('[History] Saving live snapshot before jumping')
-      state.value.liveSnapshot = JSON.parse(JSON.stringify(currentDocument))
+      state.value.liveSnapshot = deepClone(currentDocument)
     }
 
     state.value.currentIndex = entryIndex

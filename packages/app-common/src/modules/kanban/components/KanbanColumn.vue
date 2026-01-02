@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import { BkButton, BkIcon, BkInput, BkDropdown } from '@boardkit/ui'
 import type { DropdownItem } from '@boardkit/ui'
-import type { KanbanColumn as KanbanColumnType, KanbanItem } from '../types'
+import type { KanbanColumn as KanbanColumnType, KanbanItem, KanbanSortField, KanbanSortDirection } from '../types'
 import KanbanCard from './KanbanCard.vue'
 
 interface Props {
@@ -47,6 +47,7 @@ const emit = defineEmits<{
   editColumn: [column: KanbanColumnType]
   deleteColumn: [columnId: string]
   contextmenuColumn: [column: KanbanColumnType, e: MouseEvent]
+  updateSort: [columnId: string, sortBy: KanbanSortField, sortDirection: KanbanSortDirection]
   // Drag events
   dragstart: [e: DragEvent, itemId: string]
   dragover: [e: DragEvent, columnId: string]
@@ -70,6 +71,50 @@ function handleColumnMenuSelect(item: { id: string }) {
   }
 }
 
+// Sort menu
+const sortMenuItems = computed<DropdownItem[]>(() => {
+  const currentSort = props.column.sortBy || 'manual'
+  return [
+    { id: 'manual', label: 'Manual order', icon: 'grip-vertical', active: currentSort === 'manual' },
+    { id: 'title', label: 'By title', icon: 'type', active: currentSort === 'title' },
+    { id: 'priority', label: 'By priority', icon: 'flag', active: currentSort === 'priority' },
+    { id: 'dueDate', label: 'By due date', icon: 'calendar', active: currentSort === 'dueDate' },
+    { id: 'createdAt', label: 'By created date', icon: 'clock', active: currentSort === 'createdAt' },
+  ]
+})
+
+const sortIcon = computed(() => {
+  const sortBy = props.column.sortBy
+  if (!sortBy || sortBy === 'manual') return 'arrow-up-down'
+  return props.column.sortDirection === 'desc' ? 'arrow-down' : 'arrow-up'
+})
+
+const sortLabel = computed(() => {
+  const sortBy = props.column.sortBy
+  if (!sortBy || sortBy === 'manual') return 'Sort'
+  const labels: Record<KanbanSortField, string> = {
+    manual: 'Manual',
+    title: 'Title',
+    priority: 'Priority',
+    dueDate: 'Due date',
+    createdAt: 'Created',
+  }
+  return labels[sortBy]
+})
+
+const hasAutoSort = computed(() => props.column.sortBy && props.column.sortBy !== 'manual')
+
+function handleSortSelect(item: { id: string }) {
+  const sortBy = item.id as KanbanSortField
+  // If clicking the same sort, toggle direction
+  if (sortBy === props.column.sortBy && sortBy !== 'manual') {
+    const newDirection = props.column.sortDirection === 'asc' ? 'desc' : 'asc'
+    emit('updateSort', props.column.id, sortBy, newDirection)
+  } else {
+    emit('updateSort', props.column.id, sortBy, 'asc')
+  }
+}
+
 // Local state
 const isAddingItem = ref(false)
 const newItemTitle = ref('')
@@ -78,6 +123,11 @@ const newItemTitle = ref('')
 const isOverWipLimit = computed(() => {
   if (props.column.wipLimit === null) return false
   return props.items.length > props.column.wipLimit
+})
+
+const isAtWipLimit = computed(() => {
+  if (props.column.wipLimit === null) return false
+  return props.items.length === props.column.wipLimit
 })
 
 const sortedItems = computed(() =>
@@ -158,14 +208,15 @@ function handleAddCardClick() {
         </span>
       </div>
 
-      <div class="flex items-center gap-1.5">
+      <div class="flex items-center gap-1">
         <!-- Item count / WIP limit -->
         <span
           v-if="showItemCount"
-          class="text-[11px] font-medium px-1.5 py-0.5 rounded-md"
+          class="text-[11px] font-medium px-1.5 py-0.5 rounded-md transition-colors"
           :class="{
-            'bg-destructive/10 text-destructive': isOverWipLimit,
-            'text-muted-foreground': !isOverWipLimit
+            'bg-destructive/10 text-destructive animate-pulse': isOverWipLimit,
+            'bg-warning/10 text-warning': isAtWipLimit && !isOverWipLimit,
+            'text-muted-foreground': !isOverWipLimit && !isAtWipLimit
           }"
         >
           {{ items.length }}
@@ -173,6 +224,27 @@ function handleAddCardClick() {
             /{{ column.wipLimit }}
           </template>
         </span>
+
+        <!-- Sort dropdown -->
+        <BkDropdown
+          :items="sortMenuItems"
+          align="right"
+          :min-width="160"
+          @select="handleSortSelect"
+        >
+          <template #trigger>
+            <button
+              class="p-0.5 rounded transition-colors"
+              :class="{
+                'text-primary': hasAutoSort,
+                'text-muted-foreground/60 hover:text-foreground': !hasAutoSort
+              }"
+              :title="sortLabel"
+            >
+              <BkIcon :icon="sortIcon" :size="14" />
+            </button>
+          </template>
+        </BkDropdown>
 
         <!-- Column menu -->
         <BkDropdown

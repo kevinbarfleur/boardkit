@@ -115,13 +115,14 @@ function handleContextMenu(e: MouseEvent) {
 
 <template>
   <div
-    class="kanban-card group relative bg-card rounded-lg border border-border transition-all cursor-pointer shadow-sm hover:shadow-md"
+    class="kanban-card group relative bg-card rounded-lg border transition-all cursor-pointer shadow-sm"
     :class="{
       'opacity-50': isDragging,
       'cursor-grab active:cursor-grabbing': !isDragging,
-      'hover:border-primary/50': !isDragging,
+      'hover:border-primary/50 hover:shadow-md border-border': !isDragging && !item.archived,
       'py-1.5 px-2.5': compactMode,
       'py-2 px-3': !compactMode,
+      'opacity-60 border-dashed border-muted-foreground/30': item.archived,
     }"
     draggable="true"
     @dragstart="handleDragStart"
@@ -140,9 +141,17 @@ function handleContextMenu(e: MouseEvent) {
       class="absolute -bottom-1 left-0 right-0 h-0.5 bg-primary rounded-full"
     />
 
+    <!-- Archived badge -->
+    <span
+      v-if="item.archived"
+      class="absolute -top-1.5 -right-1.5 text-[9px] uppercase tracking-wide font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded border border-border"
+    >
+      Archived
+    </span>
+
     <!-- Priority indicator (left edge) -->
     <div
-      v-if="showPriority && priorityColor"
+      v-if="showPriority && priorityColor && !item.archived"
       class="absolute inset-y-0 left-0 w-1 rounded-l-lg"
       :style="{ backgroundColor: priorityColor }"
     />

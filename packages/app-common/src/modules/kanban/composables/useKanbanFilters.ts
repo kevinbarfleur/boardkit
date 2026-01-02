@@ -27,9 +27,11 @@ export function useKanbanFilters(items: Ref<KanbanItem[]>) {
 
   /**
    * Filter items based on current filter state
+   * Note: Excludes archived items by default
    */
   const filteredItems = computed(() => {
-    let result = items.value
+    // Start by filtering out archived items
+    let result = items.value.filter((item) => !item.archived)
 
     // Search filter (title and description)
     if (searchQuery.value.trim()) {

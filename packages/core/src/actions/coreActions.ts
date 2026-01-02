@@ -184,6 +184,20 @@ function createCoreActions(): ActionDefinition[] {
         store.updateViewport({ zoom: newZoom })
       },
     },
+    {
+      id: 'view.toggle-grid',
+      title: 'Toggle Grid Snapping',
+      subtitle: 'Enable or disable snap to grid',
+      keywords: ['grid', 'snap', 'align', 'toggle'],
+      icon: 'grid-3x3',
+      group: 'view',
+      contexts: ['global', 'canvas'],
+      shortcutHint: "⌘'",
+      priority: 85,
+      run: () => {
+        store.toggleGrid()
+      },
+    },
 
     // ============================================
     // SELECTION ACTIONS

@@ -9,12 +9,15 @@ import {
   actionRegistry,
   FONT_FAMILY_CSS,
   DEFAULT_WIDGET_VISIBILITY,
+  findNearestShapeAndAnchor,
   type ActionContext,
   type ActionContextType,
   type CanvasElement,
   type TextElement,
+  type LineElement,
   type Widget,
   type ModuleContextMenuEvent,
+  type AnchorPosition,
   isDrawingTool,
   isTextElement,
   isShapeElement,
@@ -23,6 +26,8 @@ import {
   WidgetFrame,
   BkContextMenu,
   BkDataSourcePicker,
+  GridOverlay,
+  AnchorPointsOverlay,
   useTheme,
   type ContextMenuItem,
   type ContextMenuItemOrSeparator,
@@ -83,6 +88,30 @@ const resizeHandle = ref<string | null>(null)
 const resizeStart = shallowRef({ x: 0, y: 0 })
 const elementStartRect = shallowRef({ x: 0, y: 0, width: 0, height: 0 })
 
+// Group resize state (for multi-selection proportional resize)
+const isResizingGroup = ref(false)
+const groupResizeHandle = ref<string | null>(null)
+const groupResizeStart = shallowRef({ x: 0, y: 0 })
+const groupStartBounds = shallowRef({ x: 0, y: 0, width: 0, height: 0 })
+const groupStartElements = shallowRef<Array<{ id: string; rect: { x: number; y: number; width: number; height: number } }>>([])
+const groupStartWidgets = shallowRef<Array<{ id: string; rect: { x: number; y: number; width: number; height: number } }>>([])
+
+// Group rotation state (for multi-selection rotation)
+const isRotatingGroup = ref(false)
+const groupRotationBounds = shallowRef({ x: 0, y: 0, width: 0, height: 0 })
+const groupRotationMouseStartAngle = ref(0)
+// Current rotation angle delta (for CSS transform - performance optimization)
+const groupRotationAngle = ref(0)
+// Store initial state including points for lines/arrows
+interface GroupRotationElement {
+  id: string
+  type: string
+  rect: { x: number; y: number; width: number; height: number }
+  angle: number
+  points?: { start: { x: number; y: number }; end: { x: number; y: number } }
+}
+const groupRotationStartElements = shallowRef<GroupRotationElement[]>([])
+
 // Element rotation state
 const isRotatingElement = ref(false)
 const rotatingElementId = ref<string | null>(null)
@@ -121,6 +150,11 @@ const widgets = computed(() => boardStore.widgets)
 const elements = computed(() => boardStore.elements)
 const viewport = computed(() => boardStore.viewport)
 const background = computed(() => boardStore.background)
+const grid = computed(() => boardStore.grid)
+
+// Canvas size for grid overlay (updated via ResizeObserver)
+const canvasWidth = ref(window.innerWidth)
+const canvasHeight = ref(window.innerHeight)
 const selectedWidgetId = computed(() => boardStore.selectedWidgetId)
 const selectedElementId = computed(() => boardStore.selectedElementId)
 const selectedElementIds = computed(() => boardStore.selectedElementIds)
@@ -169,18 +203,39 @@ const transformStyle = computed(() => ({
   transformOrigin: '0 0',
 }))
 
+// Group rotation transform object for CSS-based rotation (performance optimization)
+const groupRotation = computed(() => {
+  if (!isRotatingGroup.value) return undefined
+  return {
+    angle: groupRotationAngle.value,
+    centerX: groupRotationBounds.value.x + groupRotationBounds.value.width / 2,
+    centerY: groupRotationBounds.value.y + groupRotationBounds.value.height / 2,
+  }
+})
+
 // Background pattern style
 const backgroundStyle = computed(() => {
   const bg = background.value
-  const baseSize = 20 * viewport.value.zoom
+  const zoom = viewport.value.zoom
+
+  // Pattern scales with zoom but clamped to avoid "gray background" effect
+  // Min 8px prevents dots/lines from being too dense when zoomed out
+  // Max 80px prevents pattern from being too sparse when zoomed in
+  const baseSize = Math.max(8, Math.min(80, 20 * zoom))
+
+  // Reduce opacity when zoomed out to make it less aggressive
+  // Full opacity at zoom >= 1, fades to 30% at zoom 0.1
+  const zoomOpacity = zoom >= 1 ? 1 : Math.max(0.3, zoom)
 
   let backgroundImage = 'none'
   if (bg.pattern === 'dots') {
-    backgroundImage = `radial-gradient(circle, rgba(${gridColor.value}, 0.1) 1px, transparent 1px)`
+    const opacity = 0.1 * zoomOpacity
+    backgroundImage = `radial-gradient(circle, rgba(${gridColor.value}, ${opacity}) 1px, transparent 1px)`
   } else if (bg.pattern === 'grid') {
+    const opacity = 0.05 * zoomOpacity
     backgroundImage = `
-      linear-gradient(rgba(${gridColor.value}, 0.05) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(${gridColor.value}, 0.05) 1px, transparent 1px)
+      linear-gradient(rgba(${gridColor.value}, ${opacity}) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(${gridColor.value}, ${opacity}) 1px, transparent 1px)
     `
   }
 
@@ -658,7 +713,12 @@ const handleCanvasClick = (e: MouseEvent) => {
     target.classList.contains('canvas-background') ||
     target.classList.contains('canvas-transform')
   ) {
-    boardStore.clearSelection()
+    // Exit group edit mode if we're inside one
+    if (boardStore.isInsideGroup()) {
+      boardStore.exitGroup()
+    } else {
+      boardStore.clearSelection()
+    }
   }
 }
 
@@ -742,13 +802,18 @@ const handleCanvasMouseMove = (e: MouseEvent) => {
     const dx = (e.clientX - resizeStart.value.x) / viewport.value.zoom
     const dy = (e.clientY - resizeStart.value.y) / viewport.value.zoom
 
-    const newRect = calculateResizedRect(
+    let newRect = calculateResizedRect(
       elementStartRect.value,
       resizeHandle.value,
       dx,
       dy,
       e.shiftKey
     )
+
+    // Apply grid snapping to resize
+    if (grid.value.enabled) {
+      newRect = boardStore.snapRectToGrid(newRect)
+    }
 
     // Skip dirty marking during live drag for performance
     boardStore.resizeElement(resizingElementId.value, newRect, true)
@@ -784,6 +849,88 @@ const handleCanvasMouseMove = (e: MouseEvent) => {
 
     // Update element angle (skip dirty marking during drag)
     boardStore.updateElement(rotatingElementId.value, { angle: newAngle })
+    return
+  }
+
+  // Group proportional resize
+  if (isResizingGroup.value && groupResizeHandle.value) {
+    const dx = (e.clientX - groupResizeStart.value.x) / viewport.value.zoom
+    const dy = (e.clientY - groupResizeStart.value.y) / viewport.value.zoom
+
+    // Calculate new bounds based on handle
+    const newBounds = calculateResizedRect(
+      groupStartBounds.value,
+      groupResizeHandle.value,
+      dx,
+      dy,
+      e.shiftKey // maintain aspect ratio
+    )
+
+    // Apply proportional resize to all elements
+    for (const { id, rect: startRect } of groupStartElements.value) {
+      // Calculate relative position within the original bounds
+      const relX = (startRect.x - groupStartBounds.value.x) / groupStartBounds.value.width
+      const relY = (startRect.y - groupStartBounds.value.y) / groupStartBounds.value.height
+      const relWidth = startRect.width / groupStartBounds.value.width
+      const relHeight = startRect.height / groupStartBounds.value.height
+
+      // Apply scale to get new rect
+      const newRect = {
+        x: newBounds.x + relX * newBounds.width,
+        y: newBounds.y + relY * newBounds.height,
+        width: Math.max(10, relWidth * newBounds.width),
+        height: Math.max(10, relHeight * newBounds.height),
+      }
+
+      // Apply grid snapping
+      const snappedRect = grid.value.enabled ? boardStore.snapRectToGrid(newRect) : newRect
+      boardStore.resizeElement(id, snappedRect, true) // skipDirty during drag
+    }
+
+    // Apply proportional resize to all widgets
+    for (const { id, rect: startRect } of groupStartWidgets.value) {
+      const relX = (startRect.x - groupStartBounds.value.x) / groupStartBounds.value.width
+      const relY = (startRect.y - groupStartBounds.value.y) / groupStartBounds.value.height
+      const relWidth = startRect.width / groupStartBounds.value.width
+      const relHeight = startRect.height / groupStartBounds.value.height
+
+      const newX = newBounds.x + relX * newBounds.width
+      const newY = newBounds.y + relY * newBounds.height
+      const newWidth = Math.max(100, relWidth * newBounds.width)
+      const newHeight = Math.max(100, relHeight * newBounds.height)
+
+      // Apply grid snapping
+      const snappedX = grid.value.enabled ? boardStore.snapToGrid(newX) : newX
+      const snappedY = grid.value.enabled ? boardStore.snapToGrid(newY) : newY
+
+      boardStore.moveWidget(id, snappedX, snappedY)
+      boardStore.resizeWidget(id, newWidth, newHeight)
+    }
+    return
+  }
+
+  // Group rotation - CSS transform-based (performance optimization)
+  // Instead of mutating element data on every frame, we just update the rotation angle
+  // The actual element positions are committed on mouseup
+  if (isRotatingGroup.value) {
+    // Calculate current mouse angle relative to group center
+    const currentMouseAngle = calculateAngleFromCenter(
+      e.clientX,
+      e.clientY,
+      groupRotationBounds.value
+    )
+
+    // Calculate angle delta
+    let angleDelta = currentMouseAngle - groupRotationMouseStartAngle.value
+
+    // Snap to 15° increments when Shift is held
+    if (e.shiftKey) {
+      const snapAngle = Math.PI / 12 // 15 degrees
+      angleDelta = Math.round(angleDelta / snapAngle) * snapAngle
+    }
+
+    // Update the rotation angle (triggers CSS transform update via computed)
+    groupRotationAngle.value = angleDelta
     return
   }
 
@@ -824,6 +971,10 @@ const handleCanvasMouseUp = (e: MouseEvent) => {
     if (element) {
       // Add element to store (without id and zIndex, store will assign them)
       const { id, zIndex, ...elementData } = element
+      // Apply grid snapping to the element rect
+      if (grid.value.enabled) {
+        elementData.rect = boardStore.snapRectToGrid(elementData.rect)
+      }
       boardStore.addElement(elementData as Omit<CanvasElement, 'id' | 'zIndex'>)
     }
     return
@@ -846,33 +997,129 @@ const handleCanvasMouseUp = (e: MouseEvent) => {
     return
   }
 
+  if (isResizingGroup.value) {
+    isResizingGroup.value = false
+    groupResizeHandle.value = null
+    groupStartElements.value = []
+    groupStartWidgets.value = []
+    // Mark dirty after group resize is complete
+    boardStore.markDirty('Resized selection')
+    return
+  }
+
+  if (isRotatingGroup.value) {
+    // Commit the final rotated positions
+    if (groupRotationAngle.value !== 0) {
+      const angleDelta = groupRotationAngle.value
+      const groupCenterX = groupRotationBounds.value.x + groupRotationBounds.value.width / 2
+      const groupCenterY = groupRotationBounds.value.y + groupRotationBounds.value.height / 2
+
+      const cos = Math.cos(angleDelta)
+      const sin = Math.sin(angleDelta)
+
+      // Helper to rotate a point around group center
+      const rotatePoint = (px: number, py: number) => {
+        const dx = px - groupCenterX
+        const dy = py - groupCenterY
+        return {
+          x: groupCenterX + dx * cos - dy * sin,
+          y: groupCenterY + dx * sin + dy * cos,
+        }
+      }
+
+      // Apply final rotation to all elements
+      for (const startEl of groupRotationStartElements.value) {
+        const element = elements.value.find(el => el.id === startEl.id)
+        if (!element) continue
+
+        // Handle line/arrow elements - rotate actual points
+        if ((startEl.type === 'line' || startEl.type === 'arrow') && startEl.points) {
+          const newStart = rotatePoint(startEl.points.start.x, startEl.points.start.y)
+          const newEnd = rotatePoint(startEl.points.end.x, startEl.points.end.y)
+
+          // Calculate new bounding rect from rotated points
+          const minX = Math.min(newStart.x, newEnd.x)
+          const minY = Math.min(newStart.y, newEnd.y)
+          const maxX = Math.max(newStart.x, newEnd.x)
+          const maxY = Math.max(newStart.y, newEnd.y)
+
+          // Update element (lines/arrows don't use angle, rotation is in points)
+          boardStore.updateElement(startEl.id, {
+            rect: {
+              x: minX,
+              y: minY,
+              width: Math.max(1, maxX - minX),
+              height: Math.max(1, maxY - minY),
+            },
+            points: {
+              start: newStart,
+              end: newEnd,
+            },
+          })
+        } else {
+          // For shapes: rotate center, keep size
+          const elementCenterX = startEl.rect.x + startEl.rect.width / 2
+          const elementCenterY = startEl.rect.y + startEl.rect.height / 2
+          const newCenter = rotatePoint(elementCenterX, elementCenterY)
+
+          // Calculate new angle (normalized to [-π, π])
+          let newAngle = startEl.angle + angleDelta
+          while (newAngle > Math.PI) newAngle -= 2 * Math.PI
+          while (newAngle < -Math.PI) newAngle += 2 * Math.PI
+
+          boardStore.updateElement(startEl.id, {
+            rect: {
+              ...startEl.rect,
+              x: newCenter.x - startEl.rect.width / 2,
+              y: newCenter.y - startEl.rect.height / 2,
+            },
+            angle: newAngle,
+          })
+        }
+      }
+
+      // Mark dirty after all updates
+      boardStore.markDirty('Rotated selection')
+    }
+
+    // Reset state
+    isRotatingGroup.value = false
+    groupRotationStartElements.value = []
+    groupRotationAngle.value = 0
+    return
+  }
+
   // CSS Transform-based drag completion - commit the final position
   if (isDraggingWithTransform.value) {
     isDraggingWithTransform.value = false
 
     // Only commit if there was actual movement
     if (dragOffset.value.x !== 0 || dragOffset.value.y !== 0) {
-      // Commit element movements
+      // Commit element movements (with grid snapping)
       for (const id of draggingElementIds.value) {
         const element = elements.value.find((e) => e.id === id)
         if (element) {
+          const newX = element.rect.x + dragOffset.value.x
+          const newY = element.rect.y + dragOffset.value.y
           boardStore.moveElement(
             id,
-            element.rect.x + dragOffset.value.x,
-            element.rect.y + dragOffset.value.y,
+            boardStore.snapToGrid(newX),
+            boardStore.snapToGrid(newY),
             true // skipDirty during batch
           )
         }
       }
 
-      // Commit widget movements
+      // Commit widget movements (with grid snapping)
       for (const id of draggingWidgetIds.value) {
         const widget = widgets.value.find((w) => w.id === id)
         if (widget) {
+          const newX = widget.rect.x + dragOffset.value.x
+          const newY = widget.rect.y + dragOffset.value.y
           boardStore.moveWidget(
             id,
-            widget.rect.x + dragOffset.value.x,
-            widget.rect.y + dragOffset.value.y
+            boardStore.snapToGrid(newX),
+            boardStore.snapToGrid(newY)
           )
         }
       }
@@ -977,6 +1224,25 @@ const handleElementSelect = (id: string, event?: MouseEvent) => {
   if (activeTool.value === 'select') {
     const addToSelection = event?.shiftKey || event?.metaKey || event?.ctrlKey
 
+    // Check if this element is in a group
+    const group = boardStore.getGroupForElement(id)
+
+    // If element is in a group and we're not inside that group (edit mode),
+    // select all group members
+    if (group && boardStore.enteredGroupId !== group.id) {
+      // If clicking on an already-selected group without modifier keys, don't change selection
+      const groupMembers = boardStore.getGroupMembers(group.id)
+      const allMembersSelected = groupMembers.every(el => boardStore.isSelected('element', el.id))
+      if (!addToSelection && allMembersSelected) {
+        return
+      }
+
+      // Select all group members
+      const memberIds = groupMembers.map(el => el.id)
+      boardStore.selectMultiple(memberIds.map(mid => ({ type: 'element' as const, id: mid })), !addToSelection)
+      return
+    }
+
     // If clicking on an already-selected element without modifier keys,
     // don't change the selection (preserve multi-selection for dragging)
     if (!addToSelection && boardStore.isSelected('element', id)) {
@@ -985,6 +1251,111 @@ const handleElementSelect = (id: string, event?: MouseEvent) => {
 
     boardStore.selectElement(id, addToSelection)
   }
+}
+
+// Handle double-click on element to enter group edit mode
+const handleElementDoubleClick = (id: string, _event: MouseEvent) => {
+  if (activeTool.value !== 'select') return
+
+  const group = boardStore.getGroupForElement(id)
+  if (group) {
+    // Enter the group to edit individual elements
+    boardStore.enterGroup(group.id)
+    // Select only the clicked element
+    boardStore.selectElement(id)
+  }
+}
+
+// Handle group bounding box move start
+const handleGroupMoveStart = (event: MouseEvent) => {
+  if (activeTool.value !== 'select') return
+
+  // Capture history snapshot BEFORE starting the move
+  boardStore.captureHistorySnapshot('Moving selection')
+
+  // Start moving all selected elements using CSS transform
+  isDraggingWithTransform.value = true
+  draggingElementIds.value = [...boardStore.selectedElementIds]
+  draggingWidgetIds.value = [...boardStore.selectedWidgetIds]
+  moveStart.value = { x: event.clientX, y: event.clientY }
+  dragOffset.value = { x: 0, y: 0 }
+}
+
+// Handle group bounding box resize start (proportional resize for multi-selection)
+const handleGroupResizeStart = (
+  handle: string,
+  bounds: { x: number; y: number; width: number; height: number },
+  event: MouseEvent
+) => {
+  if (activeTool.value !== 'select') return
+  event.stopPropagation()
+
+  // Capture history snapshot BEFORE starting the resize
+  boardStore.captureHistorySnapshot('Resizing selection')
+
+  isResizingGroup.value = true
+  groupResizeHandle.value = handle
+  groupResizeStart.value = { x: event.clientX, y: event.clientY }
+  groupStartBounds.value = { ...bounds }
+
+  // Store initial rects for all selected elements
+  groupStartElements.value = boardStore.selectedElementIds.map(id => {
+    const element = elements.value.find(e => e.id === id)
+    return element ? { id, rect: { ...element.rect } } : null
+  }).filter((e): e is { id: string; rect: { x: number; y: number; width: number; height: number } } => e !== null)
+
+  // Store initial rects for all selected widgets
+  groupStartWidgets.value = boardStore.selectedWidgetIds.map(id => {
+    const widget = widgets.value.find(w => w.id === id)
+    return widget ? { id, rect: { ...widget.rect } } : null
+  }).filter((w): w is { id: string; rect: { x: number; y: number; width: number; height: number } } => w !== null)
+}
+
+// Handle group rotation start (rotate all selected elements around the group center)
+const handleGroupRotateStart = (
+  bounds: { x: number; y: number; width: number; height: number },
+  event: MouseEvent
+) => {
+  if (activeTool.value !== 'select') return
+  event.stopPropagation()
+
+  // Capture history snapshot BEFORE starting the rotation
+  boardStore.captureHistorySnapshot('Rotating selection')
+
+  isRotatingGroup.value = true
+  groupRotationBounds.value = { ...bounds }
+  groupRotationAngle.value = 0  // Reset rotation angle for CSS transform
+
+  // Store initial rects, angles, and points for all selected elements
+  groupRotationStartElements.value = boardStore.selectedElementIds.map(id => {
+    const element = elements.value.find(e => e.id === id)
+    if (!element) return null
+
+    const result: GroupRotationElement = {
+      id,
+      type: element.type,
+      rect: { ...element.rect },
+      angle: element.angle ?? 0,
+    }
+
+    // Store points for line/arrow elements
+    if ((element.type === 'line' || element.type === 'arrow') && 'points' in element) {
+      const lineElement = element as { points: { start: { x: number; y: number }; end: { x: number; y: number } } }
+      result.points = {
+        start: { ...lineElement.points.start },
+        end: { ...lineElement.points.end },
+      }
+    }
+
+    return result
+  }).filter((e): e is GroupRotationElement => e !== null)
+
+  // Calculate initial mouse angle relative to group center
+  groupRotationMouseStartAngle.value = calculateAngleFromCenter(
+    event.clientX,
+    event.clientY,
+    bounds
+  )
 }
 
 const handleElementMoveStart = (id: string, event: MouseEvent) => {
@@ -1000,24 +1371,54 @@ const handleElementMoveStart = (id: string, event: MouseEvent) => {
     return
   }
 
-  // Check if this element is part of a multi-selection
-  const isPartOfSelection = boardStore.isSelected('element', id)
+  // Check if this element is in a group
+  const group = boardStore.getGroupForElement(id)
 
-  if (isPartOfSelection && isMultiSelection.value) {
-    // Move all selected elements using CSS transform
+  // Check if this element is already selected
+  const isAlreadySelected = boardStore.isSelected('element', id)
+
+  // Capture history snapshot BEFORE starting the move
+  boardStore.captureHistorySnapshot('Moving element(s)')
+
+  // Case 1: Element is part of a multi-selection -> move all selected items
+  if (isAlreadySelected && isMultiSelection.value) {
     isDraggingWithTransform.value = true
     draggingElementIds.value = [...boardStore.selectedElementIds]
     draggingWidgetIds.value = [...boardStore.selectedWidgetIds]
     moveStart.value = { x: event.clientX, y: event.clientY }
     dragOffset.value = { x: 0, y: 0 }
-  } else {
-    // Move single element using CSS transform
-    boardStore.selectElement(id)
+    return
+  }
+
+  // Case 2: Element is already selected (single selection) -> just start dragging
+  if (isAlreadySelected) {
     isDraggingWithTransform.value = true
     draggingElementIds.value = [id]
     moveStart.value = { x: event.clientX, y: event.clientY }
     dragOffset.value = { x: 0, y: 0 }
+    return
   }
+
+  // Case 3: Element is in a group and we're not in group edit mode -> move entire group
+  if (group && boardStore.enteredGroupId !== group.id) {
+    const groupMembers = boardStore.getGroupMembers(group.id)
+    const memberIds = groupMembers.map(el => el.id)
+    boardStore.selectMultiple(memberIds.map(mid => ({ type: 'element' as const, id: mid })), true)
+    isDraggingWithTransform.value = true
+    draggingElementIds.value = memberIds
+    moveStart.value = { x: event.clientX, y: event.clientY }
+    dragOffset.value = { x: 0, y: 0 }
+    return
+  }
+
+  // Case 4: New selection - select and start dragging
+  // Note: selectElement was already called by handleElementSelect, but we call it again
+  // here in case of timing issues. This is safe since selecting an already-selected
+  // element is a no-op in the store.
+  isDraggingWithTransform.value = true
+  draggingElementIds.value = [id]
+  moveStart.value = { x: event.clientX, y: event.clientY }
+  dragOffset.value = { x: 0, y: 0 }
 }
 
 // Calculate new rect based on resize handle and delta
@@ -1101,6 +1502,9 @@ const handleElementResizeStart = (id: string, handle: string, event: MouseEvent)
 
   event.stopPropagation()
 
+  // Capture history snapshot BEFORE starting the resize
+  boardStore.captureHistorySnapshot('Resizing element')
+
   isResizingElement.value = true
   resizingElementId.value = id
   resizeHandle.value = handle
@@ -1132,6 +1536,9 @@ const handleElementRotateStart = (id: string, event: MouseEvent) => {
   if (!element) return
 
   event.stopPropagation()
+
+  // Capture history snapshot BEFORE starting the rotation
+  boardStore.captureHistorySnapshot('Rotating element')
 
   isRotatingElement.value = true
   rotatingElementId.value = id
@@ -1364,16 +1771,36 @@ const handleBackgroundClick = () => {
   boardStore.setBackground({ pattern: nextPattern })
 }
 
+// ResizeObserver for canvas size tracking
+let resizeObserver: ResizeObserver | null = null
+
 onMounted(() => {
   document.addEventListener('mousemove', handleCanvasMouseMove)
   document.addEventListener('mouseup', handleCanvasMouseUp)
   document.addEventListener('keydown', preventSpaceScroll)
+
+  // Track canvas size for grid overlay
+  if (canvasRef.value) {
+    resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        canvasWidth.value = entry.contentRect.width
+        canvasHeight.value = entry.contentRect.height
+      }
+    })
+    resizeObserver.observe(canvasRef.value)
+  }
 })
 
 onUnmounted(() => {
   document.removeEventListener('mousemove', handleCanvasMouseMove)
   document.removeEventListener('mouseup', handleCanvasMouseUp)
   document.removeEventListener('keydown', preventSpaceScroll)
+
+  // Cleanup ResizeObserver
+  if (resizeObserver) {
+    resizeObserver.disconnect()
+    resizeObserver = null
+  }
 })
 
 // Expose canvas refs for export functionality
@@ -1394,6 +1821,18 @@ defineExpose({
     @mousedown="handleCanvasMouseDown"
     @contextmenu="handleCanvasContextMenu"
   >
+    <!-- Grid Overlay (when snap-to-grid is enabled) -->
+    <GridOverlay
+      v-if="grid.enabled && grid.showGrid"
+      :grid-size="grid.size"
+      :zoom="viewport.zoom"
+      :viewport-x="viewport.x"
+      :viewport-y="viewport.y"
+      :canvas-width="canvasWidth"
+      :canvas-height="canvasHeight"
+      color="hsl(var(--border) / 0.3)"
+    />
+
     <!-- Canvas content with transform -->
     <div ref="canvasContentRef" class="canvas-transform absolute inset-0" :style="transformStyle">
       <!-- Elements SVG layer (below widgets by default, z-index controls final order) -->
@@ -1401,12 +1840,18 @@ defineExpose({
         :zoom="viewport.zoom"
         :drag-offset="dragOffset"
         :dragging-element-ids="draggingElementIds"
+        :is-rotating-group="isRotatingGroup"
+        :group-rotation="groupRotation"
         @element-select="(id, event) => handleElementSelect(id, event)"
         @element-move-start="handleElementMoveStart"
         @element-resize-start="handleElementResizeStart"
         @element-rotate-start="handleElementRotateStart"
         @element-edit-start="handleElementEditStart"
         @element-context-menu="handleElementContextMenu"
+        @element-double-click="handleElementDoubleClick"
+        @group-move-start="handleGroupMoveStart"
+        @group-resize-start="handleGroupResizeStart"
+        @group-rotate-start="handleGroupRotateStart"
       />
 
       <!-- Widgets layer - pointer-events disabled during navigation mode -->

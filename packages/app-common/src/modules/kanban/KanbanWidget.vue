@@ -1,16 +1,12 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { nanoid } from 'nanoid'
-import type { ModuleContext } from '@boardkit/core'
-import { useProvideData, kanbanContractV1, kanbanStatsContractV1 } from '@boardkit/core'
-import { BkIcon, BkContextMenu, useModal } from '@boardkit/ui'
-import type { MenuContent } from '@boardkit/ui'
-import type { KanbanState, KanbanItem, KanbanColumn as KanbanColumnType, KanbanPriority } from './types'
+import type { ModuleContext, ModuleContextMenuEvent, ModuleMenuGroup } from '@boardkit/core'
+import { useProvideData, kanbanContractV1, kanbanStatsContractV1, truncate } from '@boardkit/core'
+import { BkIcon, useModal } from '@boardkit/ui'
+import type { KanbanState, KanbanItem, KanbanColumn as KanbanColumnType, KanbanPriority, KanbanSortField, KanbanSortDirection } from './types'
 import type { PublicKanbanBoard, PublicKanbanStats } from '@boardkit/core'
 import { KanbanColumn, KanbanHeader } from './components'
-import { useKanbanItems } from './composables/useKanbanItems'
-import { useKanbanColumns } from './composables/useKanbanColumns'
-import { useKanbanDragDrop } from './composables/useKanbanDragDrop'
 import { useKanbanFilters } from './composables/useKanbanFilters'
 
 interface Props {
@@ -19,43 +15,362 @@ interface Props {
 
 const props = defineProps<Props>()
 
+const emit = defineEmits<{
+  moduleContextMenu: [event: ModuleContextMenuEvent]
+}>()
+
 // Modal
 const { openModal, confirm } = useModal()
 
-// Context getter to ensure reactivity in composables
-const getContext = () => props.context
+// Direct reactive access to state - this ensures Vue tracks dependencies correctly
+const items = computed(() => props.context.state.items || [])
+const columns = computed(() =>
+  [...(props.context.state.columns || [])].sort((a, b) => a.order - b.order)
+)
+const showArchived = computed(() => props.context.state.showArchived ?? false)
 
-// Composables
-const {
-  items,
-  allTags,
-  getColumnItems,
-  addItem,
-  updateItem,
-  removeItem,
-} = useKanbanItems(getContext)
+// Derived computed values
+const activeItems = computed(() => items.value.filter((i) => !i.archived))
+const archivedItems = computed(() => items.value.filter((i) => i.archived))
+const archivedCount = computed(() => archivedItems.value.length)
 
-const {
-  columns,
-  completionStats,
-  getColumnItemCount,
-  addColumn,
-  updateColumn,
-  removeColumn,
-} = useKanbanColumns(getContext)
+const allTags = computed(() => {
+  const tagSet = new Set<string>()
+  items.value.forEach((item) => {
+    item.tags?.forEach((tag) => tagSet.add(tag))
+  })
+  return Array.from(tagSet).sort()
+})
 
-const {
-  draggedItemId,
-  dragOverColumnId,
-  dragOverItemId,
-  dropPosition,
-  handleDragStart,
-  handleDragOverColumn,
-  handleDragOverItem,
-  handleDragLeave,
-  handleDrop,
-  handleDragEnd,
-} = useKanbanDragDrop(getContext)
+// Completion stats
+const lastColumn = computed(() => columns.value[columns.value.length - 1])
+const completionStats = computed(() => {
+  const total = items.value.filter(i => !i.archived).length
+  const completed = lastColumn.value
+    ? items.value.filter((i) => i.columnId === lastColumn.value.id && !i.archived).length
+    : 0
+  const rate = total > 0 ? Math.round((completed / total) * 100) : 0
+  return { total, completed, rate }
+})
+
+// Helper functions that use the reactive state
+function getColumnItems(columnId: string): KanbanItem[] {
+  const includeArch = showArchived.value
+  return items.value
+    .filter((item) => item.columnId === columnId && (includeArch || !item.archived))
+    .sort((a, b) => a.order - b.order)
+}
+
+function getColumnItemCount(columnId: string): number {
+  return items.value.filter((item) => item.columnId === columnId && !item.archived).length
+}
+
+function getColumnName(columnId: string): string {
+  const column = columns.value.find((c) => c.id === columnId)
+  return column?.title ?? 'column'
+}
+
+// State mutation functions
+function addItem(columnId: string, title: string, description = '') {
+  if (!title.trim()) return
+
+  const columnItems = getColumnItems(columnId)
+  const maxOrder = columnItems.length > 0
+    ? Math.max(...columnItems.map((i) => i.order))
+    : -1
+
+  const newItem: KanbanItem = {
+    id: crypto.randomUUID(),
+    title: title.trim(),
+    description,
+    columnId,
+    order: maxOrder + 1,
+    createdAt: new Date().toISOString(),
+    tags: [],
+    checklist: [],
+  }
+
+  props.context.updateState(
+    { items: [...items.value, newItem] },
+    { captureHistory: true, historyLabel: `Added card: ${truncate(title, 20)} to ${getColumnName(columnId)}` }
+  )
+
+  // Auto-sort if column has non-manual sort
+  const column = columns.value.find((c) => c.id === columnId)
+  if (column?.sortBy && column.sortBy !== 'manual') {
+    applySortToColumn(columnId, column.sortBy, column.sortDirection || 'asc')
+  }
+
+  return newItem.id
+}
+
+function updateItem(itemId: string, updates: Partial<Omit<KanbanItem, 'id' | 'createdAt'>>) {
+  const itemIndex = items.value.findIndex((i) => i.id === itemId)
+  if (itemIndex === -1) return
+
+  const item = items.value[itemIndex]
+  const newItems = [...items.value]
+  newItems[itemIndex] = { ...item, ...updates }
+
+  props.context.updateState(
+    { items: newItems },
+    { captureHistory: true, historyLabel: `Updated card: ${truncate(item.title, 25)}` }
+  )
+}
+
+function removeItem(itemId: string) {
+  const item = items.value.find((i) => i.id === itemId)
+  if (!item) return
+
+  props.context.updateState(
+    { items: items.value.filter((i) => i.id !== itemId) },
+    { captureHistory: true, historyLabel: `Deleted card: ${truncate(item.title, 25)}` }
+  )
+}
+
+function archiveItem(itemId: string) {
+  const item = items.value.find((i) => i.id === itemId)
+  if (!item || item.archived) return
+
+  updateItem(itemId, {
+    archived: true,
+    archivedAt: new Date().toISOString(),
+  })
+}
+
+function unarchiveItem(itemId: string) {
+  const item = items.value.find((i) => i.id === itemId)
+  if (!item || !item.archived) return
+
+  const itemIndex = items.value.findIndex((i) => i.id === itemId)
+  const newItems = [...items.value]
+  const { archived, archivedAt, ...rest } = item
+  newItems[itemIndex] = rest as KanbanItem
+
+  props.context.updateState(
+    { items: newItems },
+    { captureHistory: true, historyLabel: `Restored card: ${truncate(item.title, 25)}` }
+  )
+}
+
+function toggleShowArchived() {
+  props.context.updateState(
+    { showArchived: !showArchived.value },
+    { captureHistory: false }
+  )
+}
+
+function addColumn(title: string, color: string, wipLimit: number | null = null) {
+  if (!title.trim()) return
+
+  const maxOrder = columns.value.length > 0
+    ? Math.max(...columns.value.map((c) => c.order))
+    : -1
+
+  const newColumn: KanbanColumnType = {
+    id: crypto.randomUUID(),
+    title: title.trim(),
+    color,
+    wipLimit,
+    order: maxOrder + 1,
+  }
+
+  props.context.updateState(
+    { columns: [...columns.value, newColumn] },
+    { captureHistory: true, historyLabel: `Added column: ${truncate(title, 20)}` }
+  )
+
+  return newColumn.id
+}
+
+function updateColumn(columnId: string, updates: Partial<Omit<KanbanColumnType, 'id'>>) {
+  const columnIndex = columns.value.findIndex((c) => c.id === columnId)
+  if (columnIndex === -1) return
+
+  const column = columns.value[columnIndex]
+  const newColumns = [...columns.value]
+  newColumns[columnIndex] = { ...column, ...updates }
+
+  props.context.updateState(
+    { columns: newColumns },
+    { captureHistory: true, historyLabel: `Updated column: ${truncate(column.title, 20)}` }
+  )
+}
+
+function removeColumn(columnId: string, deleteItems = false) {
+  const column = columns.value.find((c) => c.id === columnId)
+  if (!column) return
+
+  const newColumns = columns.value.filter((c) => c.id !== columnId)
+  const newItems = deleteItems
+    ? items.value.filter((i) => i.columnId !== columnId)
+    : items.value
+
+  props.context.updateState(
+    { columns: newColumns, items: newItems },
+    { captureHistory: true, historyLabel: `Deleted column: ${truncate(column.title, 20)}` }
+  )
+}
+
+function updateColumnSort(columnId: string, sortBy: KanbanSortField, sortDirection: KanbanSortDirection = 'asc') {
+  updateColumn(columnId, { sortBy, sortDirection })
+
+  // If not manual, immediately apply the sort
+  if (sortBy !== 'manual') {
+    applySortToColumn(columnId, sortBy, sortDirection)
+  }
+}
+
+function applySortToColumn(columnId: string, sortBy: KanbanSortField, direction: KanbanSortDirection) {
+  if (sortBy === 'manual') return
+
+  const columnItems = items.value.filter((i) => i.columnId === columnId && !i.archived)
+  const priorityOrder: Record<string, number> = { high: 0, medium: 1, low: 2 }
+
+  const sorted = [...columnItems].sort((a, b) => {
+    let result = 0
+    switch (sortBy) {
+      case 'title':
+        result = a.title.localeCompare(b.title)
+        break
+      case 'priority': {
+        const aOrder = a.priority ? priorityOrder[a.priority] ?? 3 : 3
+        const bOrder = b.priority ? priorityOrder[b.priority] ?? 3 : 3
+        result = aOrder - bOrder
+        break
+      }
+      case 'dueDate': {
+        if (!a.dueDate && !b.dueDate) result = 0
+        else if (!a.dueDate) result = 1
+        else if (!b.dueDate) result = -1
+        else result = new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+        break
+      }
+      case 'createdAt':
+        result = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        break
+    }
+    return direction === 'desc' ? -result : result
+  })
+
+  // Update orders atomically
+  const newItems = items.value.map((item) => {
+    if (item.columnId !== columnId) return item
+    const sortedIndex = sorted.findIndex((s) => s.id === item.id)
+    if (sortedIndex === -1) return item // Archived items keep their order
+    return { ...item, order: sortedIndex }
+  })
+
+  props.context.updateState(
+    { items: newItems },
+    { captureHistory: true, historyLabel: `Sorted column by ${sortBy}` }
+  )
+}
+
+// Drag & drop state
+const draggedItemId = ref<string | null>(null)
+const dragOverColumnId = ref<string | null>(null)
+const dragOverItemId = ref<string | null>(null)
+const dropPosition = ref<'before' | 'after' | null>(null)
+
+function handleDragStart(e: DragEvent, itemId: string) {
+  draggedItemId.value = itemId
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', itemId)
+  }
+}
+
+function handleDragOverColumn(e: DragEvent, columnId: string) {
+  e.preventDefault()
+  if (e.dataTransfer) {
+    e.dataTransfer.dropEffect = 'move'
+  }
+  dragOverColumnId.value = columnId
+}
+
+function handleDragOverItem(e: DragEvent, itemId: string, columnId: string) {
+  e.preventDefault()
+  if (e.dataTransfer) {
+    e.dataTransfer.dropEffect = 'move'
+  }
+
+  dragOverColumnId.value = columnId
+  dragOverItemId.value = itemId
+
+  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+  const midY = rect.top + rect.height / 2
+  dropPosition.value = e.clientY < midY ? 'before' : 'after'
+}
+
+function handleDragLeave() {
+  // Only clear if we're leaving the column entirely
+}
+
+function handleDrop(e: DragEvent, targetColumnId: string) {
+  e.preventDefault()
+
+  const itemId = draggedItemId.value
+  if (!itemId) return
+
+  const draggedItem = items.value.find(i => i.id === itemId)
+  if (!draggedItem) return
+
+  const targetItemId = dragOverItemId.value
+  const position = dropPosition.value
+
+  // Calculate new order
+  let newOrder: number
+  if (targetItemId && position) {
+    const targetItem = items.value.find(i => i.id === targetItemId)
+    if (targetItem) {
+      const columnItems = getColumnItems(targetColumnId)
+      const targetIndex = columnItems.findIndex(i => i.id === targetItemId)
+
+      if (position === 'before') {
+        newOrder = targetIndex > 0 ? (columnItems[targetIndex - 1].order + targetItem.order) / 2 : targetItem.order - 1
+      } else {
+        newOrder = targetIndex < columnItems.length - 1
+          ? (targetItem.order + columnItems[targetIndex + 1].order) / 2
+          : targetItem.order + 1
+      }
+    } else {
+      const columnItems = getColumnItems(targetColumnId)
+      newOrder = columnItems.length > 0 ? Math.max(...columnItems.map(i => i.order)) + 1 : 0
+    }
+  } else {
+    const columnItems = getColumnItems(targetColumnId)
+    newOrder = columnItems.length > 0 ? Math.max(...columnItems.map(i => i.order)) + 1 : 0
+  }
+
+  // Update item
+  const newItems = items.value.map(item => {
+    if (item.id === itemId) {
+      return { ...item, columnId: targetColumnId, order: newOrder }
+    }
+    return item
+  })
+
+  props.context.updateState(
+    { items: newItems },
+    { captureHistory: true, historyLabel: `Moved card: ${truncate(draggedItem.title, 20)}` }
+  )
+
+  // Auto-sort if target column has non-manual sort
+  const targetColumn = columns.value.find((c) => c.id === targetColumnId)
+  if (targetColumn?.sortBy && targetColumn.sortBy !== 'manual') {
+    applySortToColumn(targetColumnId, targetColumn.sortBy, targetColumn.sortDirection || 'asc')
+  }
+
+  handleDragEnd()
+}
+
+function handleDragEnd() {
+  draggedItemId.value = null
+  dragOverColumnId.value = null
+  dragOverItemId.value = null
+  dropPosition.value = null
+}
 
 // Filtering
 const {
@@ -82,13 +397,6 @@ const compactMode = computed(() => props.context.state.compactMode)
 const confirmDeleteCard = computed(() => props.context.state.confirmDeleteCard ?? true)
 const confirmDeleteColumn = computed(() => props.context.state.confirmDeleteColumn ?? true)
 const quickCardCreation = computed(() => props.context.state.quickCardCreation ?? false)
-
-// Context menu state
-const contextMenuOpen = ref(false)
-const contextMenuX = ref(0)
-const contextMenuY = ref(0)
-const contextMenuGroups = ref<MenuContent>([])
-const contextMenuContext = ref<{ type: 'card' | 'column'; id: string } | null>(null)
 
 // Column colors palette
 const columnColors = [
@@ -308,140 +616,168 @@ function handleSearchUpdate(query: string) {
 
 // === Context Menu Handlers ===
 
-function buildCardContextMenu(item: KanbanItem): MenuContent {
+function buildCardContextMenuGroups(item: KanbanItem): ModuleMenuGroup[] {
   const otherColumns = columns.value.filter(c => c.id !== item.columnId)
+  const groups: ModuleMenuGroup[] = []
 
-  return [
-    {
-      items: [
-        { id: 'edit', label: 'Edit card', icon: 'pencil' },
-        { id: 'duplicate', label: 'Duplicate', icon: 'copy' },
-        { id: 'copy-title', label: 'Copy title', icon: 'clipboard' },
-      ],
-    },
-    ...(otherColumns.length > 0 ? [{
+  // Basic actions group
+  groups.push({
+    items: [
+      { id: `card:edit:${item.id}`, label: 'Edit card', icon: 'pencil' },
+      { id: `card:duplicate:${item.id}`, label: 'Duplicate', icon: 'copy' },
+      { id: `card:copy-title:${item.id}`, label: 'Copy title', icon: 'clipboard' },
+    ],
+  })
+
+  // Move to column (if other columns exist)
+  if (otherColumns.length > 0) {
+    groups.push({
       label: 'Move to',
-      items: otherColumns.map(c => ({ id: `move:${c.id}`, label: c.title })),
-    }] : []),
-    ...(showPriority.value ? [{
+      items: otherColumns.map(c => ({ id: `card:move:${item.id}:${c.id}`, label: c.title })),
+    })
+  }
+
+  // Priority submenu
+  if (showPriority.value) {
+    groups.push({
       label: 'Priority',
       items: [
-        { id: 'priority:', label: 'None' },
-        { id: 'priority:low', label: 'Low' },
-        { id: 'priority:medium', label: 'Medium' },
-        { id: 'priority:high', label: 'High' },
+        { id: `card:priority:${item.id}:`, label: 'None' },
+        { id: `card:priority:${item.id}:low`, label: 'Low' },
+        { id: `card:priority:${item.id}:medium`, label: 'Medium' },
+        { id: `card:priority:${item.id}:high`, label: 'High' },
       ],
-    }] : []),
-    ...(showTags.value ? [{
-      items: [{ id: 'manage-tags', label: 'Manage tags', icon: 'tags' }],
-    }] : []),
-    {
-      items: [{ id: 'delete', label: 'Delete card', icon: 'trash-2', destructive: true }],
-    },
-  ]
+    })
+  }
+
+  // Tags
+  if (showTags.value) {
+    groups.push({
+      items: [{ id: `card:manage-tags:${item.id}`, label: 'Manage tags', icon: 'tag' }],
+    })
+  }
+
+  // Archive & Delete actions
+  groups.push({
+    items: [
+      {
+        id: `card:archive:${item.id}`,
+        label: item.archived ? 'Unarchive' : 'Archive',
+        icon: 'archive',
+      },
+      { id: `card:delete:${item.id}`, label: 'Delete card', icon: 'trash-2', destructive: true },
+    ],
+  })
+
+  return groups
 }
 
-function buildColumnContextMenu(column: KanbanColumnType): MenuContent {
+function buildColumnContextMenuGroups(column: KanbanColumnType): ModuleMenuGroup[] {
   return [
     {
       items: [
-        { id: 'edit', label: 'Edit column', icon: 'pencil' },
-        { id: 'add-card', label: 'Add card', icon: 'plus' },
+        { id: `col:edit:${column.id}`, label: 'Edit column', icon: 'pencil' },
+        { id: `col:add-card:${column.id}`, label: 'Add card', icon: 'plus' },
       ],
     },
     {
       label: 'Sort cards by',
       items: [
-        { id: 'sort:title', label: 'Title' },
-        { id: 'sort:priority', label: 'Priority' },
-        { id: 'sort:dueDate', label: 'Due date' },
-        { id: 'sort:createdAt', label: 'Created date' },
+        { id: `col:sort:${column.id}:title`, label: 'Title' },
+        { id: `col:sort:${column.id}:priority`, label: 'Priority' },
+        { id: `col:sort:${column.id}:dueDate`, label: 'Due date' },
+        { id: `col:sort:${column.id}:createdAt`, label: 'Created date' },
       ],
     },
     {
       items: [
-        { id: 'clear-all', label: 'Clear all cards', icon: 'eraser', destructive: true },
-        { id: 'delete', label: 'Delete column', icon: 'trash-2', destructive: true },
+        { id: `col:clear-all:${column.id}`, label: 'Clear all cards', icon: 'eraser', destructive: true },
+        { id: `col:delete:${column.id}`, label: 'Delete column', icon: 'trash-2', destructive: true },
       ],
     },
   ]
 }
 
 function handleCardContextMenu(item: KanbanItem, e: MouseEvent) {
-  // Close any existing menu first
-  contextMenuOpen.value = false
-
-  // Open new menu (use requestAnimationFrame to ensure state update)
-  requestAnimationFrame(() => {
-    contextMenuX.value = e.clientX
-    contextMenuY.value = e.clientY
-    contextMenuGroups.value = buildCardContextMenu(item)
-    contextMenuContext.value = { type: 'card', id: item.id }
-    contextMenuOpen.value = true
+  emit('moduleContextMenu', {
+    x: e.clientX,
+    y: e.clientY,
+    groups: buildCardContextMenuGroups(item),
+    onSelect: handleModuleMenuSelect,
   })
 }
 
 function handleColumnContextMenu(column: KanbanColumnType, e: MouseEvent) {
-  // Close any existing menu first
-  contextMenuOpen.value = false
-
-  // Open new menu (use requestAnimationFrame to ensure state update)
-  requestAnimationFrame(() => {
-    contextMenuX.value = e.clientX
-    contextMenuY.value = e.clientY
-    contextMenuGroups.value = buildColumnContextMenu(column)
-    contextMenuContext.value = { type: 'column', id: column.id }
-    contextMenuOpen.value = true
+  emit('moduleContextMenu', {
+    x: e.clientX,
+    y: e.clientY,
+    groups: buildColumnContextMenuGroups(column),
+    onSelect: handleModuleMenuSelect,
   })
 }
 
-function closeContextMenu() {
-  contextMenuOpen.value = false
-  contextMenuContext.value = null
-}
+async function handleModuleMenuSelect(menuItemId: string) {
+  // Parse: "type:action:id" or "type:action:id:value"
+  const parts = menuItemId.split(':')
+  const type = parts[0] // 'card' or 'col'
+  const action = parts[1]
+  const id = parts[2]
+  const value = parts[3]
 
-async function handleContextMenuSelect(menuItem: { id: string }) {
-  const ctx = contextMenuContext.value
-  if (!ctx) return
-
-  closeContextMenu()
-
-  if (ctx.type === 'card') {
-    const item = items.value.find(i => i.id === ctx.id)
+  if (type === 'card') {
+    const item = items.value.find(i => i.id === id)
     if (!item) return
 
-    if (menuItem.id === 'edit') {
-      handleClickItem(item)
-    } else if (menuItem.id === 'duplicate') {
-      duplicateItem(item)
-    } else if (menuItem.id === 'copy-title') {
-      await navigator.clipboard.writeText(item.title)
-    } else if (menuItem.id.startsWith('move:')) {
-      const targetColumnId = menuItem.id.replace('move:', '')
-      updateItem(item.id, { columnId: targetColumnId })
-    } else if (menuItem.id.startsWith('priority:')) {
-      const priority = menuItem.id.replace('priority:', '') as KanbanPriority | ''
-      updateItem(item.id, { priority: priority || undefined })
-    } else if (menuItem.id === 'manage-tags') {
-      handleClickItem(item) // Open edit modal
-    } else if (menuItem.id === 'delete') {
-      handleDeleteItem(item.id)
+    switch (action) {
+      case 'edit':
+        handleClickItem(item)
+        break
+      case 'duplicate':
+        duplicateItem(item)
+        break
+      case 'copy-title':
+        await navigator.clipboard.writeText(item.title)
+        break
+      case 'move':
+        updateItem(item.id, { columnId: value })
+        break
+      case 'priority':
+        updateItem(item.id, { priority: (value as KanbanPriority) || undefined })
+        break
+      case 'manage-tags':
+        handleClickItem(item) // Open edit modal
+        break
+      case 'archive':
+        if (item.archived) {
+          unarchiveItem(item.id)
+        } else {
+          archiveItem(item.id)
+        }
+        break
+      case 'delete':
+        handleDeleteItem(item.id)
+        break
     }
-  } else if (ctx.type === 'column') {
-    const column = columns.value.find(c => c.id === ctx.id)
+  } else if (type === 'col') {
+    const column = columns.value.find(c => c.id === id)
     if (!column) return
 
-    if (menuItem.id === 'edit') {
-      handleEditColumn(column)
-    } else if (menuItem.id === 'add-card') {
-      handleAddItemFull(column.id)
-    } else if (menuItem.id.startsWith('sort:')) {
-      const sortBy = menuItem.id.replace('sort:', '') as 'title' | 'priority' | 'dueDate' | 'createdAt'
-      sortColumnCards(column.id, sortBy)
-    } else if (menuItem.id === 'clear-all') {
-      await clearColumnCards(column.id)
-    } else if (menuItem.id === 'delete') {
-      handleDeleteColumn(column.id)
+    switch (action) {
+      case 'edit':
+        handleEditColumn(column)
+        break
+      case 'add-card':
+        handleAddItemFull(column.id)
+        break
+      case 'sort':
+        applySortToColumn(column.id, value as KanbanSortField, 'asc')
+        break
+      case 'clear-all':
+        await clearColumnCards(column.id)
+        break
+      case 'delete':
+        handleDeleteColumn(column.id)
+        break
     }
   }
 }
@@ -460,40 +796,10 @@ function duplicateItem(item: KanbanItem) {
     createdAt: new Date().toISOString(),
   }
 
-  props.context.state.items = [...props.context.state.items, newItem]
-}
-
-function sortColumnCards(columnId: string, sortBy: 'title' | 'priority' | 'dueDate' | 'createdAt') {
-  const columnItems = getColumnItems(columnId)
-
-  const priorityOrder: Record<string, number> = { high: 0, medium: 1, low: 2 }
-
-  const sorted = [...columnItems].sort((a, b) => {
-    switch (sortBy) {
-      case 'title':
-        return a.title.localeCompare(b.title)
-      case 'priority': {
-        const aOrder = a.priority ? priorityOrder[a.priority] ?? 3 : 3
-        const bOrder = b.priority ? priorityOrder[b.priority] ?? 3 : 3
-        return aOrder - bOrder
-      }
-      case 'dueDate': {
-        if (!a.dueDate && !b.dueDate) return 0
-        if (!a.dueDate) return 1
-        if (!b.dueDate) return -1
-        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
-      }
-      case 'createdAt':
-        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-      default:
-        return 0
-    }
-  })
-
-  // Update orders
-  sorted.forEach((item, index) => {
-    updateItem(item.id, { order: index })
-  })
+  props.context.updateState(
+    { items: [...items.value, newItem] },
+    { captureHistory: true, historyLabel: `Duplicated card: ${truncate(item.title, 20)}` }
+  )
 }
 
 async function clearColumnCards(columnId: string) {
@@ -511,6 +817,11 @@ async function clearColumnCards(columnId: string) {
   if (!confirmed) return
 
   columnItems.forEach(item => removeItem(item.id))
+}
+
+// Handler for column sort update
+function handleUpdateSort(columnId: string, sortBy: KanbanSortField, sortDirection: KanbanSortDirection) {
+  updateColumnSort(columnId, sortBy, sortDirection)
 }
 
 // Handler for full card creation (modal)
@@ -594,7 +905,16 @@ async function handleAddItemFull(columnId: string) {
       priority: result.data.priority ? (result.data.priority as KanbanPriority) : undefined,
     }
 
-    props.context.state.items = [...props.context.state.items, newItem]
+    props.context.updateState(
+      { items: [...items.value, newItem] },
+      { captureHistory: true, historyLabel: `Added card: ${truncate(result.data.title, 20)} to ${getColumnName(columnId)}` }
+    )
+
+    // Auto-sort if column has non-manual sort
+    const column = columns.value.find((c) => c.id === columnId)
+    if (column?.sortBy && column.sortBy !== 'manual') {
+      applySortToColumn(columnId, column.sortBy, column.sortDirection || 'asc')
+    }
   }
 }
 
@@ -670,6 +990,17 @@ useProvideData(props.context, kanbanStatsContractV1, {
       @clear-filters="clearFilters"
     />
 
+    <!-- Archive toggle -->
+    <div v-if="archivedCount > 0" class="px-3 pb-1">
+      <button
+        class="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        @click="toggleShowArchived"
+      >
+        <BkIcon :icon="showArchived ? 'eye-off' : 'archive'" :size="14" />
+        {{ showArchived ? 'Hide' : 'Show' }} archived ({{ archivedCount }})
+      </button>
+    </div>
+
     <!-- Columns -->
     <div class="flex-1 flex gap-3 p-3 overflow-x-auto">
       <template v-for="column in columns" :key="column.id">
@@ -697,6 +1028,7 @@ useProvideData(props.context, kanbanStatsContractV1, {
           @edit-column="handleEditColumn"
           @delete-column="handleDeleteColumn"
           @contextmenu-column="handleColumnContextMenu"
+          @update-sort="handleUpdateSort"
           @dragstart="handleDragStart"
           @dragover="handleDragOverColumn"
           @dragover-item="handleDragOverItem"
@@ -715,15 +1047,5 @@ useProvideData(props.context, kanbanStatsContractV1, {
         Add column
       </button>
     </div>
-
-    <!-- Context Menu -->
-    <BkContextMenu
-      :open="contextMenuOpen"
-      :x="contextMenuX"
-      :y="contextMenuY"
-      :groups="contextMenuGroups"
-      @close="closeContextMenu"
-      @select="handleContextMenuSelect"
-    />
   </div>
 </template>

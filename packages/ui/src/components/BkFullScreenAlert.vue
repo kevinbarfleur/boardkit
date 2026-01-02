@@ -102,7 +102,7 @@ function handleBackdropClick() {
                 >
                   {{ subtitle }}
                 </p>
-                <h2 class="text-lg font-semibold text-foreground leading-tight">
+                <h2 class="text-lg font-semibold font-serif text-foreground leading-tight">
                   {{ title }}
                 </h2>
               </div>

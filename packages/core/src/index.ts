@@ -94,7 +94,14 @@ export {
 } from './validation/documentValidator'
 
 // Utils
-export { truncate } from './utils'
+export {
+  truncate,
+  getShapeAnchorPoints,
+  findNearestAnchor,
+  getAnchorPoint,
+  findNearestShapeAndAnchor,
+  calculateAutoAnchor,
+} from './utils'
 
 // Services
 export {

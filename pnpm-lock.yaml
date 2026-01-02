@@ -108,6 +108,12 @@ importers:
       nuxt:
         specifier: ^3.14.0
         version: 3.20.2(@types/node@20.19.27)(@vue/compiler-sfc@3.5.26)(typescript@5.9.3)(vite@6.4.1)
+      perfect-freehand:
+        specifier: ^1.2.2
+        version: 1.2.2
+      roughjs:
+        specifier: ^4.6.6
+        version: 4.6.6
       shiki:
         specifier: ^3.20.0
         version: 3.20.0

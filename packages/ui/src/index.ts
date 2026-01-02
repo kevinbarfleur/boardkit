@@ -79,7 +79,10 @@ export { default as BkColorPickerInput } from './components/BkColorPickerInput.v
 export type { ColorFormat } from './components/BkColorPickerInput.vue'
 export { default as BkSlider } from './components/BkSlider.vue'
 export { default as SelectionHandles } from './components/SelectionHandles.vue'
+export { default as GroupSelectionBox } from './components/GroupSelectionBox.vue'
 export { default as ElementRenderer } from './components/ElementRenderer.vue'
+export { default as GridOverlay } from './components/GridOverlay.vue'
+export { default as AnchorPointsOverlay } from './components/AnchorPointsOverlay.vue'
 
 // Menu types
 export type { MenuItem, MenuGroup, MenuContent } from './components/BkMenu.vue'

@@ -56,6 +56,8 @@ const thumbClasses = computed(() => {
   const base = [
     'pointer-events-none inline-block rounded-full bg-white shadow-sm',
     'ring-0 transition-transform duration-200 ease-in-out',
+    // Subtle border when active to avoid white-on-white
+    props.modelValue ? 'border border-black/10' : '',
   ]
 
   // Size and position

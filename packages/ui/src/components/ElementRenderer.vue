@@ -58,6 +58,12 @@ interface Props {
   isDragging?: boolean
   /** Drag offset in canvas coordinates (applied via CSS transform during drag) */
   dragOffset?: { x: number; y: number }
+  /** Group rotation transform (applied via CSS transform during group rotation) */
+  groupRotation?: {
+    angle: number      // Rotation angle in radians
+    centerX: number    // Group center X coordinate
+    centerY: number    // Group center Y coordinate
+  }
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -66,6 +72,7 @@ const props = withDefaults(defineProps<Props>(), {
   zoom: 1,
   isDragging: false,
   dragOffset: () => ({ x: 0, y: 0 }),
+  groupRotation: undefined,
 })
 
 const emit = defineEmits<{
@@ -75,6 +82,7 @@ const emit = defineEmits<{
   rotateStart: [id: string, event: MouseEvent]
   editStart: [id: string, type: 'text' | 'label']
   contextMenu: [id: string, event: MouseEvent]
+  doubleClick: [id: string, event: MouseEvent]
 }>()
 
 // Inject SVG ref from parent (CanvasElementsLayer)
@@ -161,21 +169,44 @@ const freehandPath = computed(() => {
 const HIT_PADDING = 6
 const HIT_STROKE_WIDTH = 16
 
-// Computed transform that includes drag offset and rotation
-// During drag, we apply the offset via CSS transform instead of updating element data
+// Computed transform that includes drag offset, element rotation, and group rotation
+// During drag/rotate, we apply transforms via CSS instead of updating element data
 // This avoids expensive recalculations (like getStroke) during mousemove
-// Rotation is applied around the center of the element
 const groupTransform = computed(() => {
   const baseX = props.element.rect.x
   const baseY = props.element.rect.y
   const width = props.element.rect.width
   const height = props.element.rect.height
-  const angle = props.element.angle ?? 0
+  const elementAngle = props.element.angle ?? 0
 
-  // Calculate center point for rotation
-  const centerX = width / 2
-  const centerY = height / 2
+  // Calculate element center for its own rotation
+  const elementCenterX = width / 2
+  const elementCenterY = height / 2
 
+  // During GROUP ROTATION: apply rotation around group center via CSS transform
+  // This avoids mutating element data on every frame
+  if (props.groupRotation) {
+    const { angle: groupAngle, centerX: groupCenterX, centerY: groupCenterY } = props.groupRotation
+    const angleDeg = (groupAngle * 180) / Math.PI
+
+    // The group center in the element's local coordinate space
+    const localGroupCenterX = groupCenterX - baseX
+    const localGroupCenterY = groupCenterY - baseY
+
+    // Translate to position, then rotate around group center
+    let transform = `translate(${baseX}, ${baseY})`
+    transform += ` rotate(${angleDeg}, ${localGroupCenterX}, ${localGroupCenterY})`
+
+    // Apply element's own rotation on top (for shapes that have their own angle)
+    if (elementAngle !== 0) {
+      const elementAngleDeg = (elementAngle * 180) / Math.PI
+      transform += ` rotate(${elementAngleDeg}, ${elementCenterX}, ${elementCenterY})`
+    }
+
+    return transform
+  }
+
+  // Normal case: drag or static
   let transform = ''
 
   if (props.isDragging) {
@@ -184,11 +215,10 @@ const groupTransform = computed(() => {
     transform = `translate(${baseX}, ${baseY})`
   }
 
-  // Apply rotation around center if angle is non-zero
-  if (angle !== 0) {
-    // Convert radians to degrees for SVG transform
-    const angleDeg = (angle * 180) / Math.PI
-    transform += ` rotate(${angleDeg}, ${centerX}, ${centerY})`
+  // Apply element's own rotation around its center
+  if (elementAngle !== 0) {
+    const angleDeg = (elementAngle * 180) / Math.PI
+    transform += ` rotate(${angleDeg}, ${elementCenterX}, ${elementCenterY})`
   }
 
   return transform
@@ -335,6 +365,9 @@ onMounted(() => {
 function handleMouseDown(event: MouseEvent) {
   if (props.isPreview) return
   event.stopPropagation()
+
+  // Always emit select first (BoardCanvas will handle the "already selected" case)
+  // Then emit moveStart to begin dragging
   emit('select', props.element.id, event)
   emit('moveStart', props.element.id, event)
 }
@@ -343,15 +376,18 @@ function handleDoubleClick(event: MouseEvent) {
   if (props.isPreview) return
   event.stopPropagation()
 
+  // Always emit doubleClick for group handling
+  emit('doubleClick', props.element.id, event)
+
+  // Also emit editStart for text elements
   if (props.element.type === 'text') {
     emit('editStart', props.element.id, 'text')
   }
-}
 
-function handleShapeLabelDoubleClick(event: MouseEvent) {
-  if (props.isPreview) return
-  event.stopPropagation()
-  emit('editStart', props.element.id, 'label')
+  // Also emit editStart for shape labels
+  if (isShape.value) {
+    emit('editStart', props.element.id, 'label')
+  }
 }
 
 function handleResizeStart(handle: string, event: MouseEvent) {
@@ -374,17 +410,20 @@ function handleContextMenu(event: MouseEvent) {
 <template>
   <g
     class="element-renderer"
-    :class="{ selected, preview: isPreview, dragging: isDragging }"
+    :class="{ selected, preview: isPreview, dragging: isDragging, rotating: !!groupRotation }"
     :transform="groupTransform"
     :opacity="element.style.opacity"
     :data-element-id="element.id"
   >
     <!-- ============================================================ -->
     <!-- HIT TARGETS (invisible, expanded clickable areas)            -->
-    <!-- These are rendered FIRST (below visible shapes in z-order)   -->
+    <!-- These are for INITIAL selection (click on stroke)            -->
     <!-- ============================================================ -->
 
     <!-- Hit target: Rectangle -->
+    <!-- When NOT selected: only stroke is clickable (for initial selection) -->
+    <!-- When selected: entire area is clickable (for dragging from anywhere) -->
+    <!-- pointer-events="all" ensures clicks work on transparent fill -->
     <rect
       v-if="element.type === 'rectangle'"
       class="hit-target"
@@ -393,10 +432,13 @@ function handleContextMenu(event: MouseEvent) {
       :width="element.rect.width + HIT_PADDING * 2"
       :height="element.rect.height + HIT_PADDING * 2"
       :rx="(shapeElement?.cornerRadius ?? 0) + HIT_PADDING"
-      fill="transparent"
+      :fill="selected ? 'transparent' : 'none'"
       stroke="transparent"
       :stroke-width="HIT_STROKE_WIDTH"
+      :pointer-events="selected ? 'all' : 'stroke'"
       @mousedown="handleMouseDown"
+      @click.stop
+      @dblclick="handleDoubleClick"
       @contextmenu="handleContextMenu"
     />
 
@@ -408,10 +450,13 @@ function handleContextMenu(event: MouseEvent) {
       :cy="element.rect.height / 2"
       :rx="element.rect.width / 2 + HIT_PADDING"
       :ry="element.rect.height / 2 + HIT_PADDING"
-      fill="transparent"
+      :fill="selected ? 'transparent' : 'none'"
       stroke="transparent"
       :stroke-width="HIT_STROKE_WIDTH"
+      :pointer-events="selected ? 'all' : 'stroke'"
       @mousedown="handleMouseDown"
+      @click.stop
+      @dblclick="handleDoubleClick"
       @contextmenu="handleContextMenu"
     />
 
@@ -427,6 +472,8 @@ function handleContextMenu(event: MouseEvent) {
       :stroke-width="HIT_STROKE_WIDTH"
       stroke-linecap="round"
       @mousedown="handleMouseDown"
+      @click.stop
+      @dblclick="handleDoubleClick"
       @contextmenu="handleContextMenu"
     />
 
@@ -442,6 +489,8 @@ function handleContextMenu(event: MouseEvent) {
       :stroke-width="HIT_STROKE_WIDTH"
       stroke-linecap="round"
       @mousedown="handleMouseDown"
+      @click.stop
+      @dblclick="handleDoubleClick"
       @contextmenu="handleContextMenu"
     />
 
@@ -456,10 +505,13 @@ function handleContextMenu(event: MouseEvent) {
       stroke-linejoin="round"
       fill="none"
       @mousedown="handleMouseDown"
+      @click.stop
+      @dblclick="handleDoubleClick"
       @contextmenu="handleContextMenu"
     />
 
     <!-- Hit target: Text (using rect for bounding box) -->
+    <!-- Text is always filled since the entire bounding box should be clickable -->
     <rect
       v-if="element.type === 'text'"
       class="hit-target"
@@ -469,6 +521,7 @@ function handleContextMenu(event: MouseEvent) {
       :height="element.rect.height + HIT_PADDING * 2"
       fill="transparent"
       @mousedown="handleMouseDown"
+      @click.stop
       @dblclick="handleDoubleClick"
       @contextmenu="handleContextMenu"
     />
@@ -522,12 +575,13 @@ function handleContextMenu(event: MouseEvent) {
     </foreignObject>
 
     <!-- Shape Label (centered text in shapes) -->
+    <!-- pointer-events="none" so it doesn't block the hit-target -->
     <foreignObject
       v-if="isShape"
       :width="element.rect.width"
       :height="element.rect.height"
       class="element-label-container"
-      @dblclick="handleShapeLabelDoubleClick"
+      pointer-events="none"
     >
       <div class="element-label" :style="{ color: element.style.strokeColor }">
         {{ shapeElement?.label || '' }}
@@ -557,7 +611,8 @@ function handleContextMenu(event: MouseEvent) {
   opacity: 0.7;
 }
 
-.element-renderer.dragging {
+.element-renderer.dragging,
+.element-renderer.rotating {
   will-change: transform;
 }
 
@@ -567,6 +622,7 @@ function handleContextMenu(event: MouseEvent) {
 
 .hit-target {
   cursor: move;
+  pointer-events: auto;
   /* Debug: uncomment to see hit targets */
   /* fill: rgba(255, 0, 0, 0.1) !important; */
   /* stroke: rgba(255, 0, 0, 0.3) !important; */

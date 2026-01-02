@@ -1,7 +1,7 @@
 import { computed, type MaybeRefOrGetter, toValue } from 'vue'
 import type { ModuleContext } from '@boardkit/core'
 import { truncate } from '@boardkit/core'
-import type { KanbanState, KanbanColumn } from '../types'
+import type { KanbanState, KanbanColumn, KanbanSortField, KanbanSortDirection, KanbanItem } from '../types'
 
 /**
  * Composable for Kanban column operations
@@ -156,6 +156,94 @@ export function useKanbanColumns(contextGetter: MaybeRefOrGetter<ModuleContext<K
     updateColumn(columnId, { isCollapsed: !column.isCollapsed })
   }
 
+  /**
+   * Update column sort configuration
+   */
+  function updateColumnSort(columnId: string, sortBy: KanbanSortField, sortDirection: KanbanSortDirection = 'asc') {
+    const column = columns.value.find((c) => c.id === columnId)
+    if (!column) return
+
+    updateColumn(columnId, { sortBy, sortDirection })
+
+    // If not manual, immediately apply the sort
+    if (sortBy !== 'manual') {
+      applySortToColumn(columnId, sortBy, sortDirection)
+    }
+  }
+
+  /**
+   * Apply sorting to all cards in a column
+   */
+  function applySortToColumn(columnId: string, sortBy: KanbanSortField, direction: KanbanSortDirection) {
+    if (sortBy === 'manual') return
+
+    const columnItems = items.value.filter((i) => i.columnId === columnId && !i.archived)
+    const priorityOrder: Record<string, number> = { high: 0, medium: 1, low: 2 }
+
+    const sorted = [...columnItems].sort((a, b) => {
+      let result = 0
+      switch (sortBy) {
+        case 'title':
+          result = a.title.localeCompare(b.title)
+          break
+        case 'priority': {
+          const aOrder = a.priority ? priorityOrder[a.priority] ?? 3 : 3
+          const bOrder = b.priority ? priorityOrder[b.priority] ?? 3 : 3
+          result = aOrder - bOrder
+          break
+        }
+        case 'dueDate': {
+          if (!a.dueDate && !b.dueDate) result = 0
+          else if (!a.dueDate) result = 1
+          else if (!b.dueDate) result = -1
+          else result = new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+          break
+        }
+        case 'createdAt':
+          result = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          break
+      }
+      return direction === 'desc' ? -result : result
+    })
+
+    // Update orders atomically
+    const newItems = items.value.map((item) => {
+      if (item.columnId !== columnId) return item
+      const sortedIndex = sorted.findIndex((s) => s.id === item.id)
+      if (sortedIndex === -1) return item // Archived items keep their order
+      return { ...item, order: sortedIndex }
+    })
+
+    toValue(contextGetter).updateState(
+      { items: newItems },
+      { captureHistory: true, historyLabel: `Sorted column by ${sortBy}` }
+    )
+  }
+
+  /**
+   * Get the sort icon for a column
+   */
+  function getColumnSortIcon(column: KanbanColumn): string {
+    if (!column.sortBy || column.sortBy === 'manual') return 'arrow-up-down'
+    return column.sortDirection === 'desc' ? 'arrow-down' : 'arrow-up'
+  }
+
+  /**
+   * Get the sort label for a column
+   */
+  function getColumnSortLabel(column: KanbanColumn): string {
+    if (!column.sortBy || column.sortBy === 'manual') return 'Manual order'
+    const labels: Record<KanbanSortField, string> = {
+      manual: 'Manual order',
+      title: 'By title',
+      priority: 'By priority',
+      dueDate: 'By due date',
+      createdAt: 'By created date',
+    }
+    const dir = column.sortDirection === 'desc' ? '(desc)' : '(asc)'
+    return `${labels[column.sortBy]} ${dir}`
+  }
+
   return {
     columns,
     items,
@@ -168,5 +256,9 @@ export function useKanbanColumns(contextGetter: MaybeRefOrGetter<ModuleContext<K
     removeColumn,
     reorderColumns,
     toggleColumnCollapsed,
+    updateColumnSort,
+    applySortToColumn,
+    getColumnSortIcon,
+    getColumnSortLabel,
   }
 }

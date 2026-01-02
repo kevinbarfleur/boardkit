@@ -1,4 +1,4 @@
-import { ref, computed, shallowRef } from 'vue'
+import { ref, computed, shallowRef, toRaw } from 'vue'
 import { useStorage } from '@vueuse/core'
 import {
   indexedDBStorage,
@@ -13,6 +13,14 @@ import {
 import { nanoid } from 'nanoid'
 
 const CURRENT_DOC_KEY = 'boardkit:current-document-id'
+
+/**
+ * Deep clone an object, handling Vue reactive proxies.
+ * Uses structuredClone (2-3x faster than JSON.parse/stringify).
+ */
+function deepClone<T>(obj: T): T {
+  return structuredClone(toRaw(obj))
+}
 
 // Shared state across all composable instances
 const documents = shallowRef<DocumentInfo[]>([])
@@ -86,7 +94,7 @@ export function useDocumentList() {
    */
   async function saveDocument(id: string, document: BoardkitDocument): Promise<boolean> {
     try {
-      await indexedDBStorage.save(id, JSON.parse(JSON.stringify(document)))
+      await indexedDBStorage.save(id, deepClone(document))
       await refreshDocumentList()
       return true
     } catch (error) {
@@ -159,7 +167,7 @@ export function useDocumentList() {
       }
 
       const duplicate: BoardkitDocument = {
-        ...JSON.parse(JSON.stringify(original)),
+        ...deepClone(original),
         meta: {
           ...original.meta,
           title: copyName,

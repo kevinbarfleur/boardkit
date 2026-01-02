@@ -95,6 +95,10 @@ export interface LineElement extends BaseElement {
   }
   /** Arrowhead placement (for arrows) */
   arrowHead?: ArrowHeadType
+  /** Binding for start point (connects arrow to shape) */
+  startBinding?: ArrowBinding
+  /** Binding for end point (connects arrow to shape) */
+  endBinding?: ArrowBinding
 }
 
 // ============================================================================
@@ -233,4 +237,63 @@ export const FONT_FAMILY_LABELS: Record<FontFamily, string> = {
   handwritten: 'Handwritten',
   code: 'Code',
   serif: 'Serif',
+}
+
+// ============================================================================
+// Grid Settings (Snap to Grid)
+// ============================================================================
+
+/**
+ * Grid snapping configuration for the board.
+ */
+export interface GridSettings {
+  /** Whether snap to grid is enabled */
+  enabled: boolean
+  /** Grid cell size in pixels (5-100). Default: 20 */
+  size: number
+  /** Whether to show visual grid overlay when enabled. Default: true */
+  showGrid: boolean
+}
+
+export const DEFAULT_GRID_SETTINGS: GridSettings = {
+  enabled: false,
+  size: 20,
+  showGrid: true,
+}
+
+// ============================================================================
+// Element Groups
+// ============================================================================
+
+/**
+ * A group of elements that move/resize together.
+ */
+export interface ElementGroup {
+  /** Unique identifier for the group */
+  id: string
+  /** IDs of elements in this group */
+  memberIds: string[]
+  /** Parent group ID if this is a nested group */
+  parentGroupId?: string
+}
+
+// ============================================================================
+// Arrow Binding
+// ============================================================================
+
+/**
+ * Anchor positions on a shape for arrow binding.
+ */
+export type AnchorPosition = 'top' | 'bottom' | 'left' | 'right' | 'center'
+
+/**
+ * Binding between an arrow endpoint and a shape.
+ */
+export interface ArrowBinding {
+  /** ID of the bound shape element */
+  elementId: string
+  /** Anchor position on the shape */
+  anchor: AnchorPosition
+  /** Optional offset from anchor point for fine-tuning */
+  offset?: Point
 }

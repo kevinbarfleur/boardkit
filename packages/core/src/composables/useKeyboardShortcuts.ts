@@ -19,6 +19,7 @@ import { KEY_TO_TOOL } from '../types/tool'
  * - Ctrl + Y: Redo (Windows style)
  * - Cmd/Ctrl + D: Duplicate selected widget/element
  * - Cmd/Ctrl + 0: Reset view
+ * - Cmd/Ctrl + ': Toggle grid snapping
  * - Cmd/Ctrl + K: Open command palette
  * - Arrow keys: Nudge selected widget/element (1px)
  * - Shift + Arrow keys: Nudge selected widget/element (10px)
@@ -226,6 +227,30 @@ export function useKeyboardShortcuts(
       e.preventDefault()
       const ctx = buildActionContext()
       actionRegistry.execute('view.reset', ctx)
+      return
+    }
+
+    // Cmd/Ctrl + ' - toggle grid snapping
+    if ((key === "'" || e.code === 'Quote') && hasCmdOrCtrl(e)) {
+      e.preventDefault()
+      const ctx = buildActionContext()
+      actionRegistry.execute('view.toggle-grid', ctx)
+      return
+    }
+
+    // Cmd/Ctrl + Shift + G - ungroup (must be before Cmd+G to check shift first)
+    if (key === 'g' && hasCmdOrCtrl(e) && e.shiftKey) {
+      e.preventDefault()
+      const ctx = buildActionContext()
+      actionRegistry.execute('element.ungroup', ctx)
+      return
+    }
+
+    // Cmd/Ctrl + G - group selected elements
+    if (key === 'g' && hasCmdOrCtrl(e) && !e.shiftKey) {
+      e.preventDefault()
+      const ctx = buildActionContext()
+      actionRegistry.execute('element.group', ctx)
       return
     }
 

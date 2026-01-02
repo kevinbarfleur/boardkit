@@ -1,4 +1,4 @@
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, toRaw } from 'vue'
 import { useDebounceFn, useDocumentVisibility, useStorage } from '@vueuse/core'
 import { useBoardStore } from '@boardkit/core'
 import {
@@ -18,6 +18,21 @@ import {
 } from '../utils/boardkitFile'
 
 const AUTOSAVE_DELAY = 500 // 500ms debounce for fast saving
+
+/**
+ * Deep clone an object, handling Vue reactive proxies.
+ * Uses structuredClone (2-3x faster than JSON.parse/stringify).
+ * Falls back to JSON.parse/stringify if structuredClone fails
+ * (e.g., when Vue proxies are deeply nested).
+ */
+function deepClone<T>(obj: T): T {
+  try {
+    return structuredClone(toRaw(obj))
+  } catch {
+    // Fallback for cases where structuredClone can't handle nested proxies
+    return JSON.parse(JSON.stringify(obj))
+  }
+}
 const CURRENT_DOC_KEY = 'boardkit:current-document-id'
 const MAX_HISTORY_ENTRIES = 100
 
@@ -160,7 +175,7 @@ export function usePersistence() {
       documentId: currentDocumentId.value,
       timestamp: Date.now(),
       action,
-      snapshot: JSON.parse(JSON.stringify(doc)),
+      snapshot: deepClone(doc),
     }
 
     await historyStorage.save(entry)
@@ -279,7 +294,7 @@ export function usePersistence() {
       doc.meta.updatedAt = Date.now()
 
       // Serialize to plain object (Vue reactive proxies can't be cloned by IndexedDB)
-      const plainDoc = JSON.parse(JSON.stringify(doc))
+      const plainDoc = deepClone(doc)
 
       await indexedDBStorage.save(currentDocumentId.value, plainDoc)
       boardStore.markClean()

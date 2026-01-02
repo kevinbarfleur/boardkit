@@ -101,6 +101,7 @@ function handleRotateMouseDown(event: MouseEvent) {
       stroke-width="1"
       :style="{ cursor: handle.cursor }"
       @mousedown="handleMouseDown(handle.id, $event)"
+      @click.stop
     />
 
     <!-- Rotation Handle (above element) -->
@@ -125,6 +126,7 @@ function handleRotateMouseDown(event: MouseEvent) {
         stroke="hsl(var(--primary))"
         stroke-width="1"
         @mousedown="handleRotateMouseDown"
+        @click.stop
       />
     </g>
   </g>

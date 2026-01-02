@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, toRaw } from 'vue'
 import { nanoid } from 'nanoid'
 import type { BoardkitDocument, Widget, Viewport, WidgetVisibilitySettings } from '../types/document'
 import type { HistoryOptions } from '../types/module'
@@ -9,16 +9,28 @@ import {
   MAX_WIDGET_SCALE,
   DEFAULT_WIDGET_SCALE,
 } from '../types/document'
-import type { CanvasElement, BoardBackground, LineElement, DrawElement } from '../types/element'
+import type { CanvasElement, BoardBackground, LineElement, DrawElement, GridSettings, Point, ElementGroup, AnchorPosition, ArrowBinding } from '../types/element'
 import type { DataSharingState, DataPermission, DataLink } from '../types/dataContract'
 import { createEmptyDocument } from '../types/document'
 import { createEmptyDataSharingState } from '../types/dataContract'
-import { DEFAULT_BACKGROUND, isLineElement, isDrawElement } from '../types/element'
+import { DEFAULT_BACKGROUND, DEFAULT_GRID_SETTINGS, isLineElement, isDrawElement } from '../types/element'
 import { moduleRegistry } from '../modules/ModuleRegistry'
 import { migrateDocument } from '../migrations'
 import { dataBus } from '../data/DataBus'
 import { dataAccessController } from '../data/DataAccessController'
 import { useHistory, type HistoryEntry } from '../composables/useHistory'
+
+// ============================================================================
+// Performance Utilities
+// ============================================================================
+
+/**
+ * Deep clone an object, handling Vue reactive proxies.
+ * Uses structuredClone (2-3x faster than JSON.parse/stringify).
+ */
+function deepClone<T>(obj: T): T {
+  return structuredClone(toRaw(obj))
+}
 
 // ============================================================================
 // Selection Types
@@ -88,6 +100,8 @@ export const useBoardStore = defineStore('board', () => {
   const elements = computed(() => document.value?.board.elements ?? [])
   const viewport = computed(() => document.value?.board.viewport ?? { x: 0, y: 0, zoom: 1 })
   const background = computed(() => document.value?.board.background ?? { ...DEFAULT_BACKGROUND })
+  const grid = computed((): GridSettings => document.value?.board.grid ?? { ...DEFAULT_GRID_SETTINGS })
+  const groups = computed((): ElementGroup[] => document.value?.board.groups ?? [])
   const moduleStates = computed(() => document.value?.modules ?? {})
   const title = computed(() => document.value?.meta.title ?? '')
 
@@ -132,6 +146,27 @@ export const useBoardStore = defineStore('board', () => {
     for (const e of elements.value) map.set(e.id, e)
     return map
   })
+
+  /** Internal Map for O(1) group lookups by ID */
+  const groupMap = computed(() => {
+    const map = new Map<string, ElementGroup>()
+    for (const g of groups.value) map.set(g.id, g)
+    return map
+  })
+
+  /** Map from element ID to its group ID */
+  const elementToGroupMap = computed(() => {
+    const map = new Map<string, string>()
+    for (const group of groups.value) {
+      for (const memberId of group.memberIds) {
+        map.set(memberId, group.id)
+      }
+    }
+    return map
+  })
+
+  /** ID of the currently entered group (for editing elements inside) */
+  const enteredGroupId = ref<string | null>(null)
 
   // ============================================================================
   // Getters - Selection
@@ -517,7 +552,7 @@ export const useBoardStore = defineStore('board', () => {
 
     // Deep clone the module state
     const moduleState = document.value.modules[widgetId]
-    document.value.modules[newId] = JSON.parse(JSON.stringify(moduleState))
+    document.value.modules[newId] = deepClone(moduleState)
     document.value.board.widgets.push(newWidget)
     selectWidget(newId)
     markDirty(`Duplicated ${moduleName}`)
@@ -647,6 +682,11 @@ export const useBoardStore = defineStore('board', () => {
     // Update points for line/arrow/draw elements
     translateElementPoints(element, dx, dy)
 
+    // Update any arrows bound to this shape
+    if (element.type === 'rectangle' || element.type === 'ellipse') {
+      updateBoundArrowsForElement(elementId)
+    }
+
     if (!skipDirty) {
       markDirty('Moved element')
     }
@@ -673,6 +713,11 @@ export const useBoardStore = defineStore('board', () => {
     // Scale points proportionally for line/arrow/draw elements
     scaleElementPoints(element, oldRect, newRect)
 
+    // Update any arrows bound to this shape
+    if (element.type === 'rectangle' || element.type === 'ellipse') {
+      updateBoundArrowsForElement(elementId)
+    }
+
     if (!skipDirty) {
       markDirty('Resized element')
     }
@@ -690,7 +735,7 @@ export const useBoardStore = defineStore('board', () => {
     const newId = nanoid()
     const offset = 20
 
-    const newElement = JSON.parse(JSON.stringify(element)) as CanvasElement
+    const newElement = deepClone(element) as CanvasElement
     newElement.id = newId
     newElement.rect.x += offset
     newElement.rect.y += offset
@@ -956,7 +1001,7 @@ export const useBoardStore = defineStore('board', () => {
             scale: widget.scale,
           }
           document.value.board.widgets.push(newWidget)
-          document.value.modules[newId] = JSON.parse(JSON.stringify(document.value.modules[item.id]))
+          document.value.modules[newId] = deepClone(document.value.modules[item.id])
           newIds.push(newId)
           newItems.push({ type: 'widget', id: newId })
         }
@@ -964,7 +1009,7 @@ export const useBoardStore = defineStore('board', () => {
         const element = elementMap.value.get(item.id)
         if (element) {
           const newId = nanoid()
-          const newElement = JSON.parse(JSON.stringify(element)) as CanvasElement
+          const newElement = deepClone(element) as CanvasElement
           newElement.id = newId
           newElement.rect.x += offset
           newElement.rect.y += offset
@@ -1016,6 +1061,404 @@ export const useBoardStore = defineStore('board', () => {
     if (!document.value) return
     Object.assign(document.value.board.background, updates)
     markDirty('Changed background')
+  }
+
+  // ============================================================================
+  // Actions - Grid (Snap to Grid)
+  // ============================================================================
+
+  /**
+   * Toggle grid snapping on/off.
+   */
+  function toggleGrid(): void {
+    if (!document.value) return
+    setGridEnabled(!grid.value.enabled)
+  }
+
+  /**
+   * Set grid enabled state.
+   */
+  function setGridEnabled(enabled: boolean): void {
+    if (!document.value) return
+
+    if (!document.value.board.grid) {
+      document.value.board.grid = { ...DEFAULT_GRID_SETTINGS }
+    }
+    document.value.board.grid.enabled = enabled
+    markDirty(enabled ? 'Enabled grid snapping' : 'Disabled grid snapping')
+  }
+
+  /**
+   * Set grid cell size (5-100 pixels).
+   */
+  function setGridSize(size: number): void {
+    if (!document.value) return
+
+    if (!document.value.board.grid) {
+      document.value.board.grid = { ...DEFAULT_GRID_SETTINGS }
+    }
+    document.value.board.grid.size = Math.max(5, Math.min(100, size))
+    markDirty('Changed grid size')
+  }
+
+  /**
+   * Toggle grid visibility (show/hide visual grid overlay).
+   */
+  function setGridVisible(visible: boolean): void {
+    if (!document.value) return
+
+    if (!document.value.board.grid) {
+      document.value.board.grid = { ...DEFAULT_GRID_SETTINGS }
+    }
+    document.value.board.grid.showGrid = visible
+    markDirty(visible ? 'Showed grid' : 'Hid grid')
+  }
+
+  /**
+   * Snap a value to the grid.
+   * Returns the original value if grid is disabled.
+   */
+  function snapToGrid(value: number): number {
+    if (!grid.value.enabled) return value
+    const size = grid.value.size
+    return Math.round(value / size) * size
+  }
+
+  /**
+   * Snap a point to the grid.
+   * Returns the original point if grid is disabled.
+   */
+  function snapPointToGrid(point: Point): Point {
+    if (!grid.value.enabled) return point
+    return {
+      x: snapToGrid(point.x),
+      y: snapToGrid(point.y),
+    }
+  }
+
+  /**
+   * Snap a rect's position and size to the grid.
+   * Returns the original rect if grid is disabled.
+   */
+  function snapRectToGrid(rect: { x: number; y: number; width: number; height: number }): {
+    x: number
+    y: number
+    width: number
+    height: number
+  } {
+    if (!grid.value.enabled) return rect
+    return {
+      x: snapToGrid(rect.x),
+      y: snapToGrid(rect.y),
+      width: snapToGrid(rect.width),
+      height: snapToGrid(rect.height),
+    }
+  }
+
+  // ============================================================================
+  // Actions - Grouping
+  // ============================================================================
+
+  /**
+   * Get the group for an element (if any).
+   */
+  function getGroupForElement(elementId: string): ElementGroup | null {
+    const groupId = elementToGroupMap.value.get(elementId)
+    if (!groupId) return null
+    return groupMap.value.get(groupId) ?? null
+  }
+
+  /**
+   * Get all elements in a group.
+   */
+  function getGroupMembers(groupId: string): CanvasElement[] {
+    const group = groupMap.value.get(groupId)
+    if (!group) return []
+    return group.memberIds
+      .map(id => elementMap.value.get(id))
+      .filter((el): el is CanvasElement => el !== undefined)
+  }
+
+  /**
+   * Get the bounding box of a group.
+   */
+  function getGroupBoundingBox(groupId: string): { x: number; y: number; width: number; height: number } | null {
+    const members = getGroupMembers(groupId)
+    if (members.length === 0) return null
+
+    let minX = Infinity, minY = Infinity
+    let maxX = -Infinity, maxY = -Infinity
+
+    for (const el of members) {
+      minX = Math.min(minX, el.rect.x)
+      minY = Math.min(minY, el.rect.y)
+      maxX = Math.max(maxX, el.rect.x + el.rect.width)
+      maxY = Math.max(maxY, el.rect.y + el.rect.height)
+    }
+
+    return {
+      x: minX,
+      y: minY,
+      width: maxX - minX,
+      height: maxY - minY,
+    }
+  }
+
+  /**
+   * Create a new group from selected elements.
+   * Requires at least 2 elements to be selected.
+   */
+  function createGroup(elementIds: string[]): string | null {
+    if (!document.value || elementIds.length < 2) return null
+
+    // Filter out elements that are already in groups
+    const ungroupedIds = elementIds.filter(id => !elementToGroupMap.value.has(id))
+    if (ungroupedIds.length < 2) return null
+
+    captureHistorySnapshot('Created group')
+
+    const groupId = nanoid()
+    const newGroup: ElementGroup = {
+      id: groupId,
+      memberIds: [...ungroupedIds],
+    }
+
+    if (!document.value.board.groups) {
+      document.value.board.groups = []
+    }
+    document.value.board.groups.push(newGroup)
+
+    markDirty('Created group')
+    return groupId
+  }
+
+  /**
+   * Ungroup elements in a group.
+   */
+  function ungroup(groupId: string): boolean {
+    if (!document.value?.board.groups) return false
+
+    const index = document.value.board.groups.findIndex(g => g.id === groupId)
+    if (index === -1) return false
+
+    captureHistorySnapshot('Ungrouped elements')
+    document.value.board.groups.splice(index, 1)
+
+    // Exit the group if we were inside it
+    if (enteredGroupId.value === groupId) {
+      enteredGroupId.value = null
+    }
+
+    markDirty('Ungrouped elements')
+    return true
+  }
+
+  /**
+   * Enter a group for editing individual elements.
+   */
+  function enterGroup(groupId: string): void {
+    if (groupMap.value.has(groupId)) {
+      enteredGroupId.value = groupId
+    }
+  }
+
+  /**
+   * Exit the currently entered group.
+   */
+  function exitGroup(): void {
+    enteredGroupId.value = null
+    clearSelection()
+  }
+
+  /**
+   * Check if we're currently inside a group.
+   */
+  function isInsideGroup(): boolean {
+    return enteredGroupId.value !== null
+  }
+
+  /**
+   * Move all elements in a group by delta.
+   */
+  function moveGroup(groupId: string, dx: number, dy: number, skipDirty = false): void {
+    const members = getGroupMembers(groupId)
+    for (const element of members) {
+      element.rect.x += dx
+      element.rect.y += dy
+      translateElementPoints(element, dx, dy)
+    }
+    if (!skipDirty) {
+      markDirty('Moved group')
+    }
+  }
+
+  // ============================================================================
+  // Actions - Arrow Binding
+  // ============================================================================
+
+  /**
+   * Bind an arrow endpoint to a shape.
+   * @param arrowId - The arrow element ID
+   * @param endpoint - Which endpoint to bind ('start' or 'end')
+   * @param targetId - The target shape element ID
+   * @param anchor - The anchor position on the target
+   */
+  function bindArrowToShape(
+    arrowId: string,
+    endpoint: 'start' | 'end',
+    targetId: string,
+    anchor: AnchorPosition
+  ): boolean {
+    const arrow = elementMap.value.get(arrowId) as LineElement | undefined
+    if (!arrow || arrow.type !== 'arrow') return false
+
+    const target = elementMap.value.get(targetId)
+    if (!target || (target.type !== 'rectangle' && target.type !== 'ellipse')) return false
+
+    const binding: ArrowBinding = {
+      elementId: targetId,
+      anchor,
+    }
+
+    if (endpoint === 'start') {
+      arrow.startBinding = binding
+    } else {
+      arrow.endBinding = binding
+    }
+
+    // Update arrow endpoint to match anchor position
+    updateArrowEndpointFromBinding(arrow, endpoint)
+
+    markDirty('Bound arrow')
+    return true
+  }
+
+  /**
+   * Unbind an arrow endpoint from its shape.
+   */
+  function unbindArrow(arrowId: string, endpoint: 'start' | 'end'): boolean {
+    const arrow = elementMap.value.get(arrowId) as LineElement | undefined
+    if (!arrow || arrow.type !== 'arrow') return false
+
+    if (endpoint === 'start') {
+      arrow.startBinding = undefined
+    } else {
+      arrow.endBinding = undefined
+    }
+
+    markDirty('Unbound arrow')
+    return true
+  }
+
+  /**
+   * Update an arrow endpoint position based on its binding.
+   */
+  function updateArrowEndpointFromBinding(arrow: LineElement, endpoint: 'start' | 'end'): void {
+    const binding = endpoint === 'start' ? arrow.startBinding : arrow.endBinding
+    if (!binding) return
+
+    const target = elementMap.value.get(binding.elementId)
+    if (!target) {
+      // Target no longer exists, unbind
+      if (endpoint === 'start') {
+        arrow.startBinding = undefined
+      } else {
+        arrow.endBinding = undefined
+      }
+      return
+    }
+
+    // Calculate anchor point position
+    const anchorPoint = getAnchorPointForElement(target, binding.anchor)
+
+    // Update the arrow endpoint using { start, end } structure
+    if (endpoint === 'start') {
+      // Update start point
+      arrow.points.start = { ...anchorPoint }
+      // Update rect to encompass new points
+      updateArrowRectFromPoints(arrow)
+    } else {
+      // Update end point
+      arrow.points.end = { ...anchorPoint }
+      // Update rect to encompass new points
+      updateArrowRectFromPoints(arrow)
+    }
+  }
+
+  /**
+   * Update arrow rect from its start/end points.
+   */
+  function updateArrowRectFromPoints(arrow: LineElement): void {
+    const { start, end } = arrow.points
+    arrow.rect.x = Math.min(start.x, end.x)
+    arrow.rect.y = Math.min(start.y, end.y)
+    arrow.rect.width = Math.abs(end.x - start.x)
+    arrow.rect.height = Math.abs(end.y - start.y)
+  }
+
+  /**
+   * Get the anchor point position for an element.
+   */
+  function getAnchorPointForElement(element: CanvasElement, anchor: AnchorPosition): Point {
+    const { x, y, width, height } = element.rect
+    const centerX = x + width / 2
+    const centerY = y + height / 2
+
+    switch (anchor) {
+      case 'top':
+        return { x: centerX, y }
+      case 'bottom':
+        return { x: centerX, y: y + height }
+      case 'left':
+        return { x, y: centerY }
+      case 'right':
+        return { x: x + width, y: centerY }
+      case 'center':
+      default:
+        return { x: centerX, y: centerY }
+    }
+  }
+
+  /**
+   * Update all arrows bound to a shape after it moves.
+   * Call this after moving or resizing a shape.
+   */
+  function updateBoundArrowsForElement(elementId: string): void {
+    if (!document.value) return
+
+    // Find all arrows with bindings to this element
+    for (const element of elements.value) {
+      if (element.type !== 'arrow') continue
+
+      const arrow = element as LineElement
+      if (arrow.startBinding?.elementId === elementId) {
+        updateArrowEndpointFromBinding(arrow, 'start')
+      }
+      if (arrow.endBinding?.elementId === elementId) {
+        updateArrowEndpointFromBinding(arrow, 'end')
+      }
+    }
+  }
+
+  /**
+   * Check if an arrow endpoint is bound.
+   */
+  function isArrowBound(arrowId: string, endpoint: 'start' | 'end'): boolean {
+    const arrow = elementMap.value.get(arrowId) as LineElement | undefined
+    if (!arrow || arrow.type !== 'arrow') return false
+
+    const binding = endpoint === 'start' ? arrow.startBinding : arrow.endBinding
+    return binding !== undefined
+  }
+
+  /**
+   * Get the binding info for an arrow endpoint.
+   */
+  function getArrowBinding(arrowId: string, endpoint: 'start' | 'end'): ArrowBinding | undefined {
+    const arrow = elementMap.value.get(arrowId) as LineElement | undefined
+    if (!arrow || arrow.type !== 'arrow') return undefined
+
+    return endpoint === 'start' ? arrow.startBinding : arrow.endBinding
   }
 
   // ============================================================================
@@ -1175,7 +1618,7 @@ export const useBoardStore = defineStore('board', () => {
     if (entry) {
       // Set restoring flag to prevent module watchers from creating history entries
       isRestoring.value = true
-      document.value = JSON.parse(JSON.stringify(entry.snapshot))
+      document.value = deepClone(entry.snapshot)
       // Use nextTick equivalent: clear flag after Vue's reactivity system settles
       setTimeout(() => {
         isRestoring.value = false
@@ -1203,7 +1646,7 @@ export const useBoardStore = defineStore('board', () => {
     if (entry) {
       // Set restoring flag to prevent module watchers from creating history entries
       isRestoring.value = true
-      document.value = JSON.parse(JSON.stringify(entry.snapshot))
+      document.value = deepClone(entry.snapshot)
       setTimeout(() => {
         isRestoring.value = false
         console.log('[BoardStore] Restoration complete, isRestoring reset to false')
@@ -1230,7 +1673,7 @@ export const useBoardStore = defineStore('board', () => {
     if (entry) {
       // Set restoring flag to prevent module watchers from creating history entries
       isRestoring.value = true
-      document.value = JSON.parse(JSON.stringify(entry.snapshot))
+      document.value = deepClone(entry.snapshot)
       setTimeout(() => {
         isRestoring.value = false
         console.log('[BoardStore] Restoration complete, isRestoring reset to false')
@@ -1253,7 +1696,7 @@ export const useBoardStore = defineStore('board', () => {
     if (entry) {
       // Set restoring flag to prevent module watchers from creating history entries
       isRestoring.value = true
-      document.value = JSON.parse(JSON.stringify(entry.snapshot))
+      document.value = deepClone(entry.snapshot)
       setTimeout(() => {
         isRestoring.value = false
         console.log('[BoardStore] Restoration complete, isRestoring reset to false')
@@ -1435,6 +1878,7 @@ export const useBoardStore = defineStore('board', () => {
     elements,
     viewport,
     background,
+    grid,
     moduleStates,
     title,
     orphanWidgets,
@@ -1507,6 +1951,39 @@ export const useBoardStore = defineStore('board', () => {
 
     // Actions - Background
     setBackground,
+
+    // Actions - Grid (Snap to Grid)
+    toggleGrid,
+    setGridEnabled,
+    setGridSize,
+    setGridVisible,
+    snapToGrid,
+    snapPointToGrid,
+    snapRectToGrid,
+
+    // Getters - Grouping
+    groups,
+    groupMap,
+    elementToGroupMap,
+    enteredGroupId,
+
+    // Actions - Grouping
+    getGroupForElement,
+    getGroupMembers,
+    getGroupBoundingBox,
+    createGroup,
+    ungroup,
+    enterGroup,
+    exitGroup,
+    isInsideGroup,
+    moveGroup,
+
+    // Actions - Arrow Binding
+    bindArrowToShape,
+    unbindArrow,
+    updateBoundArrowsForElement,
+    isArrowBound,
+    getArrowBinding,
 
     // Actions - Module State
     getModuleState,

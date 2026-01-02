@@ -44,18 +44,23 @@ const faqs = [
   },
 ]
 
-const modules = [
-  { name: 'Todo', desc: 'Tasks & checklists' },
-  { name: 'Timer', desc: 'Pomodoro focus timer' },
-  { name: 'Kanban', desc: 'Drag & drop boards' },
-  { name: 'Stats Card', desc: 'Cross-widget metrics' },
-  { name: 'Text', desc: 'Rich Markdown notes' },
-  { name: 'Focus Lens', desc: 'Single task focus mode' },
-  { name: 'Habit Tracker', desc: 'Streak tracking' },
-  { name: 'Counter', desc: 'Customizable counter' },
-  { name: 'Scratchpad', desc: 'Quick notes' },
-  { name: 'Task Radar', desc: 'Task aggregation' },
-  { name: 'Calendar', desc: 'Google Calendar integration' },
+// Core modules (built-in, ship with the app)
+const coreModules = [
+  { name: 'Todo', desc: 'Tasks & checklists', icon: 'check-square' },
+  { name: 'Timer', desc: 'Pomodoro focus timer', icon: 'timer' },
+  { name: 'Kanban', desc: 'Drag & drop boards', icon: 'columns' },
+  { name: 'Text', desc: 'Rich Markdown notes', icon: 'file-text' },
+  { name: 'Counter', desc: 'Customizable counter', icon: 'hash' },
+  { name: 'Scratchpad', desc: 'Quick notes', icon: 'edit-3' },
+]
+
+// Official plugins (installable, external packages)
+const plugins = [
+  { name: 'Stats Card', desc: 'Cross-widget metrics', icon: 'bar-chart-2' },
+  { name: 'Focus Lens', desc: 'Single task focus mode', icon: 'target' },
+  { name: 'Habit Tracker', desc: 'Streak tracking', icon: 'calendar-check' },
+  { name: 'Task Radar', desc: 'Task aggregation', icon: 'radar' },
+  { name: 'Google Calendar', desc: 'Calendar integration', icon: 'calendar' },
 ]
 </script>
 
@@ -91,22 +96,92 @@ const modules = [
       <h2 class="serif-heading">What it does</h2>
       <ul>
         <li><strong>Infinite canvas</strong> — Draw, sketch, and organize freely with shapes, arrows, and text</li>
-        <li><strong>11 built-in modules</strong> — Todo, Timer, Kanban, Habits, Stats, and more</li>
+        <li><strong>6 core modules + official plugins</strong> — Todo, Timer, Kanban, Text, and more. Extend with plugins</li>
         <li><strong>100% offline</strong> — No account, no cloud, no tracking. Works in airplane mode</li>
         <li><strong>Cross-module data sharing</strong> — Widgets talk to each other through versioned contracts</li>
         <li><strong>Your data, your device</strong> — Export anytime, no lock-in ever</li>
       </ul>
     </section>
 
-    <!-- Modules -->
+    <!-- Core Modules -->
     <section>
-      <h2 class="serif-heading">Built-in modules</h2>
+      <h2 class="serif-heading">Core modules</h2>
+      <p class="section-subtitle">Built-in, ship with every installation</p>
       <ul class="modules-list">
-        <li v-for="mod in modules" :key="mod.name">
+        <li v-for="mod in coreModules" :key="mod.name">
           <a href="#"><strong>{{ mod.name }}</strong></a>
           <span> — {{ mod.desc }}</span>
         </li>
       </ul>
+    </section>
+
+    <!-- Plugins -->
+    <section class="plugins-section">
+      <h2 class="serif-heading">Official plugins</h2>
+      <p class="section-subtitle">Extend Boardkit with additional functionality</p>
+      <ul class="modules-list">
+        <li v-for="plugin in plugins" :key="plugin.name">
+          <a href="#"><strong>{{ plugin.name }}</strong></a>
+          <span> — {{ plugin.desc }}</span>
+        </li>
+      </ul>
+
+      <!-- Plugin Code Examples -->
+      <div class="code-examples">
+        <h3 class="code-title serif-heading">Build your own plugin</h3>
+        <p class="code-subtitle">Plugins are simple TypeScript modules with a clear API</p>
+
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-filename">manifest.json</span>
+          </div>
+          <pre class="code-content"><code>{
+  "id": "my-plugin",
+  "name": "My Plugin",
+  "version": "0.1.0",
+  "author": "You",
+  "description": "A custom widget for Boardkit",
+  "icon": "star",
+  "provides": ["my-plugin.data.v1"],
+  "consumes": []
+}</code></pre>
+        </div>
+
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-filename">src/index.ts</span>
+          </div>
+          <pre class="code-content"><code>import { definePlugin } from '@boardkit/plugin-api'
+import MyWidget from './MyWidget.vue'
+
+export default definePlugin({
+  pluginId: 'my-plugin',
+  displayName: 'My Plugin',
+  icon: 'star',
+  component: MyWidget,
+
+  defaultState: () => ({
+    title: 'My Widget',
+    items: [],
+  }),
+
+  minWidth: 200,
+  minHeight: 150,
+
+  settingsSchema: {
+    sections: [{
+      id: 'display',
+      title: 'Display',
+      fields: [{
+        key: 'showHeader',
+        type: 'toggle',
+        label: 'Show header',
+      }]
+    }]
+  }
+})</code></pre>
+        </div>
+      </div>
     </section>
 
     <!-- Modules Mosaic - Cloud arrangement -->
@@ -490,6 +565,14 @@ section li a {
   color: hsl(var(--foreground));
 }
 
+/* Section subtitle */
+.section-subtitle {
+  font-size: 14px;
+  color: hsl(var(--muted-foreground));
+  margin-bottom: 16px;
+  font-style: italic;
+}
+
 /* Modules list */
 .modules-list {
   list-style: disc;
@@ -502,6 +585,63 @@ section li a {
 
 .modules-list span {
   color: hsl(var(--muted-foreground));
+}
+
+/* Plugin Code Examples */
+.code-examples {
+  margin-top: 32px;
+  padding-top: 32px;
+  border-top: 1px solid hsl(var(--border));
+}
+
+.code-title {
+  font-size: 22px;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.code-subtitle {
+  font-size: 14px;
+  color: hsl(var(--muted-foreground));
+  margin-bottom: 24px;
+}
+
+.code-block {
+  background: #0a0a0a;
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.code-header {
+  display: flex;
+  align-items: center;
+  padding: 10px 14px;
+  background: #111;
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.code-filename {
+  font-family: ui-monospace, 'SF Mono', Menlo, Monaco, monospace;
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+}
+
+.code-content {
+  margin: 0;
+  padding: 16px;
+  overflow-x: auto;
+  font-family: ui-monospace, 'SF Mono', Menlo, Monaco, monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  color: hsl(var(--foreground));
+  background: transparent;
+}
+
+.code-content code {
+  font-family: inherit;
+  color: inherit;
 }
 
 /* Steps */
