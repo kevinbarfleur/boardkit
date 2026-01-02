@@ -26,7 +26,7 @@ const variantClasses: Record<ButtonVariant, string> = {
 
 <template>
   <button
-    class="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+    class="inline-flex items-center justify-center gap-2 rounded-md border border-transparent px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:border-border-strong disabled:pointer-events-none disabled:opacity-50"
     :class="[variantClasses[props.variant]]"
     :disabled="props.disabled || props.loading"
   >

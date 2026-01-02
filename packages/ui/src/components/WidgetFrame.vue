@@ -297,7 +297,7 @@ const handleScaleDown = (e: MouseEvent) => {
       @mouseleave="setHovered(false)"
     >
       <BkIcon icon="grip-vertical" class="text-muted-foreground" :size="14" />
-      <span class="flex-1 text-sm font-medium text-popover-foreground truncate">
+      <span class="flex-1 text-sm font-medium font-serif text-popover-foreground truncate">
         {{ title }}
       </span>
       <!-- Scale controls -->

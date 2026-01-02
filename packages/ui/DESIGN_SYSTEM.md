@@ -6,6 +6,13 @@ This document defines the complete design tokens, component guidelines, spacing 
 
 ## Design Philosophy
 
+### Chalk Edition
+Boardkit uses the **Chalk Edition** design language — a monochromatic, typography-focused aesthetic that prioritizes:
+- **Inverted primary**: Primary actions use white/light backgrounds with dark text (not colored buttons)
+- **Border-based focus**: Focus states use visible borders, not rings
+- **Serif typography**: Titles and headings use Source Serif 4 for a refined, professional feel
+- **Grain texture**: Subtle noise overlay adds tactile depth to the interface
+
 ### Compact by Default (App Density)
 Boardkit is a canvas-first application. UI controls must feel light, compact, and never dominate the infinite canvas workspace.
 
@@ -32,18 +39,18 @@ No ad-hoc paddings, font sizes, radii, or random colors. Every value used repeat
 
 ## Color System
 
-### Palette Architecture
+### Palette Architecture (Chalk Edition)
 
 **Total Colors: 5**
-- 1 Primary brand color: Blue (`#3b82f6`)
-- 3 Neutrals: Deep black, dark gray, medium gray
+- 1 Primary: Inverted white/light (`#e5e5e5`) — NOT blue
+- 3 Neutrals: Deep charcoal, dark gray, medium gray
 - 1 Destructive accent: Red (`#ef4444`)
 
 **Why This Palette:**
-- Minimalist and professional
+- Monochromatic and professional
 - High contrast for accessibility
-- Blue accent provides energy without overwhelming
-- No purple/violet (unless explicitly requested)
+- Inverted primary (white bg, dark text) creates clear affordance
+- No colored buttons — clean, focused aesthetic
 - Gradients are avoided entirely
 
 ### Design Tokens (CSS Variables)
@@ -52,33 +59,38 @@ All tokens are defined in `globals.css`:
 
 ```css
 :root {
-  /* Core surfaces */
-  --background: 0 0% 4%;            /* #0a0a0a - deep black canvas */
-  --foreground: 0 0% 93%;           /* #ededed - off-white text */
+  /* CHALK EDITION - Core surfaces */
+  --background: 0 0% 9%;              /* #171717 - charcoal canvas */
+  --foreground: 0 0% 90%;             /* #e5e5e5 - off-white text */
 
   /* Secondary surfaces */
-  --muted: 0 0% 10%;                /* #1a1a1a - widget backgrounds */
-  --muted-foreground: 0 0% 45%;     /* #737373 - secondary text */
+  --card: 0 0% 10%;                   /* #1a1a1a - elevated bg */
+  --muted: 0 0% 13%;                  /* #222222 - widget backgrounds */
+  --muted-foreground: 0 0% 64%;       /* #a3a3a3 - secondary text */
 
-  /* Interactive elements */
-  --primary: 217 91% 60%;           /* #3b82f6 - blue brand color */
-  --primary-foreground: 0 0% 100%;  /* #ffffff - text on primary */
+  /* Interactive elements - INVERTED PRIMARY */
+  --primary: 0 0% 90%;                /* #e5e5e5 - white/light primary */
+  --primary-foreground: 0 0% 9%;      /* #171717 - dark text on primary */
 
   /* Hover states */
-  --accent: 0 0% 15%;               /* #262626 - hover background */
-  --accent-foreground: 0 0% 93%;    /* #ededed - text on accent */
+  --accent: 0 0% 14%;                 /* #242424 - hover background */
+  --accent-foreground: 0 0% 98%;      /* #fafafa - text on accent */
 
-  /* Borders and inputs */
-  --border: 0 0% 15%;               /* #262626 - subtle borders */
-  --input: 0 0% 15%;                /* #262626 - input backgrounds */
-  --ring: 217 91% 60%;              /* #3b82f6 - focus rings */
+  /* Borders */
+  --border: 0 0% 18%;                 /* #2e2e2e - subtle borders */
+  --border-strong: 0 0% 25%;          /* #404040 - focus/active borders */
+  --ring: 0 0% 90%;                   /* #e5e5e5 - white ring (rarely used) */
 
   /* Functional colors */
-  --destructive: 0 84% 60%;         /* #ef4444 - delete/danger */
+  --destructive: 0 84% 60%;           /* #ef4444 - delete/danger */
   --destructive-foreground: 0 0% 98%;
 
+  /* Typography */
+  --font-serif: 'Source Serif 4', serif;
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+
   /* Radius */
-  --radius: 0.5rem;                 /* 8px base radius */
+  --radius: 0.5rem;                   /* 8px base radius */
 }
 ```
 
@@ -96,9 +108,9 @@ All tokens are defined in `globals.css`:
 - Selected state: `border-primary` (#3b82f6)
 
 **Borders:**
-- Default: `border-border` (#262626, 1px)
-- Selected: `border-primary` (#3b82f6, 2px)
-- Focus: `ring-2 ring-ring` (2px blue ring)
+- Default: `border-border` (#2e2e2e, 1px)
+- Selected: `border-primary` (#e5e5e5, 2px)
+- Focus: `border-border-strong` (#404040, 1px) — NO rings
 
 **CRITICAL: Never Override Without Text Color**
 If you change a background color, you MUST override the text color to ensure proper contrast.
@@ -126,12 +138,16 @@ Goal: Modern and clean, not overly rounded.
 
 ## Typography
 
-### Font Families
+### Font Families (Chalk Edition)
 
-**Sans Serif:** Inter (or Geist fallback)
-**Monospace:** Geist Mono (for code elements)
+**Serif:** Source Serif 4 — for titles, headings, and modal headers
+**Sans Serif:** Inter — for body text, controls, and labels
+**Monospace:** Geist Mono — for code elements
 
-**Application:** Fonts applied via `font-sans` and `font-mono` utility classes.
+**Application:**
+- `font-serif`: Titles, widget headers, modal headers
+- `font-sans`: Body text, buttons, inputs, labels
+- `font-mono`: Code blocks, technical values
 
 ### Font Sizes
 
@@ -223,6 +239,31 @@ Base spacing grid: **4px** (UnoCSS default: `1` = 0.25rem = 4px)
 - Maintains clean, professional aesthetic
 - Reduces visual noise
 - Borders + background layers provide sufficient hierarchy
+
+---
+
+## Grain Texture (Chalk Edition)
+
+A subtle noise overlay is applied globally to add tactile depth:
+
+```css
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.06;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,..."); /* SVG noise pattern */
+}
+```
+
+**Rules:**
+- Opacity: 0.06 (very subtle)
+- Mix-blend-mode: overlay
+- Z-index: 9999 (above all content)
+- Pointer-events: none (doesn't interfere with interactions)
 
 ---
 
@@ -331,21 +372,19 @@ hover:bg-accent hover:text-accent-foreground
 - Duration: 150ms (default)
 - Property: `transition-colors`
 
-### Focus
+### Focus (Chalk Edition)
 
-**Pattern (Modern Premium):**
+**Pattern (Border-based):**
 ```vue
 focus-visible:outline-none
-focus-visible:ring-2
-focus-visible:ring-ring
-focus-visible:ring-offset-2
+focus-visible:border-border-strong
 ```
 
 **Rules:**
-- Always use `focus-visible` (not `focus`) to avoid mouse focus rings
-- Ring color: Blue (`--ring`)
-- Ring width: 2px
-- Offset: 2px for separation
+- Always use `focus-visible` (not `focus`) to avoid mouse focus indicators
+- Focus uses stronger border color (`--border-strong`)
+- NO ring utilities — border-based focus only
+- Consistent across all interactive elements
 
 ### Active/Selected
 
@@ -435,13 +474,13 @@ text-sm for body text
 ```vue
 <!-- Base classes (always applied) -->
 inline-flex items-center justify-center gap-2 whitespace-nowrap
-rounded-md text-sm font-medium transition-all outline-none
+rounded-md text-sm font-medium transition-all
+border border-transparent
 disabled:pointer-events-none disabled:opacity-50
 shrink-0
 
-<!-- Focus states -->
-focus-visible:outline-none focus-visible:ring-2
-focus-visible:ring-ring focus-visible:ring-offset-2
+<!-- Focus states (Chalk Edition: border-based) -->
+focus-visible:outline-none focus-visible:border-border-strong
 ```
 
 **Available Variants:**
@@ -536,14 +575,13 @@ size-10  <!-- equivalent to h-10 w-10 (40px) -->
 ```vue
 <!-- Base classes -->
 h-9 w-full min-w-0 rounded-md border bg-transparent px-3 py-1
-text-sm shadow-xs transition-[color,box-shadow] outline-none
+text-sm transition-colors outline-none
 
 <!-- Border and background -->
-border-input
+border-border
 
-<!-- Focus states -->
-focus-visible:outline-none focus-visible:ring-2
-focus-visible:ring-ring focus-visible:ring-offset-2
+<!-- Focus states (Chalk Edition: border-based) -->
+focus-visible:outline-none focus-visible:border-border-strong
 
 <!-- Placeholder -->
 placeholder:text-muted-foreground

@@ -79,7 +79,7 @@ export default defineConfig({
     'body-small': 'text-sm text-muted-foreground',
 
     // Buttons
-    'btn-base': 'inline-flex items-center justify-center gap-2 font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50',
+    'btn-base': 'inline-flex items-center justify-center gap-2 font-medium transition-all duration-200 border border-transparent focus-visible:outline-none focus-visible:border-border-strong disabled:pointer-events-none disabled:opacity-50',
     'btn-primary': 'btn-base bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98] shadow-lg shadow-primary/25',
     'btn-secondary': 'btn-base bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-border',
     'btn-outline': 'btn-base bg-transparent border border-border text-foreground hover:bg-accent hover:border-primary/50',
@@ -94,7 +94,7 @@ export default defineConfig({
     'card-interactive': 'card-base card-hover cursor-pointer',
 
     // Interactive states
-    'focus-ring': 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+    'focus-ring': 'focus-visible:outline-none focus-visible:border-border-strong',
 
     // Utility
     'gradient-fade': 'bg-gradient-to-b from-background via-background to-transparent',

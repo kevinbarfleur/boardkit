@@ -15,6 +15,7 @@ export default defineConfig({
   theme: {
     colors: {
       border: 'hsl(var(--border) / <alpha-value>)',
+      'border-strong': 'hsl(var(--border-strong) / <alpha-value>)',
       input: 'hsl(var(--input) / <alpha-value>)',
       ring: 'hsl(var(--ring) / <alpha-value>)',
       background: 'hsl(var(--background) / <alpha-value>)',
@@ -31,10 +32,12 @@ export default defineConfig({
         DEFAULT: 'hsl(var(--destructive) / <alpha-value>)',
         foreground: 'hsl(var(--destructive-foreground) / <alpha-value>)',
       },
+      success: 'hsl(var(--success) / <alpha-value>)',
       muted: {
         DEFAULT: 'hsl(var(--muted) / <alpha-value>)',
         foreground: 'hsl(var(--muted-foreground) / <alpha-value>)',
       },
+      'text-subtle': 'hsl(var(--text-subtle) / <alpha-value>)',
       accent: {
         DEFAULT: 'hsl(var(--accent) / <alpha-value>)',
         foreground: 'hsl(var(--accent-foreground) / <alpha-value>)',
@@ -55,6 +58,11 @@ export default defineConfig({
       overlay: 'hsl(var(--overlay) / <alpha-value>)',
     },
 
+    fontFamily: {
+      serif: 'var(--font-serif)',
+      sans: 'var(--font-sans)',
+    },
+
     borderRadius: {
       lg: 'var(--radius)',
       md: 'calc(var(--radius) - 2px)',
@@ -70,7 +78,10 @@ export default defineConfig({
   },
 
   shortcuts: {
-    'btn-base': 'inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
-    'input-base': 'flex h-9 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50',
+    // Chalk Edition: border-based focus instead of ring
+    'btn-base': 'inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50',
+    'input-base': 'flex h-9 w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-border-strong disabled:cursor-not-allowed disabled:opacity-50',
+    // Typography
+    'title-serif': 'font-serif',
   },
 })

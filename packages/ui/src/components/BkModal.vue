@@ -57,10 +57,10 @@ watch(
           <!-- Header -->
           <div v-if="props.title || $slots.header" class="flex items-center justify-between mb-4">
             <slot name="header">
-              <h3 class="text-lg font-medium text-foreground">{{ props.title }}</h3>
+              <h3 class="text-lg font-medium font-serif text-foreground">{{ props.title }}</h3>
             </slot>
             <button
-              class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-transparent transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-transparent transition-colors hover:bg-accent focus-visible:outline-none focus-visible:border focus-visible:border-border-strong"
               @click="close"
             >
               <BkIcon icon="x" />

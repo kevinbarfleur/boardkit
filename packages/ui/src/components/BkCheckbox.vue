@@ -31,7 +31,7 @@ const toggle = () => {
       :id="props.id"
       :aria-checked="props.modelValue"
       :disabled="props.disabled"
-      class="h-4 w-4 shrink-0 rounded border flex items-center justify-center transition-colors ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+      class="h-4 w-4 shrink-0 rounded border flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:border-border-strong disabled:cursor-not-allowed disabled:opacity-50"
       :class="[
         props.modelValue
           ? 'bg-primary border-primary text-primary-foreground'

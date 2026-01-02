@@ -103,7 +103,7 @@ onUnmounted(() => {
           <!-- Header -->
           <div class="flex items-center justify-between p-4">
             <div>
-              <h3 class="text-base font-medium text-foreground">{{ config.title }}</h3>
+              <h3 class="text-base font-medium font-serif text-foreground">{{ config.title }}</h3>
               <p v-if="config.description" class="mt-0.5 text-sm text-muted-foreground">
                 {{ config.description }}
               </p>

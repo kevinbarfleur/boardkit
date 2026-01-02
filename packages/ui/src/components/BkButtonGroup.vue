@@ -75,8 +75,8 @@ const getButtonClasses = (option: ButtonGroupOption<T>) => {
 
   const base = [
     'relative flex-1 inline-flex items-center justify-center',
-    'rounded-md font-medium transition-all duration-150',
-    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
+    'rounded-md font-medium transition-all duration-150 border border-transparent',
+    'focus-visible:outline-none focus-visible:border-border-strong',
   ]
 
   // Size

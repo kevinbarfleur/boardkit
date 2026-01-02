@@ -82,7 +82,7 @@ function handleRotateMouseDown(event: MouseEvent) {
       :width="width"
       :height="height"
       fill="none"
-      stroke="hsl(217 91% 60%)"
+      stroke="hsl(var(--primary))"
       stroke-width="1"
       stroke-dasharray="4 2"
     />
@@ -97,7 +97,7 @@ function handleRotateMouseDown(event: MouseEvent) {
       :width="handleSize"
       :height="handleSize"
       rx="2"
-      stroke="hsl(217 91% 60%)"
+      stroke="hsl(var(--primary))"
       stroke-width="1"
       :style="{ cursor: handle.cursor }"
       @mousedown="handleMouseDown(handle.id, $event)"
@@ -112,7 +112,7 @@ function handleRotateMouseDown(event: MouseEvent) {
         :y1="0"
         :x2="rotationHandleX"
         :y2="rotationHandleY"
-        stroke="hsl(217 91% 60%)"
+        stroke="hsl(var(--primary))"
         stroke-width="1"
         stroke-dasharray="2 2"
       />
@@ -122,7 +122,7 @@ function handleRotateMouseDown(event: MouseEvent) {
         :cx="rotationHandleX"
         :cy="rotationHandleY"
         :r="ROTATION_HANDLE_SIZE / 2"
-        stroke="hsl(217 91% 60%)"
+        stroke="hsl(var(--primary))"
         stroke-width="1"
         @mousedown="handleRotateMouseDown"
       />
@@ -137,7 +137,7 @@ function handleRotateMouseDown(event: MouseEvent) {
 }
 
 .handle:hover {
-  fill: hsl(217 91% 60%);
+  fill: hsl(var(--primary));
 }
 
 .bounding-box {
@@ -155,7 +155,7 @@ function handleRotateMouseDown(event: MouseEvent) {
 }
 
 .rotation-handle:hover {
-  fill: hsl(217 91% 60%);
+  fill: hsl(var(--primary));
 }
 
 .rotation-handle:active {

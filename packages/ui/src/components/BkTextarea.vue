@@ -77,8 +77,8 @@ const textareaClasses = computed(() => {
     base.push('bg-transparent border-none')
   } else {
     base.push(
-      'rounded-md border border-input/20 bg-transparent px-3 py-2',
-      'focus-visible:ring-2 focus-visible:ring-ring/50',
+      'rounded-md border border-border bg-transparent px-3 py-2',
+      'focus-visible:border-border-strong',
       'dark:bg-input/10'
     )
   }

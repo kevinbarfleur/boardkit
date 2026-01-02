@@ -169,7 +169,7 @@ function handleContainerClick() {
     class="relative flex flex-wrap items-center gap-1 min-h-9 px-2 py-1.5 rounded-lg border border-border bg-background transition-colors"
     :class="[
       disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-text',
-      'focus-within:ring-2 focus-within:ring-ring'
+      'focus-within:border-border-strong'
     ]"
     @click="handleContainerClick"
   >

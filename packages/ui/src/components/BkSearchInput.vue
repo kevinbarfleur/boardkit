@@ -38,8 +38,8 @@ function handleClear() {
 
 const inputClasses = computed(() => {
   const base = [
-    'w-full pl-8 pr-8 text-sm bg-background border border-border rounded-lg',
-    'focus:outline-none focus:ring-2 focus:ring-ring',
+    'w-full pl-8 pr-8 text-sm bg-background border border-border rounded-md',
+    'focus:outline-none focus:border-border-strong',
     'placeholder:text-muted-foreground transition-colors',
   ]
 
@@ -115,6 +115,6 @@ const inputClasses = computed(() => {
 
 .clear-btn:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px hsl(var(--ring));
+  border: 1px solid hsl(var(--border-strong));
 }
 </style>

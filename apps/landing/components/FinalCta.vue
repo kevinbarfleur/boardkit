@@ -8,7 +8,7 @@
 
     <div class="container-landing relative">
       <div class="text-center max-w-2xl mx-auto">
-        <h2 class="heading-2 mb-4">
+        <h2 class="heading-2 font-serif mb-4">
           Ready to own your whiteboard?
         </h2>
         <p class="body-large mb-8">

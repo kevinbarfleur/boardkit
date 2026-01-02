@@ -26,12 +26,12 @@ onMounted(() => {
       ]"
     >
       <nav class="container-landing h-16 flex items-center justify-between">
-        <!-- Logo -->
+        <!-- Logo - CHALK EDITION: Cursive font -->
         <NuxtLink to="/" class="flex items-center gap-2 group">
-          <div class="w-8 h-8 rounded-lg bg-primary flex items-center justify-center transition-transform group-hover:scale-105">
-            <span class="i-lucide-sparkles text-white text-lg" />
+          <div class="w-8 h-8 rounded-full border border-primary/40 flex items-center justify-center transition-transform group-hover:scale-105">
+            <span class="i-lucide-sparkles text-foreground text-lg" />
           </div>
-          <span class="font-semibold text-lg text-foreground">Boardkit</span>
+          <span class="font-cursive text-2xl text-foreground">Boardkit</span>
         </NuxtLink>
 
         <!-- Desktop Nav -->
@@ -82,13 +82,13 @@ onMounted(() => {
     <footer class="bg-card border-t border-border">
       <div class="container-landing py-16">
         <div class="grid grid-cols-2 md:grid-cols-4 gap-8 lg:gap-12">
-          <!-- Brand -->
+          <!-- Brand - CHALK EDITION -->
           <div class="col-span-2 md:col-span-1">
             <div class="flex items-center gap-2 mb-4">
-              <div class="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                <span class="i-lucide-sparkles text-white text-lg" />
+              <div class="w-8 h-8 rounded-full border border-primary/40 flex items-center justify-center">
+                <span class="i-lucide-sparkles text-foreground text-lg" />
               </div>
-              <span class="font-semibold text-lg">Boardkit</span>
+              <span class="font-cursive text-2xl">Boardkit</span>
             </div>
             <p class="body-small max-w-xs">
               The offline-first modular whiteboard. Your data, your device.

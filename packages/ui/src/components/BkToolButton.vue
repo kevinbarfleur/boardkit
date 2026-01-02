@@ -81,12 +81,12 @@ import { computed } from 'vue'
 }
 
 .tool-button.active {
-  background-color: hsl(var(--primary) / 0.15);
-  color: hsl(var(--primary));
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
 }
 
 .tool-button.active:hover {
-  background-color: hsl(var(--primary) / 0.25);
+  background-color: hsl(var(--primary) / 0.9);
 }
 
 .tool-button.disabled {
@@ -96,6 +96,7 @@ import { computed } from 'vue'
 
 .tool-button:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px hsl(var(--ring));
+  box-shadow: none;
+  border: 1px solid hsl(var(--border-strong));
 }
 </style>

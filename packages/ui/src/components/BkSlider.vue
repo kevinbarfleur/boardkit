@@ -138,6 +138,6 @@ const percentage = computed(() => {
 }
 
 .slider-input:focus-visible::-webkit-slider-thumb {
-  box-shadow: 0 0 0 2px hsl(var(--ring));
+  box-shadow: 0 0 0 2px hsl(var(--border-strong));
 }
 </style>

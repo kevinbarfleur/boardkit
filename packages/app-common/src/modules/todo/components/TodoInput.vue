@@ -46,7 +46,7 @@ const handleKeydown = (e: KeyboardEvent) => {
       v-model="label"
       type="text"
       :placeholder="placeholder"
-      class="flex-1 min-w-0 text-sm bg-background border border-border rounded focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-0 placeholder:text-muted-foreground"
+      class="flex-1 min-w-0 text-sm bg-background border border-border rounded focus:outline-none focus:border-border-strong placeholder:text-muted-foreground"
       :class="variant === 'main' ? 'h-9 px-3 rounded-r-none' : 'h-7 px-2'"
       @keydown="handleKeydown"
     />
