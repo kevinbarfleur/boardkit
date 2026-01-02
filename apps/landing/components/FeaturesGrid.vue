@@ -26,9 +26,9 @@ const features = [
 <template>
   <section id="features" class="section-padding">
     <div class="container-landing">
-      <!-- Section header -->
+      <!-- Section header - CHALK EDITION: Serif headings -->
       <div class="text-center max-w-2xl mx-auto mb-16">
-        <h2 class="heading-2 mb-4">
+        <h2 class="heading-2 font-serif mb-4">
           Everything you need, nothing you don't
         </h2>
         <p class="body-large">
@@ -45,11 +45,11 @@ const features = [
           class="card-interactive p-6 lg:p-8 group"
         >
           <div class="flex items-start gap-4">
-            <div class="shrink-0 w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center transition-colors group-hover:bg-primary/20">
-              <span :class="feature.icon" class="text-primary text-xl" />
+            <div class="shrink-0 w-12 h-12 rounded-xl border border-border bg-muted/30 flex items-center justify-center transition-colors group-hover:bg-muted/50">
+              <span :class="feature.icon" class="text-foreground text-xl" />
             </div>
             <div>
-              <h3 class="heading-3 mb-2">{{ feature.title }}</h3>
+              <h3 class="heading-3 font-serif mb-2">{{ feature.title }}</h3>
               <p class="body">{{ feature.description }}</p>
             </div>
           </div>

@@ -2,6 +2,7 @@
 import { ref, onMounted, watch } from 'vue'
 import { registerCoreActions, useBoardStore, pluginManager } from '@boardkit/core'
 import { useTheme, useToast } from '@boardkit/ui'
+import { useCanvasExport, useSidebarState } from '@boardkit/app-common'
 import { registerModules } from '../modules'
 import { registerWebActions } from '../actions/webActions'
 import { usePersistence } from '../composables/usePersistence'
@@ -12,6 +13,7 @@ import Toolbar from '../components/Toolbar.vue'
 import CommandPalette from '../components/CommandPalette.vue'
 import SettingsPanel from '../components/SettingsPanel.vue'
 import DocumentSidebar from '../components/DocumentSidebar.vue'
+import ElementPropertiesPanel from '../components/ElementPropertiesPanel.vue'
 
 // Register all modules before using the store
 registerModules()
@@ -22,12 +24,16 @@ const toaster = useToast()
 const persistence = usePersistence()
 const documentList = useDocumentList()
 const { openAppSettings } = useSettingsPanel()
+const canvasExport = useCanvasExport()
+
+// Canvas component ref for export
+const boardCanvasRef = ref<InstanceType<typeof BoardCanvas> | null>(null)
 
 // Track if we've already shown orphan widget notification for this document
 const shownOrphanNotification = ref<string | null>(null)
 
 const isCommandPaletteOpen = ref(false)
-const sidebarCollapsed = ref(false)
+const { sidebarCollapsed, toggleSidebarCollapse } = useSidebarState()
 
 const openCommandPalette = () => {
   isCommandPaletteOpen.value = true
@@ -35,10 +41,6 @@ const openCommandPalette = () => {
 
 const closeCommandPalette = () => {
   isCommandPaletteOpen.value = false
-}
-
-const toggleSidebarCollapse = () => {
-  sidebarCollapsed.value = !sidebarCollapsed.value
 }
 
 const handleUndo = async () => {
@@ -103,6 +105,45 @@ const handleDuplicateDocument = async (id: string) => {
 
 const handleOpenSettings = () => {
   openAppSettings()
+}
+
+// Export handlers
+const handleExportPng = async () => {
+  const canvasEl = boardCanvasRef.value?.canvasRef
+  if (!canvasEl) {
+    toaster.error('Canvas not available for export')
+    return
+  }
+
+  try {
+    await canvasExport.exportToPng(canvasEl, {
+      backgroundColor: 'white',
+      padding: 40,
+    })
+    toaster.success('PNG exported successfully')
+  } catch (error) {
+    console.error('[Board] PNG export failed:', error)
+    toaster.error('Failed to export PNG')
+  }
+}
+
+const handleExportSvg = async () => {
+  const canvasEl = boardCanvasRef.value?.canvasRef
+  if (!canvasEl) {
+    toaster.error('Canvas not available for export')
+    return
+  }
+
+  try {
+    await canvasExport.exportToSvg(canvasEl, {
+      backgroundColor: 'white',
+      padding: 40,
+    })
+    toaster.success('SVG exported successfully')
+  } catch (error) {
+    console.error('[Board] SVG export failed:', error)
+    toaster.error('Failed to export SVG')
+  }
 }
 
 onMounted(async () => {
@@ -176,7 +217,7 @@ watch(
     />
 
     <!-- Main Content -->
-    <div class="flex-1 flex flex-col min-w-0">
+    <div class="flex-1 flex flex-col min-w-0 relative">
       <Toolbar
         :is-saving="persistence.isSaving.value"
         :last-saved="persistence.lastSaved.value"
@@ -186,6 +227,8 @@ watch(
         :redo-entries="persistence.redoEntries.value"
         @new-board="handleCreateDocument"
         @export="persistence.exportToFile()"
+        @export-png="handleExportPng"
+        @export-svg="handleExportSvg"
         @import="persistence.importFromFile()"
         @open-command-palette="openCommandPalette"
         @undo="handleUndo"
@@ -193,7 +236,8 @@ watch(
         @go-to-history="handleGoToHistory"
         @go-to-latest="handleGoToLatest"
       />
-      <BoardCanvas @open-command-palette="openCommandPalette" />
+      <BoardCanvas ref="boardCanvasRef" @open-command-palette="openCommandPalette" />
+      <ElementPropertiesPanel />
     </div>
 
     <CommandPalette :open="isCommandPaletteOpen" @close="closeCommandPalette" />

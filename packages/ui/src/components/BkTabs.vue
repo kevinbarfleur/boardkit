@@ -79,7 +79,7 @@ function getTabClass(tab: Tab) {
   const base = [
     'flex items-center justify-center gap-1.5',
     'text-sm font-medium transition-all',
-    'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+    'focus:outline-none focus-visible:border-border-strong',
   ]
 
   if (props.fullWidth) {

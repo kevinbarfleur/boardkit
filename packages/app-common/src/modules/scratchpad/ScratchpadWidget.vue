@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, ref, watch, nextTick, onMounted } from 'vue'
+import { computed } from 'vue'
+import { BkTextarea } from '@boardkit/ui'
 import type { ModuleContext } from '@boardkit/core'
 import type { ScratchpadState, FontSize } from './types'
 
@@ -8,8 +9,6 @@ interface Props {
 }
 
 const props = defineProps<Props>()
-
-const textareaRef = ref<HTMLTextAreaElement | null>(null)
 
 // Computed properties
 const content = computed({
@@ -37,37 +36,17 @@ const wordCount = computed(() => {
 })
 
 const charCount = computed(() => content.value.length)
-
-// Auto-resize textarea
-function autoResize() {
-  if (textareaRef.value) {
-    textareaRef.value.style.height = 'auto'
-    textareaRef.value.style.height = `${textareaRef.value.scrollHeight}px`
-  }
-}
-
-watch(content, () => {
-  nextTick(autoResize)
-})
-
-onMounted(() => {
-  nextTick(autoResize)
-})
 </script>
 
 <template>
   <div class="scratchpad h-full flex flex-col">
-    <textarea
-      ref="textareaRef"
+    <BkTextarea
       v-model="content"
       :placeholder="placeholder"
-      :class="[
-        'flex-1 w-full resize-none bg-transparent border-none outline-none',
-        'text-foreground placeholder:text-muted-foreground/50',
-        'p-3 min-h-24',
-        fontSizeClass,
-      ]"
-      @input="autoResize"
+      :auto-resize="true"
+      :borderless="true"
+      min-height="96px"
+      :class="['flex-1 p-3', fontSizeClass]"
     />
 
     <div

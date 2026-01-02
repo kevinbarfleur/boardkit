@@ -72,6 +72,7 @@ const emit = defineEmits<{
   select: [id: string, event: MouseEvent]
   moveStart: [id: string, event: MouseEvent]
   resizeStart: [id: string, handle: string, event: MouseEvent]
+  rotateStart: [id: string, event: MouseEvent]
   editStart: [id: string, type: 'text' | 'label']
   contextMenu: [id: string, event: MouseEvent]
 }>()
@@ -160,18 +161,37 @@ const freehandPath = computed(() => {
 const HIT_PADDING = 6
 const HIT_STROKE_WIDTH = 16
 
-// Computed transform that includes drag offset for smooth CSS-based dragging
+// Computed transform that includes drag offset and rotation
 // During drag, we apply the offset via CSS transform instead of updating element data
 // This avoids expensive recalculations (like getStroke) during mousemove
+// Rotation is applied around the center of the element
 const groupTransform = computed(() => {
   const baseX = props.element.rect.x
   const baseY = props.element.rect.y
+  const width = props.element.rect.width
+  const height = props.element.rect.height
+  const angle = props.element.angle ?? 0
+
+  // Calculate center point for rotation
+  const centerX = width / 2
+  const centerY = height / 2
+
+  let transform = ''
 
   if (props.isDragging) {
-    return `translate(${baseX + props.dragOffset.x}, ${baseY + props.dragOffset.y})`
+    transform = `translate(${baseX + props.dragOffset.x}, ${baseY + props.dragOffset.y})`
+  } else {
+    transform = `translate(${baseX}, ${baseY})`
   }
 
-  return `translate(${baseX}, ${baseY})`
+  // Apply rotation around center if angle is non-zero
+  if (angle !== 0) {
+    // Convert radians to degrees for SVG transform
+    const angleDeg = (angle * 180) / Math.PI
+    transform += ` rotate(${angleDeg}, ${centerX}, ${centerY})`
+  }
+
+  return transform
 })
 
 // Generate stable seed from element ID (for consistent sketchy look)
@@ -336,6 +356,10 @@ function handleShapeLabelDoubleClick(event: MouseEvent) {
 
 function handleResizeStart(handle: string, event: MouseEvent) {
   emit('resizeStart', props.element.id, handle, event)
+}
+
+function handleRotateStart(event: MouseEvent) {
+  emit('rotateStart', props.element.id, event)
 }
 
 function handleContextMenu(event: MouseEvent) {
@@ -516,7 +540,9 @@ function handleContextMenu(event: MouseEvent) {
       :width="element.rect.width"
       :height="element.rect.height"
       :corners-only="isLine || isDraw"
+      :show-rotation-handle="!isDraw"
       @resize-start="handleResizeStart"
+      @rotate-start="handleRotateStart"
     />
   </g>
 </template>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { BkEditableInput } from '@boardkit/ui'
 import type { ProgressStats } from '../composables/useTodoItems'
 
 interface Props {
@@ -20,24 +21,24 @@ const emit = defineEmits<{
 <template>
   <div class="flex flex-col gap-1">
     <!-- Title -->
-    <input
+    <BkEditableInput
       v-if="isSelected"
-      :value="title"
+      :model-value="title"
       placeholder="List title..."
-      class="bg-transparent text-base font-medium text-foreground placeholder:text-muted-foreground outline-none"
-      @input="emit('update:title', ($event.target as HTMLInputElement).value)"
+      variant="title"
+      @update:model-value="emit('update:title', $event)"
     />
     <span v-else-if="title" class="text-base font-medium text-foreground">
       {{ title }}
     </span>
 
     <!-- Description -->
-    <input
+    <BkEditableInput
       v-if="isSelected"
-      :value="description"
+      :model-value="description"
       placeholder="Description..."
-      class="bg-transparent text-sm text-muted-foreground placeholder:text-muted-foreground/50 outline-none"
-      @input="emit('update:description', ($event.target as HTMLInputElement).value)"
+      variant="subtitle"
+      @update:model-value="emit('update:description', $event)"
     />
     <span v-else-if="description" class="text-sm text-muted-foreground">
       {{ description }}

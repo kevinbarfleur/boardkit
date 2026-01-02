@@ -53,6 +53,7 @@ const handleClick = (value: T, optionDisabled?: boolean) => {
 
 const containerClasses = computed(() => {
   const base = [
+    'bk-button-group',
     'inline-flex items-center gap-1 p-1 rounded-lg',
     'bg-muted/60',
   ]
@@ -74,8 +75,8 @@ const getButtonClasses = (option: ButtonGroupOption<T>) => {
 
   const base = [
     'relative flex-1 inline-flex items-center justify-center',
-    'rounded-md font-medium transition-all duration-150',
-    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
+    'rounded-md font-medium transition-all duration-150 border border-transparent',
+    'focus-visible:outline-none focus-visible:border-border-strong',
   ]
 
   // Size
@@ -141,3 +142,14 @@ const getButtonStyle = (option: ButtonGroupOption<T>) => {
     </button>
   </div>
 </template>
+
+<style scoped>
+.bk-button-group {
+  width: 120px;
+  flex-shrink: 0;
+}
+
+.bk-button-group.w-full {
+  width: 100%;
+}
+</style>

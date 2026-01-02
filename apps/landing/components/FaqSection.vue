@@ -38,7 +38,7 @@ const toggleFaq = (index: number) => {
     <div class="container-landing">
       <!-- Section header -->
       <div class="text-center max-w-2xl mx-auto mb-16">
-        <h2 class="heading-2 mb-4">
+        <h2 class="heading-2 font-serif mb-4">
           Frequently asked questions
         </h2>
         <p class="body-large">

@@ -258,15 +258,15 @@ watch(isOpen, (value) => {
 const triggerClasses = computed(() => {
   const base = [
     'inline-flex items-center justify-between gap-2',
-    'rounded-lg border border-border bg-background',
+    'rounded-md border border-border bg-background',
     'text-sm transition-colors',
-    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+    'focus-visible:outline-none focus-visible:border-border-strong',
   ]
 
   if (props.size === 'sm') {
-    base.push('h-8 px-3 min-w-32')
+    base.push('h-8 px-3')
   } else {
-    base.push('h-9 px-3 min-w-36')
+    base.push('h-9 px-3')
   }
 
   if (props.disabled) {
@@ -299,7 +299,7 @@ const getOptionClasses = (index: number) => {
 </script>
 
 <template>
-  <div class="relative inline-block">
+  <div class="bk-select">
     <!-- Trigger button -->
     <button
       ref="triggerRef"
@@ -361,3 +361,15 @@ const getOptionClasses = (index: number) => {
     </Teleport>
   </div>
 </template>
+
+<style scoped>
+.bk-select {
+  position: relative;
+  width: 120px;
+  flex-shrink: 0;
+}
+
+.bk-select button {
+  width: 100%;
+}
+</style>

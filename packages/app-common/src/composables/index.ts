@@ -1,2 +1,3 @@
-// Composables will be migrated here
-// For now, this file is a placeholder
+// Composables
+export { useCanvasExport, type ExportOptions } from './useCanvasExport'
+export { useSidebarState } from './useSidebarState'

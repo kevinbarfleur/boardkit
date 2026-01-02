@@ -197,7 +197,7 @@ const placeholder = computed(() => {
 
 .format-toggle:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px hsl(var(--ring));
+  border-color: hsl(var(--border-strong));
 }
 
 .input-field {

@@ -360,12 +360,14 @@ const isLightColor = computed(() => {
   align-items: center;
   gap: 8px;
   padding: 4px 8px;
+  width: 120px;
   height: 32px;
   background: hsl(var(--background));
   border: 1px solid hsl(var(--border));
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.15s ease;
+  flex-shrink: 0;
 }
 
 .picker-trigger:hover {
@@ -374,7 +376,7 @@ const isLightColor = computed(() => {
 
 .picker-trigger:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px hsl(var(--ring));
+  border-color: hsl(var(--border-strong));
 }
 
 .picker-trigger.open {

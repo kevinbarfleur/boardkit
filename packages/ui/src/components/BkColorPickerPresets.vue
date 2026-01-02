@@ -125,6 +125,6 @@ const gridStyle = computed(() => ({
 
 .color-swatch:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px hsl(var(--ring));
+  box-shadow: inset 0 0 0 2px hsl(var(--border-strong));
 }
 </style>

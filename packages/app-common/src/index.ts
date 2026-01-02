@@ -45,3 +45,5 @@ export { TiptapEditor } from './components'
 
 // Composables
 export { usePlugins } from './composables/usePlugins'
+export { useCanvasExport, type ExportOptions } from './composables/useCanvasExport'
+export { useSidebarState } from './composables/useSidebarState'

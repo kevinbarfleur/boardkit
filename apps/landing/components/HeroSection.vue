@@ -15,18 +15,18 @@ const stats = [
 
     <div class="container-landing relative">
       <div class="max-w-4xl mx-auto text-center">
-        <!-- Badge -->
+        <!-- Badge - CHALK EDITION: Subtle border style -->
         <div
-          class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-sm text-primary mb-8 animate-fade-in-down"
+          class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-muted/30 border border-border text-sm text-muted-foreground mb-8 animate-fade-in-down"
         >
           <span class="i-lucide-sparkles text-sm" />
           <span>Open source & offline-first</span>
         </div>
 
-        <!-- Headline -->
-        <h1 class="heading-1 mb-6 animate-fade-in-up">
+        <!-- Headline - CHALK EDITION: Serif font -->
+        <h1 class="heading-1 font-serif mb-6 animate-fade-in-up">
           The whiteboard that
-          <span class="gradient-text-primary">truly belongs</span>
+          <span class="font-cursive text-foreground">truly belongs</span>
           to you
         </h1>
 
@@ -70,7 +70,7 @@ const stats = [
             :key="stat.label"
             class="text-center"
           >
-            <div class="text-3xl md:text-4xl font-bold text-foreground mb-1">
+            <div class="text-3xl md:text-4xl font-bold font-serif text-foreground mb-1">
               {{ stat.value }}
             </div>
             <div class="text-sm text-muted-foreground">

@@ -3,6 +3,7 @@ import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { useBoardStore, registerCoreActions, pluginManager, type BoardkitDocument } from '@boardkit/core'
 import { useTheme, useToast, BkModalProvider, BkToastProvider } from '@boardkit/ui'
+import { useCanvasExport, useSidebarState } from '@boardkit/app-common'
 import { registerModules } from './modules'
 import { registerDesktopActions } from './actions/desktopActions'
 import { usePersistence } from './composables/usePersistence'
@@ -14,6 +15,7 @@ import CommandPalette from './components/CommandPalette.vue'
 import SettingsPanel from './components/SettingsPanel.vue'
 import VaultSetupModal from './components/VaultSetupModal.vue'
 import VaultSidebar from './components/VaultSidebar.vue'
+import ElementPropertiesPanel from './components/ElementPropertiesPanel.vue'
 
 // Register all modules before using the store
 registerModules()
@@ -24,12 +26,16 @@ const toaster = useToast()
 const persistence = usePersistence()
 const vault = useVault()
 const { openAppSettings } = useSettingsPanel()
+const canvasExport = useCanvasExport()
+
+// Canvas component ref for export
+const boardCanvasRef = ref<InstanceType<typeof BoardCanvas> | null>(null)
 
 // Track if we've already shown orphan widget notification for this session
 const shownOrphanNotification = ref<string | null>(null)
 
 const isCommandPaletteOpen = ref(false)
-const sidebarCollapsed = ref(false)
+const { sidebarCollapsed, toggleSidebarCollapse } = useSidebarState()
 const isInitialized = ref(false)
 const unlisteners: UnlistenFn[] = []
 
@@ -39,10 +45,6 @@ const openCommandPalette = () => {
 
 const closeCommandPalette = () => {
   isCommandPaletteOpen.value = false
-}
-
-const toggleSidebarCollapse = () => {
-  sidebarCollapsed.value = !sidebarCollapsed.value
 }
 
 const handleNewBoard = async () => {
@@ -120,6 +122,45 @@ const handleTitleChange = async (newTitle: string) => {
 
 const handleOpenSettings = () => {
   openAppSettings()
+}
+
+// Export handlers
+const handleExportPng = async () => {
+  const canvasEl = boardCanvasRef.value?.canvasRef
+  if (!canvasEl) {
+    toaster.error('Canvas not available for export')
+    return
+  }
+
+  try {
+    await canvasExport.exportToPng(canvasEl, {
+      backgroundColor: 'white',
+      padding: 40,
+    })
+    toaster.success('PNG exported successfully')
+  } catch (error) {
+    console.error('[App] PNG export failed:', error)
+    toaster.error('Failed to export PNG')
+  }
+}
+
+const handleExportSvg = async () => {
+  const canvasEl = boardCanvasRef.value?.canvasRef
+  if (!canvasEl) {
+    toaster.error('Canvas not available for export')
+    return
+  }
+
+  try {
+    await canvasExport.exportToSvg(canvasEl, {
+      backgroundColor: 'white',
+      padding: 40,
+    })
+    toaster.success('SVG exported successfully')
+  } catch (error) {
+    console.error('[App] SVG export failed:', error)
+    toaster.error('Failed to export SVG')
+  }
 }
 
 const handleChangeVault = async () => {
@@ -289,7 +330,7 @@ onUnmounted(() => {
         />
 
         <!-- Main Content -->
-        <div class="flex-1 flex flex-col min-w-0">
+        <div class="flex-1 flex flex-col min-w-0 relative">
           <Toolbar
             :is-saving="persistence.isSaving.value"
             :last-saved="persistence.lastSaved.value"
@@ -299,6 +340,8 @@ onUnmounted(() => {
             :redo-entries="persistence.redoEntries.value"
             @new-board="handleNewBoard"
             @export="handleExport"
+            @export-png="handleExportPng"
+            @export-svg="handleExportSvg"
             @import="handleImport"
             @open-command-palette="openCommandPalette"
             @undo="handleUndo"
@@ -307,7 +350,8 @@ onUnmounted(() => {
             @go-to-latest="handleGoToLatest"
             @title-change="handleTitleChange"
           />
-          <BoardCanvas @open-command-palette="openCommandPalette" />
+          <BoardCanvas ref="boardCanvasRef" @open-command-palette="openCommandPalette" />
+          <ElementPropertiesPanel />
         </div>
 
         <CommandPalette :open="isCommandPaletteOpen" @close="closeCommandPalette" />

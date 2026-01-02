@@ -25,9 +25,9 @@ const toggle = () => {
 
 const trackClasses = computed(() => {
   const base = [
-    'relative inline-flex items-center shrink-0 cursor-pointer rounded-full',
+    'relative inline-flex items-center shrink-0 cursor-pointer rounded-full border border-transparent',
     'transition-colors duration-200 ease-in-out',
-    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+    'focus-visible:outline-none focus-visible:border-border-strong',
   ]
 
   // Size

@@ -104,11 +104,11 @@ const explanations = {
     <div class="container-landing">
       <!-- Section header -->
       <div class="text-center max-w-2xl mx-auto mb-16">
-        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs text-primary mb-4">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-muted/30 border border-border text-xs text-muted-foreground mb-4">
           <span class="i-lucide-code text-xs" />
           <span>Developer Experience</span>
         </div>
-        <h2 class="heading-2 mb-4">
+        <h2 class="heading-2 font-serif mb-4">
           Build your own modules
         </h2>
         <p class="body-large">
@@ -158,7 +158,7 @@ const explanations = {
               leave-to-class="opacity-0 -translate-x-4"
             >
               <div :key="activeTab">
-                <h3 class="heading-3 mb-3">
+                <h3 class="heading-3 font-serif mb-3">
                   {{ explanations[activeTab as keyof typeof explanations].title }}
                 </h3>
                 <p class="body mb-6">
@@ -170,8 +170,8 @@ const explanations = {
                     :key="highlight"
                     class="flex items-center gap-3"
                   >
-                    <div class="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                      <span class="i-lucide-check text-primary text-xs" />
+                    <div class="w-6 h-6 rounded-full border border-border bg-muted/30 flex items-center justify-center shrink-0">
+                      <span class="i-lucide-check text-foreground text-xs" />
                     </div>
                     <span class="body-small text-foreground">{{ highlight }}</span>
                   </li>

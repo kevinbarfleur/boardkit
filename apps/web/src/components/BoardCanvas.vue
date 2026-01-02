@@ -62,6 +62,7 @@ const getWidgetVisibility = (widget: Widget) => ({
 })
 
 const canvasRef = ref<HTMLElement | null>(null)
+const canvasContentRef = ref<HTMLElement | null>(null)
 const isPanning = ref(false)
 const panStart = ref({ x: 0, y: 0 })
 const viewportStart = ref({ x: 0, y: 0 })
@@ -81,6 +82,12 @@ const resizingElementId = ref<string | null>(null)
 const resizeHandle = ref<string | null>(null)
 const resizeStart = shallowRef({ x: 0, y: 0 })
 const elementStartRect = shallowRef({ x: 0, y: 0, width: 0, height: 0 })
+
+// Element rotation state
+const isRotatingElement = ref(false)
+const rotatingElementId = ref<string | null>(null)
+const rotationStartAngle = ref(0) // Initial element angle
+const rotationMouseStartAngle = ref(0) // Initial mouse angle relative to element center
 
 // Marquee selection state
 const isMarqueeSelecting = ref(false)
@@ -748,6 +755,38 @@ const handleCanvasMouseMove = (e: MouseEvent) => {
     return
   }
 
+  if (isRotatingElement.value && rotatingElementId.value) {
+    const element = elements.value.find((el) => el.id === rotatingElementId.value)
+    if (!element) return
+
+    // Calculate current mouse angle relative to element center
+    const currentMouseAngle = calculateAngleFromCenter(
+      e.clientX,
+      e.clientY,
+      element.rect
+    )
+
+    // Calculate angle delta from start position
+    let angleDelta = currentMouseAngle - rotationMouseStartAngle.value
+
+    // New angle = start angle + delta
+    let newAngle = rotationStartAngle.value + angleDelta
+
+    // Snap to 15° increments when Shift is held
+    if (e.shiftKey) {
+      const snapAngle = Math.PI / 12 // 15 degrees in radians
+      newAngle = Math.round(newAngle / snapAngle) * snapAngle
+    }
+
+    // Normalize angle to [-π, π] range
+    while (newAngle > Math.PI) newAngle -= 2 * Math.PI
+    while (newAngle < -Math.PI) newAngle += 2 * Math.PI
+
+    // Update element angle (skip dirty marking during drag)
+    boardStore.updateElement(rotatingElementId.value, { angle: newAngle })
+    return
+  }
+
   // CSS Transform-based dragging (optimized path - no expensive recalculations)
   // Only update the drag offset, which triggers a CSS transform change
   if (isDraggingWithTransform.value) {
@@ -796,6 +835,14 @@ const handleCanvasMouseUp = (e: MouseEvent) => {
     resizeHandle.value = null
     // Mark dirty after resize is complete
     boardStore.markDirty('Resized element')
+    return
+  }
+
+  if (isRotatingElement.value) {
+    isRotatingElement.value = false
+    rotatingElementId.value = null
+    // Mark dirty after rotation is complete
+    boardStore.markDirty('Rotated element')
     return
   }
 
@@ -946,6 +993,13 @@ const handleElementMoveStart = (id: string, event: MouseEvent) => {
   const element = elements.value.find((e) => e.id === id)
   if (!element) return
 
+  // If modifier key is held, this is a selection toggle operation, not a drag
+  // Don't start dragging - the selection was already handled by handleElementSelect
+  const isSelectionToggle = event.shiftKey || event.metaKey || event.ctrlKey
+  if (isSelectionToggle) {
+    return
+  }
+
   // Check if this element is part of a multi-selection
   const isPartOfSelection = boardStore.isSelected('element', id)
 
@@ -958,9 +1012,7 @@ const handleElementMoveStart = (id: string, event: MouseEvent) => {
     dragOffset.value = { x: 0, y: 0 }
   } else {
     // Move single element using CSS transform
-    if (!event.shiftKey && !event.metaKey && !event.ctrlKey) {
-      boardStore.selectElement(id)
-    }
+    boardStore.selectElement(id)
     isDraggingWithTransform.value = true
     draggingElementIds.value = [id]
     moveStart.value = { x: event.clientX, y: event.clientY }
@@ -1054,6 +1106,43 @@ const handleElementResizeStart = (id: string, handle: string, event: MouseEvent)
   resizeHandle.value = handle
   resizeStart.value = { x: event.clientX, y: event.clientY }
   elementStartRect.value = { ...element.rect }
+}
+
+/**
+ * Calculate angle (in radians) from a point to the center of a rect.
+ */
+const calculateAngleFromCenter = (
+  clientX: number,
+  clientY: number,
+  rect: { x: number; y: number; width: number; height: number }
+): number => {
+  // Get element center in screen coordinates
+  const canvasRect = canvasRef.value?.getBoundingClientRect()
+  if (!canvasRect) return 0
+
+  const centerX = canvasRect.left + viewport.value.x + (rect.x + rect.width / 2) * viewport.value.zoom
+  const centerY = canvasRect.top + viewport.value.y + (rect.y + rect.height / 2) * viewport.value.zoom
+
+  // Calculate angle from center to mouse position
+  return Math.atan2(clientY - centerY, clientX - centerX)
+}
+
+const handleElementRotateStart = (id: string, event: MouseEvent) => {
+  const element = elements.value.find((e) => e.id === id)
+  if (!element) return
+
+  event.stopPropagation()
+
+  isRotatingElement.value = true
+  rotatingElementId.value = id
+  rotationStartAngle.value = element.angle ?? 0
+
+  // Calculate initial mouse angle relative to element center
+  rotationMouseStartAngle.value = calculateAngleFromCenter(
+    event.clientX,
+    event.clientY,
+    element.rect
+  )
 }
 
 // Text editing handlers
@@ -1286,6 +1375,12 @@ onUnmounted(() => {
   document.removeEventListener('mouseup', handleCanvasMouseUp)
   document.removeEventListener('keydown', preventSpaceScroll)
 })
+
+// Expose canvas refs for export functionality
+defineExpose({
+  canvasRef,
+  canvasContentRef,
+})
 </script>
 
 <template>
@@ -1300,7 +1395,7 @@ onUnmounted(() => {
     @contextmenu="handleCanvasContextMenu"
   >
     <!-- Canvas content with transform -->
-    <div class="canvas-transform absolute inset-0" :style="transformStyle">
+    <div ref="canvasContentRef" class="canvas-transform absolute inset-0" :style="transformStyle">
       <!-- Elements SVG layer (below widgets by default, z-index controls final order) -->
       <CanvasElementsLayer
         :zoom="viewport.zoom"
@@ -1309,6 +1404,7 @@ onUnmounted(() => {
         @element-select="(id, event) => handleElementSelect(id, event)"
         @element-move-start="handleElementMoveStart"
         @element-resize-start="handleElementResizeStart"
+        @element-rotate-start="handleElementRotateStart"
         @element-edit-start="handleElementEditStart"
         @element-context-menu="handleElementContextMenu"
       />

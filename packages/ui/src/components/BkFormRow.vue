@@ -21,7 +21,7 @@ const isInline = computed(() => props.layout === 'inline')
 <template>
   <div class="p-3 overflow-hidden">
     <!-- Inline layout: label left, control right -->
-    <div v-if="isInline" class="flex items-center justify-between gap-3">
+    <div v-if="isInline" class="flex items-center gap-3">
       <!-- Label section -->
       <label
         :for="htmlFor"
@@ -39,8 +39,8 @@ const isInline = computed(() => props.layout === 'inline')
         </span>
       </label>
 
-      <!-- Control slot -->
-      <div class="min-w-0">
+      <!-- Control slot - flex-1 fills remaining space, justify-end for right alignment -->
+      <div class="flex-1 min-w-0 flex justify-end">
         <slot />
       </div>
     </div>

@@ -70,7 +70,7 @@ function handleClose() {
             :class="destructive ? 'text-destructive' : 'text-primary'"
           />
         </div>
-        <h3 class="text-lg font-medium text-foreground">{{ title }}</h3>
+        <h3 class="text-lg font-medium font-serif text-foreground">{{ title }}</h3>
       </div>
     </template>
 

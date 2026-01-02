@@ -128,7 +128,7 @@ function getItemIcon(item: ConfiguredItem): string {
           class="flex items-center gap-2 p-2 rounded-md bg-muted/50 group transition-all"
           :class="[
             draggable ? 'cursor-grab active:cursor-grabbing' : '',
-            dragOverIndex === index ? 'ring-2 ring-primary ring-offset-1' : '',
+            dragOverIndex === index ? 'border-2 border-primary' : '',
             draggedIndex === index ? 'opacity-50' : '',
           ]"
           :draggable="draggable"
