@@ -4,6 +4,7 @@ import { useBoardStore, moduleRegistry } from '@boardkit/core'
 import type { ModuleContext, HistoryOptions, ModuleContextMenuEvent } from '@boardkit/core'
 import { BkIcon, BkIconButton, BkTooltip } from '@boardkit/ui'
 import { useSettingsPanel } from '../composables/useSettingsPanel'
+import type { LibraryCardSize } from '../composables/useLibraryView'
 
 interface Props {
   /** Widget ID */
@@ -14,9 +15,13 @@ interface Props {
   displayName: string
   /** Icon name for the module */
   icon: string
+  /** Grid size for the card */
+  size?: LibraryCardSize
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  size: 'md',
+})
 
 const emit = defineEmits<{
   /** Emitted when user wants to open in canvas */
@@ -100,10 +105,10 @@ function handleOpenInCanvas() {
 
 <template>
   <div
-    class="group flex flex-col bg-card border border-border rounded-xl overflow-hidden hover:border-primary/30 hover:shadow-md transition-all"
+    class="group flex flex-col h-full bg-card border border-border rounded-xl overflow-hidden hover:border-primary/30 hover:shadow-md transition-all"
   >
     <!-- Header -->
-    <div class="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">
+    <div class="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30 shrink-0">
       <div class="flex items-center gap-2 min-w-0">
         <BkIcon :icon="icon" class="w-4 h-4 text-muted-foreground shrink-0" />
         <span class="text-sm font-medium text-foreground truncate">
@@ -141,7 +146,7 @@ function handleOpenInCanvas() {
     </div>
 
     <!-- Module Content -->
-    <div class="flex-1 min-h-[200px] max-h-[400px] overflow-auto p-4">
+    <div class="flex-1 overflow-auto p-4">
       <component
         v-if="ModuleComponent && moduleState !== null"
         :is="ModuleComponent"
@@ -161,7 +166,7 @@ function handleOpenInCanvas() {
     </div>
 
     <!-- Footer -->
-    <div class="px-4 py-2 border-t border-border bg-muted/20">
+    <div class="px-4 py-2 border-t border-border bg-muted/20 shrink-0">
       <button
         class="w-full flex items-center justify-center gap-2 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
         @click="handleOpenInCanvas"

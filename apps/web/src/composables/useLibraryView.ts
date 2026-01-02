@@ -14,6 +14,15 @@ export interface ModuleTypeInfo {
 }
 
 /**
+ * Grid size for module cards in the library view.
+ * - 'sm': 1 column, 1 row (compact modules like Counter)
+ * - 'md': 1 column, 2 rows (medium modules like Text, Timer)
+ * - 'lg': 2 columns, 2 rows (large modules like Kanban, Calendar)
+ * - 'wide': 2 columns, 1 row (wide modules)
+ */
+export type LibraryCardSize = 'sm' | 'md' | 'lg' | 'wide'
+
+/**
  * Widget with module info for display
  */
 export interface LibraryWidget {
@@ -21,6 +30,33 @@ export interface LibraryWidget {
   moduleDef: ModuleDefinition | undefined
   displayName: string
   icon: string
+  gridSize: LibraryCardSize
+}
+
+/**
+ * Get the recommended grid size for a module based on its type.
+ * This provides intelligent sizing based on the nature of the module content.
+ */
+function getModuleGridSize(moduleId: string): LibraryCardSize {
+  const sizeMappings: Record<string, LibraryCardSize> = {
+    // Large modules (2x2) - complex interactive content
+    'kanban': 'lg',
+    'task-radar': 'lg',
+    'google-calendar': 'lg',
+
+    // Wide modules (2x1) - horizontal content
+    'scratchpad': 'wide',
+
+    // Medium modules (1x2) - vertical content
+    'text': 'md',
+    'todo': 'md',
+    'timer': 'md',
+
+    // Small modules (1x1) - compact content
+    'counter': 'sm',
+  }
+
+  return sizeMappings[moduleId] ?? 'md' // Default to medium
 }
 
 /**
@@ -101,6 +137,7 @@ export function useLibraryView() {
         moduleDef,
         displayName: moduleDef?.displayName ?? widget.moduleId,
         icon: moduleDef?.icon ?? 'box',
+        gridSize: getModuleGridSize(widget.moduleId),
       }
     })
   })

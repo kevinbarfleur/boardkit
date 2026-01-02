@@ -3,7 +3,7 @@ import { ref, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import { BkIcon, BkInput } from '@boardkit/ui'
 import LibraryModuleCard from './LibraryModuleCard.vue'
-import type { LibraryWidget } from '../composables/useLibraryView'
+import type { LibraryWidget, LibraryCardSize } from '../composables/useLibraryView'
 
 interface Props {
   /** Filtered widgets to display */
@@ -48,6 +48,23 @@ function handleSearchInput(value: string) {
 function clearSearch() {
   localSearch.value = ''
   emit('search', '')
+}
+
+/**
+ * Get CSS classes for grid item based on size
+ */
+function getGridClasses(size: LibraryCardSize): string {
+  switch (size) {
+    case 'lg':
+      return 'md:col-span-2 md:row-span-2'
+    case 'wide':
+      return 'md:col-span-2'
+    case 'md':
+      return 'md:row-span-2'
+    case 'sm':
+    default:
+      return ''
+  }
 }
 </script>
 
@@ -112,10 +129,10 @@ function clearSearch() {
         </p>
       </div>
 
-      <!-- Module Grid -->
+      <!-- Module Grid with intelligent sizing -->
       <div
         v-else
-        class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4"
+        class="library-grid"
       >
         <LibraryModuleCard
           v-for="libraryWidget in widgets"
@@ -124,6 +141,8 @@ function clearSearch() {
           :module-id="libraryWidget.widget.moduleId"
           :display-name="libraryWidget.displayName"
           :icon="libraryWidget.icon"
+          :size="libraryWidget.gridSize"
+          :class="getGridClasses(libraryWidget.gridSize)"
           @open-in-canvas="emit('open-in-canvas', $event)"
           @open-settings="emit('open-settings', $event)"
         />
@@ -131,3 +150,31 @@ function clearSearch() {
     </div>
   </div>
 </template>
+
+<style scoped>
+.library-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-auto-rows: minmax(200px, auto);
+  gap: 1rem;
+}
+
+@media (min-width: 768px) {
+  .library-grid {
+    grid-template-columns: repeat(2, 1fr);
+    grid-auto-rows: minmax(180px, auto);
+  }
+}
+
+@media (min-width: 1280px) {
+  .library-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1536px) {
+  .library-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+</style>

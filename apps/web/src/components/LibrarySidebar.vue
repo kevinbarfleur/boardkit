@@ -81,7 +81,7 @@ const isAllSelected = computed(() => props.selectedType === null)
           @click="emit('select-type', null)"
         >
           <BkIcon
-            icon="grid-2x2"
+            icon="layout-grid"
             class="w-4 h-4 shrink-0"
             :class="isAllSelected ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'"
           />
@@ -149,7 +149,7 @@ const isAllSelected = computed(() => props.selectedType === null)
             ]"
             @click="emit('select-type', null)"
           >
-            <BkIcon icon="grid-2x2" class="w-5 h-5" />
+            <BkIcon icon="layout-grid" class="w-5 h-5" />
           </button>
         </BkTooltip>
 
