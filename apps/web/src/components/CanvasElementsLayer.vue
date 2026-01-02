@@ -72,6 +72,10 @@ const elements = computed(() => boardStore.elements)
 const selectedElementIds = computed(() => boardStore.selectedElementIds)
 const previewElement = computed(() => toolStore.previewElement)
 
+// Get widgets from store (for multi-selection bounds calculation)
+const widgets = computed(() => boardStore.widgets)
+const selectedWidgetIds = computed(() => boardStore.selectedWidgetIds)
+
 // Create a Set for O(1) selection lookups
 const selectedElementIdSet = computed(() => new Set(selectedElementIds.value))
 
@@ -149,25 +153,33 @@ const sortedElements = computed(() => {
   return [...visibleElements.value].sort((a, b) => a.zIndex - b.zIndex)
 })
 
-// Check if we have multi-selection (2+ elements selected)
-const isMultiSelection = computed(() => selectedElementIds.value.length >= 2)
+// Check if we have multi-selection (2+ items selected - elements and/or widgets)
+const totalSelectedCount = computed(() => selectedElementIds.value.length + selectedWidgetIds.value.length)
+const isMultiSelection = computed(() => totalSelectedCount.value >= 2)
 
 // Check if any element is being dragged
 const isAnyDragging = computed(() => props.draggingElementIds.length > 0)
 
-// Calculate bounding box for all selected elements
+// Calculate bounding box for all selected items (elements + widgets)
 const selectionBounds = computed(() => {
-  if (selectedElementIds.value.length < 2) return null
+  // Need at least 2 selected items total (elements + widgets)
+  if (totalSelectedCount.value < 2) return null
 
   const selectedElements = selectedElementIds.value
     .map(id => elements.value.find(el => el.id === id))
     .filter((el): el is CanvasElement => el !== undefined)
 
-  if (selectedElements.length < 2) return null
+  const selectedWidgets = selectedWidgetIds.value
+    .map(id => widgets.value.find(w => w.id === id))
+    .filter((w): w is NonNullable<typeof w> => w !== undefined)
+
+  // Need at least 2 items found
+  if (selectedElements.length + selectedWidgets.length < 2) return null
 
   let minX = Infinity, minY = Infinity
   let maxX = -Infinity, maxY = -Infinity
 
+  // Include element bounds
   for (const el of selectedElements) {
     minX = Math.min(minX, el.rect.x)
     minY = Math.min(minY, el.rect.y)
@@ -175,7 +187,15 @@ const selectionBounds = computed(() => {
     maxY = Math.max(maxY, el.rect.y + el.rect.height)
   }
 
-  // Apply drag offset if elements are being dragged
+  // Include widget bounds
+  for (const w of selectedWidgets) {
+    minX = Math.min(minX, w.rect.x)
+    minY = Math.min(minY, w.rect.y)
+    maxX = Math.max(maxX, w.rect.x + w.rect.width)
+    maxY = Math.max(maxY, w.rect.y + w.rect.height)
+  }
+
+  // Apply drag offset if items are being dragged
   if (isAnyDragging.value) {
     minX += props.dragOffset.x
     minY += props.dragOffset.y

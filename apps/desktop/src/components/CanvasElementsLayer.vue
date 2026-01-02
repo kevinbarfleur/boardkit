@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, provide } from 'vue'
-import { useBoardStore, useToolStore, type CanvasElement } from '@boardkit/core'
-import { ElementRenderer } from '@boardkit/ui'
+import { useBoardStore, useToolStore, type CanvasElement, type AnchorPosition } from '@boardkit/core'
+import { ElementRenderer, GroupSelectionBox, AnchorPointsOverlay } from '@boardkit/ui'
 
 // SVG ref for RoughJS rendering
 const svgRef = ref<SVGSVGElement | null>(null)
@@ -23,6 +23,21 @@ interface Props {
   dragOffset?: { x: number; y: number }
   /** IDs of elements currently being dragged */
   draggingElementIds?: string[]
+  /** Whether group rotation is in progress */
+  isRotatingGroup?: boolean
+  /** Group rotation transform (angle in radians, center coordinates) */
+  groupRotation?: {
+    angle: number
+    centerX: number
+    centerY: number
+  }
+  /** IDs of shapes that are candidates for arrow binding (show anchors) */
+  bindingCandidates?: string[]
+  /** Currently active binding anchor */
+  activeBinding?: {
+    elementId: string
+    anchor: AnchorPosition
+  } | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -30,6 +45,10 @@ const props = withDefaults(defineProps<Props>(), {
   viewport: () => ({ x: 0, y: 0, zoom: 1 }),
   dragOffset: () => ({ x: 0, y: 0 }),
   draggingElementIds: () => [],
+  isRotatingGroup: false,
+  groupRotation: undefined,
+  bindingCandidates: () => [],
+  activeBinding: null,
 })
 
 const emit = defineEmits<{
@@ -39,6 +58,10 @@ const emit = defineEmits<{
   elementRotateStart: [id: string, event: MouseEvent]
   elementEditStart: [id: string, type: 'text' | 'label']
   elementContextMenu: [id: string, event: MouseEvent]
+  elementDoubleClick: [id: string, event: MouseEvent]
+  groupResizeStart: [handle: string, bounds: { x: number; y: number; width: number; height: number }, event: MouseEvent]
+  groupMoveStart: [event: MouseEvent]
+  groupRotateStart: [bounds: { x: number; y: number; width: number; height: number }, event: MouseEvent]
 }>()
 
 const boardStore = useBoardStore()
@@ -48,6 +71,10 @@ const toolStore = useToolStore()
 const elements = computed(() => boardStore.elements)
 const selectedElementIds = computed(() => boardStore.selectedElementIds)
 const previewElement = computed(() => toolStore.previewElement)
+
+// Get widgets from store (for multi-selection bounds calculation)
+const widgets = computed(() => boardStore.widgets)
+const selectedWidgetIds = computed(() => boardStore.selectedWidgetIds)
 
 // Create a Set for O(1) selection lookups
 const selectedElementIdSet = computed(() => new Set(selectedElementIds.value))
@@ -126,6 +153,64 @@ const sortedElements = computed(() => {
   return [...visibleElements.value].sort((a, b) => a.zIndex - b.zIndex)
 })
 
+// Check if we have multi-selection (2+ items selected - elements and/or widgets)
+const totalSelectedCount = computed(() => selectedElementIds.value.length + selectedWidgetIds.value.length)
+const isMultiSelection = computed(() => totalSelectedCount.value >= 2)
+
+// Check if any element is being dragged
+const isAnyDragging = computed(() => props.draggingElementIds.length > 0)
+
+// Calculate bounding box for all selected items (elements + widgets)
+const selectionBounds = computed(() => {
+  // Need at least 2 selected items total (elements + widgets)
+  if (totalSelectedCount.value < 2) return null
+
+  const selectedElements = selectedElementIds.value
+    .map(id => elements.value.find(el => el.id === id))
+    .filter((el): el is CanvasElement => el !== undefined)
+
+  const selectedWidgets = selectedWidgetIds.value
+    .map(id => widgets.value.find(w => w.id === id))
+    .filter((w): w is NonNullable<typeof w> => w !== undefined)
+
+  // Need at least 2 items found
+  if (selectedElements.length + selectedWidgets.length < 2) return null
+
+  let minX = Infinity, minY = Infinity
+  let maxX = -Infinity, maxY = -Infinity
+
+  // Include element bounds
+  for (const el of selectedElements) {
+    minX = Math.min(minX, el.rect.x)
+    minY = Math.min(minY, el.rect.y)
+    maxX = Math.max(maxX, el.rect.x + el.rect.width)
+    maxY = Math.max(maxY, el.rect.y + el.rect.height)
+  }
+
+  // Include widget bounds
+  for (const w of selectedWidgets) {
+    minX = Math.min(minX, w.rect.x)
+    minY = Math.min(minY, w.rect.y)
+    maxX = Math.max(maxX, w.rect.x + w.rect.width)
+    maxY = Math.max(maxY, w.rect.y + w.rect.height)
+  }
+
+  // Apply drag offset if items are being dragged
+  if (isAnyDragging.value) {
+    minX += props.dragOffset.x
+    minY += props.dragOffset.y
+    maxX += props.dragOffset.x
+    maxY += props.dragOffset.y
+  }
+
+  return {
+    x: minX,
+    y: minY,
+    width: maxX - minX,
+    height: maxY - minY,
+  }
+})
+
 function handleElementSelect(id: string, event: MouseEvent) {
   emit('elementSelect', id, event)
 }
@@ -149,6 +234,33 @@ function handleElementContextMenu(id: string, event: MouseEvent) {
 function handleElementRotateStart(id: string, event: MouseEvent) {
   emit('elementRotateStart', id, event)
 }
+
+function handleElementDoubleClick(id: string, event: MouseEvent) {
+  emit('elementDoubleClick', id, event)
+}
+
+function handleGroupResizeStart(handle: string, event: MouseEvent) {
+  if (selectionBounds.value) {
+    emit('groupResizeStart', handle, selectionBounds.value, event)
+  }
+}
+
+function handleGroupMoveStart(event: MouseEvent) {
+  emit('groupMoveStart', event)
+}
+
+function handleGroupRotateStart(event: MouseEvent) {
+  if (selectionBounds.value) {
+    emit('groupRotateStart', selectionBounds.value, event)
+  }
+}
+
+// Get elements that are binding candidates (for showing anchor points)
+const bindingCandidateElements = computed(() => {
+  return props.bindingCandidates
+    .map(id => elements.value.find(el => el.id === id))
+    .filter((el): el is CanvasElement => el !== undefined)
+})
 </script>
 
 <template>
@@ -165,6 +277,7 @@ function handleElementRotateStart(id: string, event: MouseEvent) {
       :selected="selectionStateMap[element.id] || false"
       :is-dragging="isElementDragging(element.id)"
       :drag-offset="isElementDragging(element.id) ? dragOffset : { x: 0, y: 0 }"
+      :group-rotation="isRotatingGroup && selectionStateMap[element.id] ? groupRotation : undefined"
       :zoom="zoom"
       @select="handleElementSelect"
       @move-start="handleElementMoveStart"
@@ -172,6 +285,7 @@ function handleElementRotateStart(id: string, event: MouseEvent) {
       @rotate-start="handleElementRotateStart"
       @edit-start="handleElementEditStart"
       @context-menu="handleElementContextMenu"
+      @double-click="handleElementDoubleClick"
     />
 
     <!-- Render preview element during drawing -->
@@ -180,6 +294,28 @@ function handleElementRotateStart(id: string, event: MouseEvent) {
       :element="previewElement"
       :is-preview="true"
       :zoom="zoom"
+    />
+
+    <!-- Anchor points overlay for arrow binding candidates -->
+    <AnchorPointsOverlay
+      v-for="element in bindingCandidateElements"
+      :key="`anchor-${element.id}`"
+      :element="element"
+      :active-anchor="activeBinding?.elementId === element.id ? activeBinding.anchor : null"
+      :zoom="zoom"
+    />
+
+    <!-- Group selection bounding box (for multi-selection) -->
+    <!-- Hidden during rotation to avoid confusing visual feedback -->
+    <GroupSelectionBox
+      v-if="isMultiSelection && selectionBounds && !isRotatingGroup"
+      :bounds="selectionBounds"
+      :zoom="zoom"
+      :is-dragging="isAnyDragging"
+      :show-handles="!isAnyDragging"
+      @resize-start="handleGroupResizeStart"
+      @move-start="handleGroupMoveStart"
+      @rotate-start="handleGroupRotateStart"
     />
   </svg>
 </template>
