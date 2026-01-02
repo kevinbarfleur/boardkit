@@ -34,7 +34,7 @@ pnpm preview
 
 This landing page uses the same design tokens as the main Boardkit app:
 
-- **Colors**: Primary blue (#3b82f6), dark backgrounds (#0a0a0a, #121212)
+- **Colors**: Primary inverted (#e5e5e5), dark backgrounds (#171717, #1a1a1a)
 - **Typography**: Inter font family
 - **Spacing**: 4px base unit
 - **Radius**: 8px default (--radius: 0.5rem)

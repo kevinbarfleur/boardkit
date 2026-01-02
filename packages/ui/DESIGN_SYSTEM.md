@@ -105,7 +105,7 @@ All tokens are defined in `globals.css`:
 - Canvas: `bg-background` (#0a0a0a)
 - Widgets/Cards: `bg-muted` (#1a1a1a)
 - Hover states: `hover:bg-accent` (#262626)
-- Selected state: `border-primary` (#3b82f6)
+- Selected state: `border-primary` (#e5e5e5)
 
 **Borders:**
 - Default: `border-border` (#2e2e2e, 1px)
@@ -684,7 +684,7 @@ absolute top-4 right-4
 rounded-sm opacity-70 transition-opacity hover:opacity-100
 
 <!-- Focus -->
-focus:ring-ring focus:ring-2 focus:ring-offset-2 focus:outline-none
+focus:outline-none focus:border-border-strong
 ```
 
 **Complete Dialog Structure in Boardkit:**
@@ -793,9 +793,7 @@ shrink-0 bg-border w-px h-full
 ```vue
 <!-- Base -->
 h-4 w-4 shrink-0 rounded-sm border border-primary
-ring-offset-background
-focus-visible:outline-none focus-visible:ring-2
-focus-visible:ring-ring focus-visible:ring-offset-2
+focus-visible:outline-none focus-visible:border-border-strong
 disabled:cursor-not-allowed disabled:opacity-50
 
 <!-- Checked state -->
@@ -914,8 +912,7 @@ Dark mode is the default for Boardkit (canvas-first design).
 All interactive elements must have visible focus states:
 
 ```vue
-focus-visible:outline-none focus-visible:ring-2
-focus-visible:ring-ring focus-visible:ring-offset-2
+focus-visible:outline-none focus-visible:border-border-strong
 ```
 
 ### ARIA

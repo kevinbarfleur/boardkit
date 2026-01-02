@@ -60,7 +60,7 @@ export default defineConfig({
       'hero': '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
       'card': '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1)',
       'card-hover': '0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -4px rgba(0, 0, 0, 0.1)',
-      'glow': '0 0 40px rgba(59, 130, 246, 0.15)',
+      'glow': '0 0 40px rgba(229, 229, 229, 0.15)',
     },
   },
 

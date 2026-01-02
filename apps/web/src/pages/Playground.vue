@@ -862,7 +862,7 @@ const focusSettings = ref({
               </li>
               <li>
                 <code class="bg-muted px-1.5 py-0.5 rounded">
-                  focus-visible:ring-2 focus-visible:ring-offset-2
+                  focus-visible:border-border-strong
                 </code>
                 - Anneau de focus 2px avec offset
               </li>
@@ -924,35 +924,35 @@ const focusSettings = ref({
         <div class="flex flex-wrap gap-4">
           <!-- Default Button -->
           <button
-            class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+            class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:border-border-strong disabled:pointer-events-none disabled:opacity-50"
           >
             Default
           </button>
 
           <!-- Secondary Button -->
           <button
-            class="inline-flex items-center justify-center gap-2 rounded-lg bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground transition-colors hover:bg-secondary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+            class="inline-flex items-center justify-center gap-2 rounded-lg bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground transition-colors hover:bg-secondary/80 focus-visible:outline-none focus-visible:border-border-strong disabled:pointer-events-none disabled:opacity-50"
           >
             Secondary
           </button>
 
           <!-- Outline Button -->
           <button
-            class="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+            class="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:border-border-strong disabled:pointer-events-none disabled:opacity-50"
           >
             Outline
           </button>
 
           <!-- Ghost Button -->
           <button
-            class="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+            class="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:border-border-strong disabled:pointer-events-none disabled:opacity-50"
           >
             Ghost
           </button>
 
           <!-- Destructive Button -->
           <button
-            class="inline-flex items-center justify-center gap-2 rounded-lg bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground transition-colors hover:bg-destructive/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+            class="inline-flex items-center justify-center gap-2 rounded-lg bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground transition-colors hover:bg-destructive/90 focus-visible:outline-none focus-visible:border-border-strong disabled:pointer-events-none disabled:opacity-50"
           >
             Destructive
           </button>
@@ -960,7 +960,7 @@ const focusSettings = ref({
           <!-- Disabled Button -->
           <button
             disabled
-            class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+            class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:border-border-strong disabled:pointer-events-none disabled:opacity-50"
           >
             Disabled
           </button>
@@ -969,19 +969,19 @@ const focusSettings = ref({
         <!-- Icon Buttons -->
         <div class="flex flex-wrap gap-4 items-center">
           <button
-            class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-background transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+            class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-background transition-colors hover:bg-accent focus-visible:outline-none focus-visible:border-border-strong disabled:pointer-events-none disabled:opacity-50"
           >
             <BkIcon icon="plus" :size="16" />
           </button>
 
           <button
-            class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-background transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+            class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-background transition-colors hover:bg-accent focus-visible:outline-none focus-visible:border-border-strong disabled:pointer-events-none disabled:opacity-50"
           >
             <BkIcon icon="search" :size="16" />
           </button>
 
           <button
-            class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-background transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+            class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-background transition-colors hover:bg-accent focus-visible:outline-none focus-visible:border-border-strong disabled:pointer-events-none disabled:opacity-50"
           >
             <BkIcon icon="settings" :size="16" />
           </button>
@@ -990,14 +990,14 @@ const focusSettings = ref({
         <!-- Buttons with Icons -->
         <div class="flex flex-wrap gap-4">
           <button
-            class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:border-border-strong"
           >
             <BkIcon icon="plus" :size="16" />
             Add Widget
           </button>
 
           <button
-            class="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            class="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:border-border-strong"
           >
             <BkIcon icon="mail" :size="16" />
             Send Email
@@ -1039,7 +1039,7 @@ const focusSettings = ref({
               </li>
               <li>
                 <code class="bg-muted px-1.5 py-0.5 rounded"
-                  >focus-visible:ring-2 focus-visible:ring-ring</code
+                  >focus-visible:border-border-strong</code
                 >
                 - Anneau bleu 2px au focus
               </li>
@@ -1105,7 +1105,7 @@ const focusSettings = ref({
               v-model="inputValue"
               type="text"
               placeholder="Enter text..."
-              class="flex h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+              class="flex h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-border-strong disabled:cursor-not-allowed disabled:opacity-50"
             />
           </div>
 
@@ -1124,7 +1124,7 @@ const focusSettings = ref({
                 id="icon-input"
                 type="text"
                 placeholder="Search..."
-                class="flex h-10 w-full rounded-lg border border-border bg-background pl-9 pr-3 py-2 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                class="flex h-10 w-full rounded-lg border border-border bg-background pl-9 pr-3 py-2 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-border-strong disabled:cursor-not-allowed disabled:opacity-50"
               />
             </div>
           </div>
@@ -1147,7 +1147,7 @@ const focusSettings = ref({
                 id="email-input"
                 type="email"
                 placeholder="email@example.com"
-                class="flex h-10 w-full rounded-lg border border-border bg-background pl-9 pr-3 py-2 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                class="flex h-10 w-full rounded-lg border border-border bg-background pl-9 pr-3 py-2 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-border-strong disabled:cursor-not-allowed disabled:opacity-50"
               />
             </div>
           </div>
@@ -1170,7 +1170,7 @@ const focusSettings = ref({
                 id="password-input"
                 :type="showPassword ? 'text' : 'password'"
                 placeholder="••••••••"
-                class="flex h-10 w-full rounded-lg border border-border bg-background pl-9 pr-3 py-2 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                class="flex h-10 w-full rounded-lg border border-border bg-background pl-9 pr-3 py-2 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-border-strong disabled:cursor-not-allowed disabled:opacity-50"
               />
             </div>
           </div>
@@ -1188,7 +1188,7 @@ const focusSettings = ref({
               type="text"
               placeholder="Disabled"
               disabled
-              class="flex h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+              class="flex h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-border-strong disabled:cursor-not-allowed disabled:opacity-50"
             />
           </div>
 
@@ -1202,7 +1202,7 @@ const focusSettings = ref({
               v-model="textareaValue"
               placeholder="Enter longer text..."
               :rows="4"
-              class="flex w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 resize-none"
+              class="flex w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-border-strong disabled:cursor-not-allowed disabled:opacity-50 resize-none"
             />
           </div>
         </div>
@@ -1298,7 +1298,7 @@ const focusSettings = ref({
                 <input
                   v-model="checkboxStates.checkbox1"
                   type="checkbox"
-                  class="peer h-4 w-4 shrink-0 rounded border border-border bg-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 checked:bg-primary checked:border-primary appearance-none cursor-pointer"
+                  class="peer h-4 w-4 shrink-0 rounded border border-border bg-background transition-colors focus-visible:outline-none focus-visible:border-border-strong disabled:cursor-not-allowed disabled:opacity-50 checked:bg-primary checked:border-primary appearance-none cursor-pointer"
                 />
                 <BkIcon
                   v-if="checkboxStates.checkbox1"
@@ -1317,7 +1317,7 @@ const focusSettings = ref({
                 <input
                   v-model="checkboxStates.checkbox2"
                   type="checkbox"
-                  class="peer h-4 w-4 shrink-0 rounded border border-border bg-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 checked:bg-primary checked:border-primary appearance-none cursor-pointer"
+                  class="peer h-4 w-4 shrink-0 rounded border border-border bg-background transition-colors focus-visible:outline-none focus-visible:border-border-strong disabled:cursor-not-allowed disabled:opacity-50 checked:bg-primary checked:border-primary appearance-none cursor-pointer"
                 />
                 <BkIcon
                   v-if="checkboxStates.checkbox2"
@@ -1336,7 +1336,7 @@ const focusSettings = ref({
                 <input
                   v-model="checkboxStates.checkbox3"
                   type="checkbox"
-                  class="peer h-4 w-4 shrink-0 rounded border border-border bg-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 checked:bg-primary checked:border-primary appearance-none cursor-pointer"
+                  class="peer h-4 w-4 shrink-0 rounded border border-border bg-background transition-colors focus-visible:outline-none focus-visible:border-border-strong disabled:cursor-not-allowed disabled:opacity-50 checked:bg-primary checked:border-primary appearance-none cursor-pointer"
                 />
                 <BkIcon
                   v-if="checkboxStates.checkbox3"
@@ -1355,7 +1355,7 @@ const focusSettings = ref({
                 <input
                   type="checkbox"
                   disabled
-                  class="peer h-4 w-4 shrink-0 rounded border border-border bg-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 appearance-none"
+                  class="peer h-4 w-4 shrink-0 rounded border border-border bg-background transition-colors focus-visible:outline-none focus-visible:border-border-strong disabled:cursor-not-allowed disabled:opacity-50 appearance-none"
                 />
               </div>
               <span class="text-sm text-foreground">Disabled checkbox</span>
@@ -1373,7 +1373,7 @@ const focusSettings = ref({
                   type="radio"
                   name="radio-group"
                   value="option1"
-                  class="peer h-4 w-4 shrink-0 rounded-full border border-border bg-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 appearance-none cursor-pointer"
+                  class="peer h-4 w-4 shrink-0 rounded-full border border-border bg-background transition-colors focus-visible:outline-none focus-visible:border-border-strong disabled:cursor-not-allowed disabled:opacity-50 appearance-none cursor-pointer"
                 />
                 <div
                   v-if="radioValue === 'option1'"
@@ -1390,7 +1390,7 @@ const focusSettings = ref({
                   type="radio"
                   name="radio-group"
                   value="option2"
-                  class="peer h-4 w-4 shrink-0 rounded-full border border-border bg-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 appearance-none cursor-pointer"
+                  class="peer h-4 w-4 shrink-0 rounded-full border border-border bg-background transition-colors focus-visible:outline-none focus-visible:border-border-strong disabled:cursor-not-allowed disabled:opacity-50 appearance-none cursor-pointer"
                 />
                 <div
                   v-if="radioValue === 'option2'"
@@ -1407,7 +1407,7 @@ const focusSettings = ref({
                   type="radio"
                   name="radio-group"
                   value="option3"
-                  class="peer h-4 w-4 shrink-0 rounded-full border border-border bg-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 appearance-none cursor-pointer"
+                  class="peer h-4 w-4 shrink-0 rounded-full border border-border bg-background transition-colors focus-visible:outline-none focus-visible:border-border-strong disabled:cursor-not-allowed disabled:opacity-50 appearance-none cursor-pointer"
                 />
                 <div
                   v-if="radioValue === 'option3'"
@@ -1424,7 +1424,7 @@ const focusSettings = ref({
                 <input
                   type="radio"
                   disabled
-                  class="peer h-4 w-4 shrink-0 rounded-full border border-border bg-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 appearance-none"
+                  class="peer h-4 w-4 shrink-0 rounded-full border border-border bg-background transition-colors focus-visible:outline-none focus-visible:border-border-strong disabled:cursor-not-allowed disabled:opacity-50 appearance-none"
                 />
               </div>
               <span class="text-sm text-foreground">Disabled radio</span>
@@ -1501,7 +1501,7 @@ const focusSettings = ref({
             <div class="relative">
               <button
                 @click="isDropdownOpen = !isDropdownOpen"
-                class="flex h-10 w-full items-center justify-between rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                class="flex h-10 w-full items-center justify-between rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:border-border-strong disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <span>{{ selectValue }}</span>
                 <BkIcon
@@ -1563,7 +1563,7 @@ const focusSettings = ref({
               >Native Select</label
             >
             <select
-              class="flex h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 appearance-none"
+              class="flex h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors focus-visible:outline-none focus-visible:border-border-strong disabled:cursor-not-allowed disabled:opacity-50 appearance-none"
             >
               <option>Select an option</option>
               <option>Option 1</option>
@@ -2038,7 +2038,7 @@ const focusSettings = ref({
               <h3 class="text-lg font-medium text-foreground">Modal Title</h3>
               <button
                 @click="isModalOpen = false"
-                class="inline-flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                class="inline-flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-accent focus-visible:outline-none focus-visible:border-border-strong"
               >
                 <BkIcon icon="x" :size="16" />
               </button>
@@ -2061,7 +2061,7 @@ const focusSettings = ref({
                   id="modal-input"
                   type="text"
                   placeholder="Enter something..."
-                  class="flex h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  class="flex h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-border-strong"
                 />
               </div>
             </div>
@@ -2505,7 +2505,7 @@ const focusSettings = ref({
               >Input with Prefix</label
             >
             <div
-              class="flex h-10 w-full rounded-lg border border-border bg-background overflow-hidden focus-within:ring-2 focus-within:ring-ring"
+              class="flex h-10 w-full rounded-lg border border-border bg-background overflow-hidden focus-within:border-border-strong"
             >
               <span
                 class="inline-flex items-center px-3 text-sm text-muted-foreground bg-muted border-r border-border"
@@ -2519,7 +2519,7 @@ const focusSettings = ref({
               />
             </div>
             <code class="text-xs bg-muted px-2 py-1 rounded block">
-              Prefix: px-3 bg-muted border-r | focus-within:ring-2 sur container
+              Prefix: px-3 bg-muted border-r | focus-within:border-border-strong sur container
             </code>
           </div>
 
@@ -2529,7 +2529,7 @@ const focusSettings = ref({
               >Input with Suffix</label
             >
             <div
-              class="flex h-10 w-full rounded-lg border border-border bg-background overflow-hidden focus-within:ring-2 focus-within:ring-ring"
+              class="flex h-10 w-full rounded-lg border border-border bg-background overflow-hidden focus-within:border-border-strong"
             >
               <input
                 type="number"
@@ -2553,7 +2553,7 @@ const focusSettings = ref({
               >Input with Action</label
             >
             <div
-              class="flex h-10 w-full rounded-lg border border-border bg-background overflow-hidden focus-within:ring-2 focus-within:ring-ring"
+              class="flex h-10 w-full rounded-lg border border-border bg-background overflow-hidden focus-within:border-border-strong"
             >
               <input
                 type="text"
@@ -2585,7 +2585,7 @@ const focusSettings = ref({
               <input
                 :type="showPassword ? 'text' : 'password'"
                 placeholder="••••••••"
-                class="flex h-10 w-full rounded-lg border border-border bg-background pl-9 pr-10 py-2 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                class="flex h-10 w-full rounded-lg border border-border bg-background pl-9 pr-10 py-2 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-border-strong"
               />
               <button
                 @click="showPassword = !showPassword"
@@ -2608,7 +2608,7 @@ const focusSettings = ref({
             <input
               type="text"
               placeholder="invalid@email"
-              class="flex h-10 w-full rounded-lg border-2 border-destructive bg-background px-3 py-2 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive"
+              class="flex h-10 w-full rounded-lg border-2 border-destructive bg-background px-3 py-2 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-destructive"
             />
             <p class="text-xs text-destructive flex items-center gap-1">
               <BkIcon icon="alert-circle" :size="12" />
@@ -2656,7 +2656,7 @@ const focusSettings = ref({
                 placeholder="Enter your bio..."
                 maxlength="200"
                 :rows="4"
-                class="flex w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
+                class="flex w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-border-strong resize-none"
               />
               <span
                 class="absolute bottom-2 right-2 text-xs text-muted-foreground"
@@ -3952,7 +3952,7 @@ const focusSettings = ref({
                   <input
                     v-model="radarSettings.title"
                     type="text"
-                    class="w-full h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    class="w-full h-9 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:border-border-strong"
                   />
                 </BkFormRow>
               </BkFormSection>

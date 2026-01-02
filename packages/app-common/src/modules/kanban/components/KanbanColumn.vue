@@ -134,7 +134,7 @@ function handleAddCardClick() {
 <template>
   <div
     class="kanban-column flex-shrink-0 w-56 flex flex-col rounded-xl bg-muted/40 border border-border/50"
-    :class="{ 'ring-2 ring-primary': isDragOver && !dragOverItemId }"
+    :class="{ 'border-primary border-2': isDragOver && !dragOverItemId }"
     data-kanban-column
     @dragover="handleDragOver"
     @dragleave="handleDragLeave"
@@ -147,10 +147,10 @@ function handleAddCardClick() {
     >
       <div class="flex items-center gap-2 min-w-0">
         <div
-          class="w-2.5 h-2.5 rounded-full flex-shrink-0 ring-2"
+          class="w-2.5 h-2.5 rounded-full flex-shrink-0 border-2"
           :style="{
             backgroundColor: column.color,
-            '--tw-ring-color': column.color + '40'
+            borderColor: column.color + '40'
           }"
         />
         <span class="text-xs font-semibold text-foreground truncate">
