@@ -104,9 +104,11 @@ const endPoint = computed(() => {
   return pathPoints.value[pathPoints.value.length - 1]
 })
 
-// Scaled values for consistent visual size
+// Scaled stroke width for consistent visual appearance
 const scaledStrokeWidth = computed(() => props.strokeWidth / props.zoom)
-const arrowSize = computed(() => 10 / props.zoom)
+// Arrow size: hybrid approach - has a base size but grows when zoomed out to stay visible
+// At zoom 1.0: size = 18, at zoom 0.5: size = 20, at zoom 0.25: size = 40
+const arrowSize = computed(() => Math.max(18, 10 / props.zoom))
 
 // Style based on state
 const strokeStyle = computed(() => {
@@ -146,15 +148,16 @@ function renderArrow() {
   const pathShape = rc.linearPath(pathTuples.value, roughOptions.value)
   roughGroupRef.value.appendChild(pathShape)
 
-  // Draw arrowhead as a filled polygon
+  // Draw arrowhead with hand-drawn style
   const angle = arrowRotation.value * (Math.PI / 180)
   const end = endPoint.value
   const size = arrowSize.value
 
-  // Calculate arrowhead points
+  // Calculate arrowhead points - slightly wider angle for more expressive look
   const tip = end
-  const baseAngle1 = angle + Math.PI + Math.PI / 6 // 150 degrees back
-  const baseAngle2 = angle + Math.PI - Math.PI / 6 // -150 degrees back
+  const spreadAngle = Math.PI / 5 // ~36 degrees spread
+  const baseAngle1 = angle + Math.PI + spreadAngle
+  const baseAngle2 = angle + Math.PI - spreadAngle
 
   const point1: [number, number] = [
     tip.x + Math.cos(baseAngle1) * size,
@@ -165,19 +168,21 @@ function renderArrow() {
     tip.y + Math.sin(baseAngle2) * size,
   ]
 
-  const arrowheadShape = rc.polygon([
-    [tip.x, tip.y],
-    point1,
-    point2,
-  ], {
+  // Draw arrowhead as individual hand-drawn lines for more sketchy look
+  const arrowheadRoughness = props.isPreview ? 0.5 : props.roughness * 1.5
+  const arrowheadOpts = {
     stroke: strokeStyle.value,
-    fill: strokeStyle.value,
-    fillStyle: 'solid',
-    strokeWidth: scaledStrokeWidth.value * 0.5,
-    roughness: props.isPreview ? 0.3 : props.roughness * 0.5,
+    strokeWidth: scaledStrokeWidth.value,
+    roughness: arrowheadRoughness,
+    bowing: 2,
     seed: seed.value,
-  })
-  roughGroupRef.value.appendChild(arrowheadShape)
+  }
+
+  // Draw two lines from tip to base points
+  const line1 = rc.line(tip.x, tip.y, point1[0], point1[1], arrowheadOpts)
+  const line2 = rc.line(tip.x, tip.y, point2[0], point2[1], arrowheadOpts)
+  roughGroupRef.value.appendChild(line1)
+  roughGroupRef.value.appendChild(line2)
 }
 
 // Re-render when relevant props change
