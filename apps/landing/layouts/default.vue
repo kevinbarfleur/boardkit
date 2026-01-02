@@ -92,9 +92,10 @@
 }
 
 .logo {
-  font-family: 'Caveat', cursive;
-  font-size: 24px;
+  font-family: 'Source Serif 4', serif;
+  font-size: 22px;
   font-weight: 600;
+  font-style: italic;
   color: hsl(var(--foreground));
   text-decoration: none;
 }

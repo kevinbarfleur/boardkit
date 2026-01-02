@@ -1,5 +1,5 @@
-/* Fonts - Caveat for headings */
-@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&display=swap');
+/* Fonts - Source Serif 4 for headings (serif, matches app) */
+@import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;0,8..60,700;1,8..60,400;1,8..60,500&display=swap');
 
 :root {
   /* CHALK EDITION - Colors - Dark mode (default) */
@@ -40,9 +40,9 @@ body {
   line-height: 1.7;
 }
 
-/* Container */
+/* Container - Tight central column */
 .container {
-  max-width: 680px;
+  max-width: 540px;
   margin: 0 auto;
   padding: 0 24px;
 }

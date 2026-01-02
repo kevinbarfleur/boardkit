@@ -72,7 +72,7 @@ const modules = [
         </svg>
       </div>
       <div class="hero-content">
-        <h1 class="cursive">Boardkit</h1>
+        <h1 class="serif-heading">Boardkit</h1>
         <p class="hero-tagline">The offline-first modular whiteboard</p>
         <p class="hero-description">
           Your data stays on your device. No cloud required. No vendor lock-in.
@@ -88,7 +88,7 @@ const modules = [
 
     <!-- What it does -->
     <section id="features">
-      <h2 class="cursive">What it does</h2>
+      <h2 class="serif-heading">What it does</h2>
       <ul>
         <li><strong>Infinite canvas</strong> — Draw, sketch, and organize freely with shapes, arrows, and text</li>
         <li><strong>11 built-in modules</strong> — Todo, Timer, Kanban, Habits, Stats, and more</li>
@@ -100,7 +100,7 @@ const modules = [
 
     <!-- Modules -->
     <section>
-      <h2 class="cursive">Built-in modules</h2>
+      <h2 class="serif-heading">Built-in modules</h2>
       <ul class="modules-list">
         <li v-for="mod in modules" :key="mod.name">
           <a href="#"><strong>{{ mod.name }}</strong></a>
@@ -116,23 +116,37 @@ const modules = [
         <div class="mosaic-card" style="--rotation: -2deg; --offset-y: 0px;">
           <div class="mosaic-preview">
             <div class="mosaic-window">
-              <div class="window-dots"><span /><span /><span /></div>
+              <div class="window-header">
+                <div class="window-dots"><span /><span /><span /></div>
+                <span class="window-title">Todo</span>
+              </div>
               <div class="window-content">
                 <div class="fake-todo">
-                  <div class="fake-check checked" />
-                  <div class="fake-line" style="width: 70%" />
+                  <div class="fake-checkbox checked">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </div>
+                  <span class="fake-label done">Buy groceries</span>
                 </div>
                 <div class="fake-todo">
-                  <div class="fake-check checked" />
-                  <div class="fake-line" style="width: 55%" />
+                  <div class="fake-checkbox checked">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </div>
+                  <span class="fake-label done">Read article</span>
                 </div>
                 <div class="fake-todo">
-                  <div class="fake-check" />
-                  <div class="fake-line" style="width: 80%" />
+                  <div class="fake-checkbox" />
+                  <span class="fake-label">Finish report</span>
                 </div>
-                <div class="fake-todo">
-                  <div class="fake-check" />
-                  <div class="fake-line" style="width: 45%" />
+                <div class="fake-todo add">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="add-icon">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                  <span>Add task</span>
                 </div>
               </div>
             </div>
@@ -144,10 +158,19 @@ const modules = [
         <div class="mosaic-card" style="--rotation: 1.5deg; --offset-y: 12px;">
           <div class="mosaic-preview">
             <div class="mosaic-window">
-              <div class="window-dots"><span /><span /><span /></div>
+              <div class="window-header">
+                <div class="window-dots"><span /><span /><span /></div>
+                <span class="window-title">Timer</span>
+              </div>
               <div class="window-content timer-content">
-                <div class="fake-timer">25:00</div>
-                <div class="fake-timer-bar" />
+                <div class="timer-ring-wrapper">
+                  <svg class="timer-ring" viewBox="0 0 120 120">
+                    <circle cx="60" cy="60" r="52" class="timer-bg" />
+                    <circle cx="60" cy="60" r="52" class="timer-progress" style="--progress: 0.65;" />
+                  </svg>
+                  <div class="timer-time">16:15</div>
+                </div>
+                <div class="timer-session">Session 2/4</div>
               </div>
             </div>
           </div>
@@ -155,22 +178,39 @@ const modules = [
         </div>
 
         <!-- Kanban -->
-        <div class="mosaic-card" style="--rotation: -1deg; --offset-y: -8px;">
+        <div class="mosaic-card kanban-card" style="--rotation: -1deg; --offset-y: -8px;">
           <div class="mosaic-preview">
-            <div class="mosaic-window">
-              <div class="window-dots"><span /><span /><span /></div>
+            <div class="mosaic-window wide">
+              <div class="window-header">
+                <div class="window-dots"><span /><span /><span /></div>
+                <span class="window-title">Kanban</span>
+              </div>
               <div class="window-content kanban-content">
-                <div class="fake-column">
-                  <div class="fake-card" />
-                  <div class="fake-card" />
+                <div class="kanban-column">
+                  <div class="column-header">
+                    <span class="column-dot" style="background: #f59e0b;" />
+                    <span class="column-name">To Do</span>
+                    <span class="column-count">2</span>
+                  </div>
+                  <div class="kanban-card-item">Design review</div>
+                  <div class="kanban-card-item">API docs</div>
                 </div>
-                <div class="fake-column">
-                  <div class="fake-card" />
+                <div class="kanban-column">
+                  <div class="column-header">
+                    <span class="column-dot" style="background: #3b82f6;" />
+                    <span class="column-name">In Progress</span>
+                    <span class="column-count">1</span>
+                  </div>
+                  <div class="kanban-card-item">Homepage</div>
                 </div>
-                <div class="fake-column">
-                  <div class="fake-card" />
-                  <div class="fake-card" />
-                  <div class="fake-card" />
+                <div class="kanban-column">
+                  <div class="column-header">
+                    <span class="column-dot" style="background: #22c55e;" />
+                    <span class="column-name">Done</span>
+                    <span class="column-count">3</span>
+                  </div>
+                  <div class="kanban-card-item">Login flow</div>
+                  <div class="kanban-card-item">User tests</div>
                 </div>
               </div>
             </div>
@@ -182,13 +222,17 @@ const modules = [
         <div class="mosaic-card" style="--rotation: 2deg; --offset-y: 20px;">
           <div class="mosaic-preview">
             <div class="mosaic-window">
-              <div class="window-dots"><span /><span /><span /></div>
+              <div class="window-header">
+                <div class="window-dots"><span /><span /><span /></div>
+                <span class="window-title">Stats</span>
+              </div>
               <div class="window-content stats-content">
-                <div class="fake-stat-number">42</div>
-                <div class="fake-stat-label" />
-                <div class="fake-stat-bar">
-                  <div class="fake-stat-fill" style="width: 68%" />
+                <div class="stat-value">42</div>
+                <div class="stat-label">Tasks completed</div>
+                <div class="stat-bar">
+                  <div class="stat-fill" style="width: 68%;" />
                 </div>
+                <div class="stat-sublabel">68% of goal</div>
               </div>
             </div>
           </div>
@@ -199,12 +243,28 @@ const modules = [
         <div class="mosaic-card" style="--rotation: -1.5deg; --offset-y: 5px;">
           <div class="mosaic-preview">
             <div class="mosaic-window">
-              <div class="window-dots"><span /><span /><span /></div>
+              <div class="window-header">
+                <div class="window-dots"><span /><span /><span /></div>
+                <span class="window-title">Habits</span>
+              </div>
               <div class="window-content habit-content">
-                <div class="fake-habit-grid">
-                  <span class="filled" /><span class="filled" /><span class="filled" /><span /><span class="filled" /><span class="filled" /><span />
-                  <span class="filled" /><span /><span class="filled" /><span class="filled" /><span class="filled" /><span class="filled" /><span class="filled" />
-                  <span class="filled" /><span class="filled" /><span /><span class="filled" /><span class="filled" /><span /><span class="today" />
+                <div class="habit-row">
+                  <span class="habit-name">Exercise</span>
+                  <div class="habit-grid">
+                    <span class="filled" /><span class="filled" /><span /><span class="filled" /><span class="filled" /><span class="filled" /><span class="today" />
+                  </div>
+                </div>
+                <div class="habit-row">
+                  <span class="habit-name">Reading</span>
+                  <div class="habit-grid">
+                    <span class="filled" /><span /><span class="filled" /><span class="filled" /><span /><span class="filled" /><span />
+                  </div>
+                </div>
+                <div class="habit-row">
+                  <span class="habit-name">Meditate</span>
+                  <div class="habit-grid">
+                    <span class="filled" /><span class="filled" /><span class="filled" /><span class="filled" /><span class="filled" /><span class="filled" /><span class="filled today" />
+                  </div>
                 </div>
               </div>
             </div>
@@ -216,12 +276,23 @@ const modules = [
         <div class="mosaic-card" style="--rotation: 1deg; --offset-y: -5px;">
           <div class="mosaic-preview">
             <div class="mosaic-window">
-              <div class="window-dots"><span /><span /><span /></div>
+              <div class="window-header">
+                <div class="window-dots"><span /><span /><span /></div>
+                <span class="window-title">Text</span>
+              </div>
               <div class="window-content text-content">
-                <div class="fake-text-line" style="width: 90%" />
-                <div class="fake-text-line" style="width: 75%" />
-                <div class="fake-text-line" style="width: 85%" />
-                <div class="fake-text-line" style="width: 40%" />
+                <div class="text-heading">Meeting notes</div>
+                <div class="text-paragraph">
+                  <span class="text-line">Discussed the new feature</span>
+                  <span class="text-line">roadmap for Q2. Key points:</span>
+                </div>
+                <div class="text-list">
+                  <span class="text-bullet">Launch by March</span>
+                  <span class="text-bullet">Beta in February</span>
+                </div>
+              </div>
+              <div class="text-footer">
+                <span>42 words</span>
               </div>
             </div>
           </div>
@@ -232,7 +303,7 @@ const modules = [
 
     <!-- How it works -->
     <section>
-      <h2 class="cursive">How it works</h2>
+      <h2 class="serif-heading">How it works</h2>
       <ol class="steps">
         <li><strong>Download or open online</strong> — Get the macOS app or use the web version. No account needed.</li>
         <li><strong>Create your board</strong> — Start blank. Drop widgets, draw shapes, organize your way.</li>
@@ -242,10 +313,10 @@ const modules = [
 
     <!-- Pricing -->
     <section id="pricing">
-      <h2 class="cursive">Pricing</h2>
+      <h2 class="serif-heading">Pricing</h2>
 
       <div class="pricing-item">
-        <h3>Personal <span class="cursive">— free forever</span></h3>
+        <h3>Personal <span class="serif-heading">— free forever</span></h3>
         <p>For individuals and personal use.</p>
         <ul>
           <li>All features included</li>
@@ -257,7 +328,7 @@ const modules = [
       </div>
 
       <div class="pricing-item">
-        <h3>Commercial <span class="cursive">— 50€/user/year</span></h3>
+        <h3>Commercial <span class="serif-heading">— 50€/user/year</span></h3>
         <p>For companies and professional use (2+ people).</p>
         <ul>
           <li>All features included</li>
@@ -269,7 +340,7 @@ const modules = [
       </div>
 
       <div class="pricing-item">
-        <h3>Supporter <span class="cursive">— 25€+ one-time</span></h3>
+        <h3>Supporter <span class="serif-heading">— 25€+ one-time</span></h3>
         <p>Love what we're building? Support development with a donation. Get a badge on Discord and early access to betas.</p>
         <a href="https://github.com/sponsors/kevinbarfleur" class="btn">Become a Supporter</a>
       </div>
@@ -277,7 +348,7 @@ const modules = [
 
     <!-- FAQ -->
     <section>
-      <h2 class="cursive">Questions</h2>
+      <h2 class="serif-heading">Questions</h2>
 
       <div
         v-for="(faq, index) in faqs"
@@ -297,7 +368,7 @@ const modules = [
 
     <!-- CTA -->
     <div class="cta">
-      <h2 class="cursive">Ready to own your whiteboard?</h2>
+      <h2 class="serif-heading">Ready to own your whiteboard?</h2>
       <p>No account. No cloud. Just you.</p>
       <div class="hero-buttons">
         <a href="https://app.boardkit.sh" class="btn">Try Online</a>
@@ -308,9 +379,10 @@ const modules = [
 </template>
 
 <style scoped>
-/* Typography */
-.cursive {
-  font-family: 'Caveat', cursive;
+/* Typography - Serif for headings (matches app) */
+.serif-heading {
+  font-family: 'Source Serif 4', serif;
+  font-style: italic;
 }
 
 /* Links */
@@ -455,9 +527,10 @@ section li a {
   counter-increment: step;
   position: absolute;
   left: 0;
-  font-family: 'Caveat', cursive;
-  font-size: 24px;
+  font-family: 'Source Serif 4', serif;
+  font-size: 22px;
   font-weight: 600;
+  font-style: italic;
   color: hsl(var(--foreground));
 }
 
@@ -480,8 +553,8 @@ section li a {
   flex-wrap: wrap;
 }
 
-.pricing-item h3 .cursive {
-  font-size: 22px;
+.pricing-item h3 .serif-heading {
+  font-size: 18px;
   color: hsl(var(--muted-foreground));
   font-weight: 400;
 }
@@ -583,8 +656,8 @@ section li a {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 20px;
-  max-width: 580px;
+  gap: 16px;
+  max-width: 600px;
   margin: 0 auto;
 }
 
@@ -598,26 +671,47 @@ section li a {
   z-index: 10;
 }
 
+.mosaic-card.kanban-card {
+  flex-basis: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
 .mosaic-preview {
   background: #1a1a1a;
-  border-radius: 8px;
-  padding: 8px;
+  border-radius: 10px;
+  padding: 6px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), 0 0 0 1px hsl(var(--border));
 }
 
 .mosaic-window {
-  width: 150px;
-  height: 100px;
-  background: #0d0d0d;
-  border-radius: 6px;
+  width: 160px;
+  height: 120px;
+  background: #0f0f0f;
+  border-radius: 8px;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.mosaic-window.wide {
+  width: 320px;
+  height: 100px;
+}
+
+.window-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: #1a1a1a;
+  border-bottom: 1px solid #222;
 }
 
 .window-dots {
   display: flex;
   gap: 4px;
-  padding: 6px 8px;
-  background: #1a1a1a;
 }
 
 .window-dots span {
@@ -627,176 +721,323 @@ section li a {
   background: #333;
 }
 
+.window-title {
+  font-size: 9px;
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
 .window-content {
+  flex: 1;
   padding: 8px;
-  height: calc(100% - 24px);
+  overflow: hidden;
 }
 
 .mosaic-label {
   display: block;
   text-align: center;
-  font-family: 'Caveat', cursive;
-  font-size: 18px;
+  font-family: 'Source Serif 4', serif;
+  font-size: 15px;
+  font-style: italic;
   color: hsl(var(--muted-foreground));
   margin-top: 8px;
 }
 
-/* Fake Todo */
+/* Todo Widget */
 .fake-todo {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-bottom: 5px;
+  margin-bottom: 4px;
 }
 
-.fake-check {
-  width: 8px;
-  height: 8px;
-  border: 1px solid #444;
-  border-radius: 2px;
+.fake-todo.add {
+  color: hsl(var(--muted-foreground));
+  font-size: 9px;
+  margin-top: 4px;
+  opacity: 0.7;
 }
 
-.fake-check.checked {
+.fake-todo .add-icon {
+  width: 10px;
+  height: 10px;
+}
+
+.fake-checkbox {
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid #444;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.fake-checkbox.checked {
   background: hsl(var(--foreground));
   border-color: hsl(var(--foreground));
 }
 
-.fake-line {
-  height: 6px;
-  background: #2a2a2a;
-  border-radius: 2px;
+.fake-checkbox svg {
+  width: 7px;
+  height: 7px;
+  stroke: #0f0f0f;
 }
 
-/* Fake Timer */
+.fake-label {
+  font-size: 10px;
+  color: hsl(var(--foreground));
+}
+
+.fake-label.done {
+  text-decoration: line-through;
+  color: hsl(var(--muted-foreground));
+}
+
+/* Timer Widget */
 .timer-content {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  height: 100%;
 }
 
-.fake-timer {
+.timer-ring-wrapper {
+  position: relative;
+  width: 60px;
+  height: 60px;
+}
+
+.timer-ring {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.timer-bg {
+  fill: none;
+  stroke: #2a2a2a;
+  stroke-width: 6;
+}
+
+.timer-progress {
+  fill: none;
+  stroke: hsl(var(--foreground));
+  stroke-width: 6;
+  stroke-linecap: round;
+  stroke-dasharray: 327;
+  stroke-dashoffset: calc(327 * (1 - var(--progress, 0)));
+}
+
+.timer-time {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   font-family: ui-monospace, monospace;
-  font-size: 22px;
+  font-size: 12px;
   font-weight: 600;
   color: hsl(var(--foreground));
-  margin-bottom: 8px;
 }
 
-.fake-timer-bar {
-  width: 80%;
-  height: 4px;
-  background: #2a2a2a;
-  border-radius: 2px;
-  position: relative;
+.timer-session {
+  font-size: 9px;
+  color: hsl(var(--muted-foreground));
+  margin-top: 4px;
 }
 
-.fake-timer-bar::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 65%;
-  height: 100%;
-  background: hsl(var(--foreground));
-  border-radius: 2px;
-}
-
-/* Fake Kanban */
+/* Kanban Widget */
 .kanban-content {
   display: flex;
-  gap: 6px;
+  gap: 8px;
+  height: 100%;
 }
 
-.fake-column {
+.kanban-column {
   flex: 1;
   display: flex;
   flex-direction: column;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 4px;
+  padding: 4px;
+}
+
+.column-header {
+  display: flex;
+  align-items: center;
   gap: 4px;
+  margin-bottom: 4px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #222;
 }
 
-.fake-card {
-  height: 14px;
-  background: #2a2a2a;
-  border-radius: 2px;
+.column-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
 }
 
-/* Fake Stats */
+.column-name {
+  font-size: 8px;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+  flex: 1;
+}
+
+.column-count {
+  font-size: 8px;
+  color: hsl(var(--muted-foreground));
+}
+
+.kanban-card-item {
+  background: #1a1a1a;
+  border-radius: 3px;
+  padding: 4px 6px;
+  font-size: 8px;
+  color: hsl(var(--foreground));
+  margin-bottom: 3px;
+  border: 1px solid #222;
+}
+
+/* Stats Widget */
 .stats-content {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  height: 100%;
 }
 
-.fake-stat-number {
+.stat-value {
   font-size: 28px;
   font-weight: 700;
   color: hsl(var(--foreground));
   line-height: 1;
 }
 
-.fake-stat-label {
-  width: 50px;
-  height: 6px;
+.stat-label {
+  font-size: 9px;
+  color: hsl(var(--muted-foreground));
+  margin: 4px 0 8px;
+}
+
+.stat-bar {
+  width: 80%;
+  height: 4px;
   background: #2a2a2a;
   border-radius: 2px;
-  margin: 6px 0;
+  overflow: hidden;
 }
 
-.fake-stat-bar {
-  width: 90%;
-  height: 6px;
-  background: #2a2a2a;
-  border-radius: 3px;
-}
-
-.fake-stat-fill {
+.stat-fill {
   height: 100%;
   background: #22c55e;
-  border-radius: 3px;
-}
-
-/* Fake Habit */
-.habit-content {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.fake-habit-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 3px;
-}
-
-.fake-habit-grid span {
-  width: 8px;
-  height: 8px;
-  background: #2a2a2a;
   border-radius: 2px;
 }
 
-.fake-habit-grid span.filled {
-  background: #22c55e;
+.stat-sublabel {
+  font-size: 8px;
+  color: hsl(var(--muted-foreground));
+  margin-top: 4px;
 }
 
-.fake-habit-grid span.today {
-  background: hsl(var(--foreground));
-}
-
-/* Fake Text */
-.text-content {
+/* Habits Widget */
+.habit-content {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding-top: 4px;
 }
 
-.fake-text-line {
-  height: 6px;
+.habit-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.habit-name {
+  font-size: 9px;
+  color: hsl(var(--foreground));
+  width: 48px;
+  flex-shrink: 0;
+}
+
+.habit-grid {
+  display: flex;
+  gap: 2px;
+}
+
+.habit-grid span {
+  width: 10px;
+  height: 10px;
   background: #2a2a2a;
   border-radius: 2px;
+}
+
+.habit-grid span.filled {
+  background: #22c55e;
+}
+
+.habit-grid span.today {
+  box-shadow: 0 0 0 1px hsl(var(--foreground));
+}
+
+/* Text Widget */
+.text-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.text-heading {
+  font-size: 11px;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+  margin-bottom: 2px;
+}
+
+.text-paragraph {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.text-line {
+  font-size: 8px;
+  color: hsl(var(--muted-foreground));
+  line-height: 1.4;
+}
+
+.text-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-top: 2px;
+}
+
+.text-bullet {
+  font-size: 8px;
+  color: hsl(var(--muted-foreground));
+  padding-left: 8px;
+  position: relative;
+}
+
+.text-bullet::before {
+  content: '•';
+  position: absolute;
+  left: 0;
+}
+
+.text-footer {
+  padding: 4px 8px;
+  border-top: 1px solid #222;
+  background: #1a1a1a;
+  margin: auto -8px -8px;
+  font-size: 8px;
+  color: hsl(var(--muted-foreground));
 }
 
 /* Responsive */
@@ -816,12 +1057,27 @@ section li a {
   }
 
   .mosaic {
-    gap: 16px;
+    gap: 12px;
   }
 
   .mosaic-window {
-    width: 130px;
+    width: 140px;
+    height: 110px;
+  }
+
+  .mosaic-window.wide {
+    width: 100%;
+    max-width: 300px;
     height: 90px;
+  }
+
+  .kanban-card-item {
+    font-size: 7px;
+    padding: 3px 4px;
+  }
+
+  .column-name {
+    font-size: 7px;
   }
 }
 </style>
