@@ -279,7 +279,7 @@ const fontWeightOptions = [
   <Transition name="slide">
     <div
       v-if="hasSelection"
-      class="element-properties-panel absolute left-4 top-20 z-50"
+      class="element-properties-panel absolute left-4 top-4 z-50"
       :class="{ collapsed: isCollapsed }"
     >
       <div class="panel-container">
@@ -430,11 +430,11 @@ const fontWeightOptions = [
 <style scoped>
 /* ==========================================================================
    Panel Container
-   Height constraint: viewport - top position (80px) - bottom margin (16px)
+   Height constraint: viewport - topbar (48px) - top margin (8px) - bottom margin (16px)
    ========================================================================== */
 .element-properties-panel {
   width: 320px;
-  max-height: calc(100vh - 80px - 16px);
+  max-height: calc(100vh - 48px - 8px - 16px);
 }
 
 .panel-container {
