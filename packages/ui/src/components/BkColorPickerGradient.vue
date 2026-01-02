@@ -167,7 +167,7 @@ onUnmounted(() => {
 
 .gradient-picker:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px hsl(var(--ring));
+  box-shadow: inset 0 0 0 1px hsl(var(--border-strong));
 }
 
 .gradient-white {

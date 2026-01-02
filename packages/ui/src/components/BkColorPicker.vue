@@ -376,7 +376,7 @@ const isLightColor = computed(() => {
 
 .picker-trigger:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px hsl(var(--ring));
+  border-color: hsl(var(--border-strong));
 }
 
 .picker-trigger.open {
