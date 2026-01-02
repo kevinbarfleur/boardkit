@@ -705,6 +705,47 @@ export function useDemoCanvas() {
     return null
   }
 
+  /** Check if point is inside the selection bounds (for dragging) */
+  function isPointInSelectionBounds(point: Point): boolean {
+    const bounds = selectionBounds.value
+    if (!bounds) return false
+
+    // Small padding for easier targeting
+    const padding = 4
+    return (
+      point.x >= bounds.x - padding &&
+      point.x <= bounds.x + bounds.width + padding &&
+      point.y >= bounds.y - padding &&
+      point.y <= bounds.y + bounds.height + padding
+    )
+  }
+
+  /** Get cursor type for a given point */
+  function getCursorAtPoint(point: Point): string {
+    // First check if we're on a resize/rotate handle
+    const handle = hitTestHandle(point)
+    if (handle) {
+      if (handle === 'rotate') return 'grab'
+      if (handle === 'n' || handle === 's') return 'ns-resize'
+      if (handle === 'e' || handle === 'w') return 'ew-resize'
+      if (handle === 'nw' || handle === 'se') return 'nwse-resize'
+      if (handle === 'ne' || handle === 'sw') return 'nesw-resize'
+    }
+
+    // Check if inside selection bounds
+    if (isPointInSelectionBounds(point)) {
+      return 'move'
+    }
+
+    // Check if hovering over any element
+    const hit = hitTest(point)
+    if (hit) {
+      return 'pointer'
+    }
+
+    return 'default'
+  }
+
   function isPointInElement(point: Point, el: CanvasElement): boolean {
     const padding = 8 // Hit area padding
 
@@ -832,5 +873,7 @@ export function useDemoCanvas() {
     clearCanvas,
     hitTest,
     hitTestHandle,
+    isPointInSelectionBounds,
+    getCursorAtPoint,
   }
 }

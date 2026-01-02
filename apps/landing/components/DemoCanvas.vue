@@ -29,6 +29,9 @@ const renderedGroupsRef = ref<Map<string, SVGGElement>>(new Map())
 // Track shift key state
 const isShiftPressed = ref(false)
 
+// Dynamic cursor based on hover position
+const dynamicCursor = ref('default')
+
 // ============================================================================
 // RoughJS Rendering
 // ============================================================================
@@ -252,18 +255,16 @@ function handlePointerDown(event: PointerEvent) {
       } else {
         canvas.startResize(point, handle)
       }
+    } else if (canvas.isPointInSelectionBounds(point)) {
+      // Clicking inside selection bounds - start dragging immediately
+      canvas.startDrag(point)
     } else {
       // Check if clicking on an element
       const hit = canvas.hitTest(point)
       if (hit) {
-        // If clicking on an already selected element, start dragging
-        if (canvas.isSelected(hit.id)) {
-          canvas.startDrag(point)
-        } else {
-          // Select this element (with shift for multi-select)
-          canvas.selectElement(hit.id, isShiftPressed.value)
-          canvas.startDrag(point)
-        }
+        // Select this element (with shift for multi-select)
+        canvas.selectElement(hit.id, isShiftPressed.value)
+        canvas.startDrag(point)
       } else {
         // Start marquee selection
         if (!isShiftPressed.value) {
@@ -298,6 +299,9 @@ function handlePointerMove(event: PointerEvent) {
   } else if (canvas.isDrawing.value) {
     canvas.continueDrawing(point)
     renderAll()
+  } else if (canvas.activeTool.value === 'select') {
+    // Update cursor based on hover position (only when not doing anything)
+    dynamicCursor.value = canvas.getCursorAtPoint(point)
   }
 }
 
@@ -408,13 +412,29 @@ const rotateHandle = computed(() => {
 // Lifecycle
 // ============================================================================
 
-// Cursor based on active tool
-const cursorClass = computed(() => {
+// Cursor based on active tool and context
+const cursorStyle = computed(() => {
   const tool = canvas.activeTool.value
-  if (tool === 'select') return 'cursor-select'
-  if (tool === 'text') return 'cursor-text'
-  if (tool === 'pencil') return 'cursor-pencil'
-  return 'cursor-crosshair' // rectangle, ellipse, line, arrow
+
+  // For select tool, use dynamic cursor based on hover position
+  if (tool === 'select') {
+    // During operations, show appropriate cursor
+    if (canvas.isDragging.value) return 'grabbing'
+    if (canvas.isRotating.value) return 'grabbing'
+    if (canvas.isResizing.value) {
+      const handle = canvas.resizeHandle.value
+      if (handle === 'n' || handle === 's') return 'ns-resize'
+      if (handle === 'e' || handle === 'w') return 'ew-resize'
+      if (handle === 'nw' || handle === 'se') return 'nwse-resize'
+      if (handle === 'ne' || handle === 'sw') return 'nesw-resize'
+    }
+    // Use dynamic cursor from hover tracking
+    return dynamicCursor.value
+  }
+
+  if (tool === 'text') return 'text'
+  if (tool === 'pencil') return 'crosshair' // Simplified for now
+  return 'crosshair' // rectangle, ellipse, line, arrow
 })
 
 onMounted(() => {
@@ -433,7 +453,7 @@ onUnmounted(() => {
   <svg
     ref="svgRef"
     class="demo-canvas"
-    :class="cursorClass"
+    :style="{ cursor: cursorStyle }"
     @pointerdown="handlePointerDown"
     @pointermove="handlePointerMove"
     @pointerup="handlePointerUp"
@@ -521,23 +541,6 @@ onUnmounted(() => {
   z-index: 0;
   background: transparent;
   touch-action: none;
-}
-
-/* Tool-specific cursors */
-.cursor-select {
-  cursor: default;
-}
-
-.cursor-crosshair {
-  cursor: crosshair;
-}
-
-.cursor-text {
-  cursor: text;
-}
-
-.cursor-pencil {
-  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%234a4a4a' stroke-width='2'%3E%3Cpath d='M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z'/%3E%3C/svg%3E") 2 22, crosshair;
 }
 
 /* Selection UI */
