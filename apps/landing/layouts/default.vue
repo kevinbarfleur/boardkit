@@ -39,27 +39,17 @@ onMounted(() => {
           <a href="#features" class="btn-ghost btn-sm">Features</a>
           <a href="#modules" class="btn-ghost btn-sm">Modules</a>
           <a href="#pricing" class="btn-ghost btn-sm">Pricing</a>
-          <a
-            href="https://github.com/kevinbarfleur/boardkit"
-            target="_blank"
-            rel="noopener"
-            class="btn-ghost btn-sm"
-          >
-            <span class="i-lucide-github" />
-            GitHub
-          </a>
         </div>
 
         <!-- CTA -->
         <div class="flex items-center gap-3">
           <a
-            href="https://github.com/kevinbarfleur/boardkit/releases"
-            target="_blank"
-            rel="noopener"
+            href="#"
             class="btn-primary btn-sm hidden sm:inline-flex"
+            @click.prevent="document.querySelector('input[type=email]')?.focus()"
           >
-            <span class="i-lucide-download text-sm" />
-            Download
+            <span class="i-lucide-mail text-sm" />
+            Get Notified
           </a>
 
           <!-- Mobile menu button -->
@@ -81,7 +71,7 @@ onMounted(() => {
     <!-- Footer -->
     <footer class="bg-card border-t border-border">
       <div class="container-landing py-16">
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-8 lg:gap-12">
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-8 lg:gap-12">
           <!-- Brand -->
           <div class="col-span-2 md:col-span-1">
             <div class="flex items-center gap-2 mb-4">
@@ -93,6 +83,9 @@ onMounted(() => {
             <p class="body-small max-w-xs">
               The offline-first modular whiteboard. Your data, your device.
             </p>
+            <p class="body-small max-w-xs mt-2 text-primary">
+              Coming soon.
+            </p>
           </div>
 
           <!-- Product -->
@@ -102,34 +95,17 @@ onMounted(() => {
               <li><a href="#features" class="body-small hover:text-foreground transition-colors">Features</a></li>
               <li><a href="#modules" class="body-small hover:text-foreground transition-colors">Modules</a></li>
               <li><a href="#pricing" class="body-small hover:text-foreground transition-colors">Pricing</a></li>
-              <li><a href="https://github.com/kevinbarfleur/boardkit/releases" class="body-small hover:text-foreground transition-colors">Download</a></li>
             </ul>
           </div>
 
-          <!-- Resources -->
+          <!-- Contact -->
           <div>
-            <h4 class="font-medium text-foreground mb-4">Resources</h4>
-            <ul class="space-y-3">
-              <li><a href="https://github.com/kevinbarfleur/boardkit" class="body-small hover:text-foreground transition-colors">Documentation</a></li>
-              <li><a href="https://github.com/kevinbarfleur/boardkit/releases" class="body-small hover:text-foreground transition-colors">Changelog</a></li>
-              <li><a href="https://github.com/kevinbarfleur/boardkit" class="body-small hover:text-foreground transition-colors">Source Code</a></li>
-            </ul>
-          </div>
-
-          <!-- Connect -->
-          <div>
-            <h4 class="font-medium text-foreground mb-4">Connect</h4>
+            <h4 class="font-medium text-foreground mb-4">Contact</h4>
             <ul class="space-y-3">
               <li>
-                <a href="https://twitter.com/boardkit" class="body-small hover:text-foreground transition-colors inline-flex items-center gap-2">
-                  <span class="i-lucide-twitter" />
-                  Twitter
-                </a>
-              </li>
-              <li>
-                <a href="https://github.com/kevinbarfleur/boardkit" class="body-small hover:text-foreground transition-colors inline-flex items-center gap-2">
-                  <span class="i-lucide-github" />
-                  GitHub
+                <a href="mailto:hello@boardkit.sh" class="body-small hover:text-foreground transition-colors inline-flex items-center gap-2">
+                  <span class="i-lucide-mail" />
+                  hello@boardkit.sh
                 </a>
               </li>
             </ul>

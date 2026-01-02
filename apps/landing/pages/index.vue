@@ -1,4 +1,27 @@
 <script setup lang="ts">
+// Waitlist form state
+const email = ref('')
+const isSubmitting = ref(false)
+const isSubmitted = ref(false)
+const errorMessage = ref('')
+
+const submitWaitlist = async () => {
+  if (!email.value || !email.value.includes('@')) {
+    errorMessage.value = 'Please enter a valid email'
+    return
+  }
+
+  isSubmitting.value = true
+  errorMessage.value = ''
+
+  // For now, just simulate success - you'll connect this to your backend later
+  // Options: Buttondown, ConvertKit, Mailchimp, or simple Google Form
+  await new Promise(resolve => setTimeout(resolve, 800))
+
+  isSubmitted.value = true
+  isSubmitting.value = false
+}
+
 // Features data
 const features = [
   {
@@ -38,31 +61,31 @@ const modules = [
   { icon: 'i-lucide-calendar', name: 'Calendar', desc: 'Google Calendar' },
 ]
 
-// FAQ data
+// FAQ data - adjusted for pre-launch
 const faqs = [
   {
     question: 'Is Boardkit really free?',
-    answer: 'Yes! For personal and non-commercial use, Boardkit is completely free with all features included. We believe everyone should have access to great tools. Commercial use (companies with 2+ people) requires a license at 50€/user/year.',
+    answer: 'Yes! For personal and non-commercial use, Boardkit will be completely free with all features included. We believe everyone should have access to great tools. Commercial use (companies with 2+ people) will require a license at 50€/user/year.',
   },
   {
-    question: 'Where is my data stored?',
+    question: 'Where will my data be stored?',
     answer: '100% on your device. On the web, we use IndexedDB (your browser\'s local storage). On desktop, files are stored in your filesystem as .boardkit files. We have no servers, no cloud, no access to your data whatsoever.',
   },
   {
     question: 'Can I sync between devices?',
-    answer: 'Currently, you can export .boardkit files and sync them manually via Dropbox, Google Drive, iCloud, or Git. We\'re building Boardkit Sync (optional, paid) for seamless device sync with end-to-end encryption.',
+    answer: 'At launch, you\'ll be able to export .boardkit files and sync them manually via Dropbox, Google Drive, iCloud, or Git. We\'re planning Boardkit Sync (optional, paid) for seamless device sync with end-to-end encryption.',
   },
   {
     question: 'Is it open source?',
-    answer: 'Yes! Boardkit is licensed under AGPL-3.0. You can view, fork, and contribute to the code on GitHub. The license ensures that improvements stay open. Commercial use requires a separate license.',
+    answer: 'Yes! Boardkit will be licensed under AGPL-3.0. You\'ll be able to view, fork, and contribute to the code on GitHub. The license ensures that improvements stay open. Commercial use requires a separate license.',
   },
   {
     question: 'What about real-time collaboration?',
     answer: 'Boardkit is intentionally designed for personal productivity, not real-time collaboration. This keeps the tool simple, fast, and truly offline. Share your .boardkit files for async collaboration.',
   },
   {
-    question: 'What platforms are supported?',
-    answer: 'Web (any modern browser) and macOS (native app via Tauri). The web version works offline as a PWA. Windows and Linux desktop apps are coming soon.',
+    question: 'What platforms will be supported?',
+    answer: 'Web (any modern browser) and macOS (native app via Tauri) at launch. The web version will work offline as a PWA. Windows and Linux desktop apps will follow.',
   },
 ]
 
@@ -91,8 +114,8 @@ const stats = [
           <div
             class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-sm text-primary mb-8 animate-fade-in-down"
           >
-            <span class="i-lucide-sparkles text-sm" />
-            <span>Open source & offline-first</span>
+            <span class="i-lucide-rocket text-sm" />
+            <span>Coming soon — Join the waitlist</span>
           </div>
 
           <!-- Headline -->
@@ -108,26 +131,35 @@ const stats = [
             Your data stays on your device. No cloud, no account, no tracking.
           </p>
 
-          <!-- CTAs -->
-          <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 animate-fade-in-up stagger-2">
-            <a
-              href="https://github.com/kevinbarfleur/boardkit"
-              target="_blank"
-              rel="noopener"
-              class="btn-primary btn-lg w-full sm:w-auto"
-            >
-              <span class="i-lucide-play" />
-              Try Online
-            </a>
-            <a
-              href="https://github.com/kevinbarfleur/boardkit/releases"
-              target="_blank"
-              rel="noopener"
-              class="btn-outline btn-lg w-full sm:w-auto"
-            >
-              <span class="i-lucide-download" />
-              Download for macOS
-            </a>
+          <!-- Waitlist Form -->
+          <div class="max-w-md mx-auto mb-16 animate-fade-in-up stagger-2">
+            <div v-if="!isSubmitted" class="flex flex-col sm:flex-row gap-3">
+              <input
+                v-model="email"
+                type="email"
+                placeholder="you@email.com"
+                class="flex-1 h-12 px-4 rounded-xl bg-card border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                :disabled="isSubmitting"
+                @keyup.enter="submitWaitlist"
+              />
+              <button
+                class="btn-primary h-12 px-6 sm:w-auto"
+                :disabled="isSubmitting"
+                @click="submitWaitlist"
+              >
+                <span v-if="isSubmitting" class="i-lucide-loader-2 animate-spin" />
+                <span v-else class="i-lucide-mail" />
+                {{ isSubmitting ? 'Joining...' : 'Get Early Access' }}
+              </button>
+            </div>
+            <div v-else class="flex items-center justify-center gap-3 h-12 px-6 rounded-xl bg-success/10 border border-success/20 text-success">
+              <span class="i-lucide-check-circle" />
+              <span>You're on the list! We'll be in touch soon.</span>
+            </div>
+            <p v-if="errorMessage" class="text-destructive text-sm mt-2">{{ errorMessage }}</p>
+            <p class="text-muted-foreground text-sm mt-4">
+              Be the first to know when we launch. No spam, unsubscribe anytime.
+            </p>
           </div>
 
           <!-- Hero Screenshot -->
@@ -352,12 +384,13 @@ const stats = [
               </li>
             </ul>
 
-            <a
-              href="https://github.com/kevinbarfleur/boardkit/releases"
+            <button
               class="btn-outline btn-md w-full"
+              @click="document.querySelector('input[type=email]')?.focus()"
             >
-              Download Free
-            </a>
+              <span class="i-lucide-mail text-sm" />
+              Join Waitlist
+            </button>
           </div>
 
           <!-- Commercial -->
@@ -399,12 +432,13 @@ const stats = [
               </li>
             </ul>
 
-            <a
-              href="#"
-              class="btn-primary btn-md w-full"
+            <button
+              class="btn-primary btn-md w-full opacity-70 cursor-not-allowed"
+              disabled
             >
-              Buy License
-            </a>
+              <span class="i-lucide-clock text-sm" />
+              Available at launch
+            </button>
           </div>
         </div>
 
@@ -413,21 +447,12 @@ const stats = [
           <div class="card-base p-6 border-dashed text-center">
             <div class="flex items-center justify-center gap-2 mb-3">
               <span class="i-lucide-heart text-primary" />
-              <h3 class="font-medium text-foreground">Support the project</h3>
+              <h3 class="font-medium text-foreground">Want to support the project?</h3>
             </div>
-            <p class="body-small mb-4">
-              Love what we're building? Support development with a one-time donation.
-              Get a badge, early access to betas, and our eternal gratitude.
+            <p class="body-small">
+              Boardkit is built with care by an indie developer. If you believe in offline-first,
+              privacy-respecting tools, joining the waitlist is the best way to support us right now.
             </p>
-            <a
-              href="https://github.com/sponsors/kevinbarfleur"
-              target="_blank"
-              rel="noopener"
-              class="btn-ghost btn-sm"
-            >
-              Become a Supporter
-              <span class="i-lucide-arrow-right text-sm" />
-            </a>
           </div>
         </div>
       </div>
@@ -486,26 +511,13 @@ const stats = [
           <p class="body-large mb-8">
             No account. No cloud. Just you and your ideas.
           </p>
-          <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <a
-              href="https://github.com/kevinbarfleur/boardkit"
-              target="_blank"
-              rel="noopener"
-              class="btn-primary btn-lg w-full sm:w-auto"
-            >
-              <span class="i-lucide-play" />
-              Try Online
-            </a>
-            <a
-              href="https://github.com/kevinbarfleur/boardkit/releases"
-              target="_blank"
-              rel="noopener"
-              class="btn-outline btn-lg w-full sm:w-auto"
-            >
-              <span class="i-lucide-download" />
-              Download for macOS
-            </a>
-          </div>
+          <button
+            class="btn-primary btn-lg"
+            @click="document.querySelector('input[type=email]')?.focus(); window.scrollTo({ top: 0, behavior: 'smooth' })"
+          >
+            <span class="i-lucide-mail" />
+            Join the Waitlist
+          </button>
         </div>
       </div>
     </section>
