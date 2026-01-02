@@ -1,68 +1,22 @@
-/* UnoCSS is injected by the Nuxt module */
-
-/* Fonts - Source Serif 4 for headings, Caveat for accent */
-@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,200..900;1,8..60,200..900&display=swap');
+/* Fonts - Caveat for headings */
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&display=swap');
 
 :root {
   /* CHALK EDITION - Colors - Dark mode (default) */
   --background: 0 0% 9%;              /* #171717 */
   --foreground: 0 0% 90%;             /* #e5e5e5 */
   --card: 0 0% 10%;                   /* #1a1a1a */
-  --card-foreground: 0 0% 90%;
-  --popover: 0 0% 9%;
-  --popover-foreground: 0 0% 90%;
   --muted: 0 0% 13%;                  /* #222222 */
   --muted-foreground: 0 0% 64%;       /* #a3a3a3 */
+  --text-subtle: 0 0% 45%;            /* #737373 */
 
   /* Primary - INVERTED (white/light) */
   --primary: 0 0% 90%;                /* #e5e5e5 */
   --primary-foreground: 0 0% 9%;      /* #171717 */
 
-  --secondary: 0 0% 14%;
-  --secondary-foreground: 0 0% 90%;
-  --accent: 0 0% 14%;                 /* #242424 */
-  --accent-foreground: 0 0% 98%;
+  /* Borders */
   --border: 0 0% 18%;                 /* #2e2e2e */
   --border-strong: 0 0% 25%;          /* #404040 - focus states */
-  --ring: 0 0% 90%;                   /* White ring */
-  --destructive: 0 84% 60%;
-  --success: 142 76% 36%;
-
-  /* Fonts */
-  --font-serif: 'Source Serif 4', serif;
-  --font-cursive: 'Caveat', cursive;
-  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
-
-  /* Radius */
-  --radius: 0.5rem;
-
-  /* Transitions */
-  --transition-fast: 150ms;
-  --transition-normal: 200ms;
-  --transition-slow: 300ms;
-}
-
-/* Light mode override */
-.light {
-  --background: 0 0% 100%;
-  --foreground: 0 0% 9%;
-  --card: 0 0% 98%;
-  --card-foreground: 0 0% 9%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 0 0% 9%;
-  --muted: 0 0% 96%;
-  --muted-foreground: 0 0% 45%;
-
-  /* Primary - Dark for light mode */
-  --primary: 0 0% 15%;
-  --primary-foreground: 0 0% 98%;
-
-  --secondary: 0 0% 96%;
-  --secondary-foreground: 0 0% 10%;
-  --accent: 0 0% 94%;
-  --accent-foreground: 0 0% 10%;
-  --border: 0 0% 90%;
-  --border-strong: 0 0% 70%;
 }
 
 /* Base styles */
@@ -76,29 +30,32 @@
 
 html {
   scroll-behavior: smooth;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
 }
 
 body {
-  font-family: var(--font-sans);
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
-  line-height: 1.6;
-  min-height: 100vh;
+  font-size: 16px;
+  line-height: 1.7;
 }
 
-/* CHALK EDITION - Grain texture overlay */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  pointer-events: none;
-  opacity: 0.06;
-  mix-blend-mode: overlay;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+/* Container */
+.container {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* Links */
+a {
+  color: hsl(var(--foreground));
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+a:hover {
+  text-decoration-color: hsl(var(--muted-foreground));
 }
 
 /* Selection */
@@ -126,307 +83,11 @@ body::before {
   background: hsl(var(--muted-foreground) / 0.5);
 }
 
-/* CHALK EDITION - Focus visible - Border based */
-:focus-visible {
-  outline: none;
-  border-color: hsl(var(--border-strong)) !important;
-}
-
-/* Smooth image rendering */
-img {
-  max-width: 100%;
-  height: auto;
-  display: block;
-}
-
-/* Link reset */
-a {
-  color: inherit;
-  text-decoration: none;
-}
-
-/* Button reset */
-button {
-  font: inherit;
-  color: inherit;
-  background: none;
-  border: none;
-  cursor: pointer;
-}
-
-/* Text balance for headings */
+/* Text rendering */
 h1, h2, h3, h4, h5, h6 {
   text-wrap: balance;
 }
 
-/* Paragraph text wrap */
 p {
   text-wrap: pretty;
-}
-
-/* Animation utilities */
-@keyframes fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes fade-in-up {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes fade-in-down {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes scale-in {
-  from {
-    opacity: 0;
-    transform: scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes float {
-  0%, 100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
-}
-
-@keyframes pulse-glow {
-  0%, 100% {
-    box-shadow: 0 0 20px hsl(var(--primary) / 0.2);
-  }
-  50% {
-    box-shadow: 0 0 40px hsl(var(--primary) / 0.4);
-  }
-}
-
-.animate-fade-in {
-  animation: fade-in 0.5s ease-out forwards;
-}
-
-.animate-fade-in-up {
-  animation: fade-in-up 0.6s ease-out forwards;
-}
-
-.animate-fade-in-down {
-  animation: fade-in-down 0.4s ease-out forwards;
-}
-
-.animate-scale-in {
-  animation: scale-in 0.5s ease-out forwards;
-}
-
-.animate-float {
-  animation: float 6s ease-in-out infinite;
-}
-
-.animate-pulse-glow {
-  animation: pulse-glow 3s ease-in-out infinite;
-}
-
-/* Stagger animation delays */
-.stagger-1 { animation-delay: 0.1s; }
-.stagger-2 { animation-delay: 0.2s; }
-.stagger-3 { animation-delay: 0.3s; }
-.stagger-4 { animation-delay: 0.4s; }
-.stagger-5 { animation-delay: 0.5s; }
-
-/* Initially hidden for animation */
-[data-animate] {
-  opacity: 0;
-}
-
-[data-animate].is-visible {
-  opacity: 1;
-}
-
-/* Gradient text */
-.gradient-text {
-  background: linear-gradient(135deg, hsl(var(--foreground)) 0%, hsl(var(--muted-foreground)) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-/* CHALK EDITION - Gradient text uses white primary */
-.gradient-text-primary {
-  background: linear-gradient(135deg, hsl(var(--foreground)) 0%, hsl(var(--muted-foreground)) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-/* Serif font utility */
-.font-serif {
-  font-family: var(--font-serif);
-}
-
-/* Cursive font utility (for accent text) */
-.font-cursive {
-  font-family: var(--font-cursive);
-}
-
-/* Backdrop blur support */
-@supports (backdrop-filter: blur(8px)) {
-  .backdrop-blur-header {
-    backdrop-filter: blur(12px) saturate(180%);
-    background-color: hsl(var(--background) / 0.8);
-  }
-}
-
-@supports not (backdrop-filter: blur(8px)) {
-  .backdrop-blur-header {
-    background-color: hsl(var(--background) / 0.95);
-  }
-}
-
-/* Grid background pattern - line grid */
-.bg-grid-pattern {
-  background-image:
-    linear-gradient(hsl(var(--border) / 0.2) 1px, transparent 1px),
-    linear-gradient(90deg, hsl(var(--border) / 0.2) 1px, transparent 1px);
-  background-size: 64px 64px;
-}
-
-/* Dot pattern - Tailwind style */
-.bg-dot-pattern {
-  background-image: radial-gradient(hsl(var(--border) / 0.4) 1px, transparent 1px);
-  background-size: 24px 24px;
-}
-
-/* Blueprint pattern - technical aesthetic */
-.bg-blueprint-pattern {
-  background-image:
-    linear-gradient(hsl(var(--border) / 0.15) 1px, transparent 1px),
-    linear-gradient(90deg, hsl(var(--border) / 0.15) 1px, transparent 1px),
-    linear-gradient(hsl(var(--border) / 0.08) 1px, transparent 1px),
-    linear-gradient(90deg, hsl(var(--border) / 0.08) 1px, transparent 1px);
-  background-size: 100px 100px, 100px 100px, 20px 20px, 20px 20px;
-}
-
-/* Radial gradient overlay */
-.bg-radial-gradient {
-  background: radial-gradient(ellipse 80% 50% at 50% -20%, hsl(var(--primary) / 0.15), transparent);
-}
-
-/* Secondary radial gradient - bottom */
-.bg-radial-gradient-bottom {
-  background: radial-gradient(ellipse 80% 50% at 50% 120%, hsl(var(--primary) / 0.1), transparent);
-}
-
-/* Noise texture overlay (subtle) */
-.bg-noise {
-  position: relative;
-}
-
-.bg-noise::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
-  opacity: 0.03;
-  pointer-events: none;
-}
-
-/* Scroll-triggered animations */
-[data-scroll-animate] {
-  opacity: 0;
-  transform: translateY(30px);
-  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
-}
-
-[data-scroll-animate].is-visible {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-[data-scroll-animate][data-delay="1"] { transition-delay: 0.1s; }
-[data-scroll-animate][data-delay="2"] { transition-delay: 0.2s; }
-[data-scroll-animate][data-delay="3"] { transition-delay: 0.3s; }
-[data-scroll-animate][data-delay="4"] { transition-delay: 0.4s; }
-
-/* Enhanced card hover effects */
-.card-glow-hover {
-  position: relative;
-  overflow: hidden;
-}
-
-.card-glow-hover::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(
-    600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
-    hsl(var(--primary) / 0.06),
-    transparent 40%
-  );
-  opacity: 0;
-  transition: opacity 0.3s;
-  pointer-events: none;
-}
-
-.card-glow-hover:hover::before {
-  opacity: 1;
-}
-
-/* Section divider lines */
-.section-divider {
-  position: relative;
-}
-
-.section-divider::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 200vw;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, hsl(var(--border)), transparent);
-}
-
-/* Shimmer effect for loading states */
-@keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
-}
-
-.animate-shimmer {
-  background: linear-gradient(
-    90deg,
-    hsl(var(--muted)) 25%,
-    hsl(var(--muted-foreground) / 0.1) 50%,
-    hsl(var(--muted)) 75%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
 }

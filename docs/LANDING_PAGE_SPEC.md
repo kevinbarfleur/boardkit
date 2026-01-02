@@ -24,24 +24,24 @@
 
 ## 1. Palette de couleurs
 
-### Mode sombre (défaut)
+### Mode sombre (défaut) — Chalk Edition
 
-La landing page utilise le **mode sombre par défaut**, cohérent avec l'application.
+La landing page utilise le **mode sombre par défaut** avec le design system **Chalk Edition** (primary inversé blanc, focus par bordure).
 
 ```css
 /* Backgrounds */
---background:           #0a0a0a;  /* Page background */
---card:                 #121212;  /* Cards, sections alternées */
---muted:                #1f1f1f;  /* Éléments subtils */
---accent:               #383838;  /* Hover states */
+--background:           #171717;  /* Page background */
+--card:                 #1a1a1a;  /* Cards, sections alternées */
+--muted:                #222222;  /* Éléments subtils */
+--accent:               #2a2a2a;  /* Hover states */
 
 /* Text */
---foreground:           #ededed;  /* Texte principal */
+--foreground:           #e5e5e5;  /* Texte principal */
 --muted-foreground:     #a3a3a3;  /* Texte secondaire */
 
-/* Brand */
---primary:              #3b82f6;  /* Bleu principal - CTA, liens */
---primary-hover:        #2563eb;  /* Bleu hover */
+/* Primary — INVERTED (blanc/clair, pas bleu) */
+--primary:              #e5e5e5;  /* Primary inversé */
+--primary-foreground:   #171717;  /* Texte sur primary */
 
 /* Semantic */
 --destructive:          #ef4444;  /* Rouge - alertes */
@@ -49,30 +49,30 @@ La landing page utilise le **mode sombre par défaut**, cohérent avec l'applica
 
 /* Borders */
 --border:               #2e2e2e;  /* Bordures */
---ring:                 #3b82f6;  /* Focus ring */
+--border-strong:        #404040;  /* Focus states (pas de ring) */
 ```
 
-### Visualisation palette
+### Visualisation palette — Chalk Edition
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                                                                         │
 │   BACKGROUNDS                                                           │
 │   ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐                  │
-│   │ #0a0a0a  │ │ #121212  │ │ #1f1f1f  │ │ #383838  │                  │
+│   │ #171717  │ │ #1a1a1a  │ │ #222222  │ │ #2a2a2a  │                  │
 │   │ page     │ │ card     │ │ muted    │ │ accent   │                  │
 │   └──────────┘ └──────────┘ └──────────┘ └──────────┘                  │
 │                                                                         │
 │   TEXT                                                                  │
 │   ┌──────────┐ ┌──────────┐                                            │
-│   │ #ededed  │ │ #a3a3a3  │                                            │
+│   │ #e5e5e5  │ │ #a3a3a3  │                                            │
 │   │ primary  │ │ muted    │                                            │
 │   └──────────┘ └──────────┘                                            │
 │                                                                         │
-│   BRAND                                                                 │
+│   PRIMARY & SEMANTIC                                                    │
 │   ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐                  │
-│   │ #3b82f6  │ │ #2563eb  │ │ #22c55e  │ │ #ef4444  │                  │
-│   │ primary  │ │ hover    │ │ success  │ │ danger   │                  │
+│   │ #e5e5e5  │ │ #171717  │ │ #22c55e  │ │ #ef4444  │                  │
+│   │ primary  │ │ prim-fg  │ │ success  │ │ danger   │                  │
 │   └──────────┘ └──────────┘ └──────────┘ └──────────┘                  │
 │                                                                         │
 └─────────────────────────────────────────────────────────────────────────┘

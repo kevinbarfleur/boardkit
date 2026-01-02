@@ -198,7 +198,7 @@ const displayTitle = computed(() => `${props.title} (${props.count})`)
 </button>
 
 <!-- Avoid: Hardcoded values -->
-<button style="height: 36px; background: #3b82f6;">
+<button style="height: 36px; background: #e5e5e5;">
   Click me
 </button>
 ```

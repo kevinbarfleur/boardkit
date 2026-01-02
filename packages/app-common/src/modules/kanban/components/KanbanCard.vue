@@ -69,7 +69,7 @@ const priorityColor = computed(() => {
   switch (props.item.priority) {
     case 'high': return '#ef4444'
     case 'medium': return '#f59e0b'
-    case 'low': return '#3b82f6'
+    case 'low': return '#a3a3a3'
     default: return null
   }
 })

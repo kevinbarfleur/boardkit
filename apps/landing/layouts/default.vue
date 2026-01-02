@@ -1,152 +1,181 @@
 <script setup lang="ts">
-const isScrolled = ref(false)
-
-onMounted(() => {
-  const handleScroll = () => {
-    isScrolled.value = window.scrollY > 10
-  }
-  window.addEventListener('scroll', handleScroll, { passive: true })
-  onUnmounted(() => window.removeEventListener('scroll', handleScroll))
-})
 </script>
 
 <template>
-  <div class="min-h-screen bg-background text-foreground">
-    <!-- Background effects -->
-    <div class="fixed inset-0 bg-radial-gradient pointer-events-none" />
-    <div class="fixed inset-0 bg-grid-pattern opacity-30 pointer-events-none" />
+  <div class="landing">
+    <!-- Grain texture overlay -->
+    <div class="grain-overlay" aria-hidden="true" />
 
     <!-- Header -->
-    <header
-      class="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
-      :class="[
-        isScrolled
-          ? 'backdrop-blur-header border-b border-border/50'
-          : 'bg-transparent'
-      ]"
-    >
-      <nav class="container-landing h-16 flex items-center justify-between">
-        <!-- Logo - CHALK EDITION: Cursive font -->
-        <NuxtLink to="/" class="flex items-center gap-2 group">
-          <div class="w-8 h-8 rounded-full border border-primary/40 flex items-center justify-center transition-transform group-hover:scale-105">
-            <span class="i-lucide-sparkles text-foreground text-lg" />
-          </div>
-          <span class="font-cursive text-2xl text-foreground">Boardkit</span>
-        </NuxtLink>
-
-        <!-- Desktop Nav -->
-        <div class="hidden md:flex items-center gap-1">
-          <a href="#features" class="btn-ghost btn-sm">Features</a>
-          <a href="#modules" class="btn-ghost btn-sm">Modules</a>
-          <a href="#pricing" class="btn-ghost btn-sm">Pricing</a>
-          <a
-            href="https://github.com/kevinbarfleur/boardkit"
-            target="_blank"
-            rel="noopener"
-            class="btn-ghost btn-sm"
-          >
-            <span class="i-lucide-github" />
-            GitHub
-          </a>
-        </div>
-
-        <!-- CTA -->
-        <div class="flex items-center gap-3">
-          <a
-            href="https://github.com/kevinbarfleur/boardkit/releases"
-            target="_blank"
-            rel="noopener"
-            class="btn-primary btn-sm hidden sm:inline-flex"
-          >
-            <span class="i-lucide-download text-sm" />
-            Download
-          </a>
-
-          <!-- Mobile menu button -->
-          <button
-            class="md:hidden btn-ghost p-2"
-            aria-label="Menu"
-          >
-            <span class="i-lucide-menu text-xl" />
-          </button>
-        </div>
-      </nav>
+    <header class="header">
+      <div class="container">
+        <NuxtLink to="/" class="logo">Boardkit</NuxtLink>
+        <nav class="nav">
+          <a href="#features">Features</a>
+          <a href="#pricing">Pricing</a>
+          <a href="https://github.com/kevinbarfleur/boardkit" target="_blank" rel="noopener">Docs</a>
+          <a href="https://github.com/kevinbarfleur/boardkit" target="_blank" rel="noopener">GitHub</a>
+        </nav>
+      </div>
     </header>
 
     <!-- Main content -->
-    <main>
+    <main class="container">
       <slot />
     </main>
 
     <!-- Footer -->
-    <footer class="bg-card border-t border-border">
-      <div class="container-landing py-16">
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-8 lg:gap-12">
-          <!-- Brand - CHALK EDITION -->
-          <div class="col-span-2 md:col-span-1">
-            <div class="flex items-center gap-2 mb-4">
-              <div class="w-8 h-8 rounded-full border border-primary/40 flex items-center justify-center">
-                <span class="i-lucide-sparkles text-foreground text-lg" />
-              </div>
-              <span class="font-cursive text-2xl">Boardkit</span>
-            </div>
-            <p class="body-small max-w-xs">
-              The offline-first modular whiteboard. Your data, your device.
-            </p>
+    <footer class="footer">
+      <div class="container">
+        <div class="footer-grid">
+          <div class="footer-brand">
+            <NuxtLink to="/" class="logo">Boardkit</NuxtLink>
+            <p>The offline-first modular whiteboard.</p>
           </div>
-
-          <!-- Product -->
-          <div>
-            <h4 class="font-medium text-foreground mb-4">Product</h4>
-            <ul class="space-y-3">
-              <li><a href="#features" class="body-small hover:text-foreground transition-colors">Features</a></li>
-              <li><a href="#modules" class="body-small hover:text-foreground transition-colors">Modules</a></li>
-              <li><a href="#pricing" class="body-small hover:text-foreground transition-colors">Pricing</a></li>
-              <li><a href="https://github.com/kevinbarfleur/boardkit/releases" class="body-small hover:text-foreground transition-colors">Download</a></li>
-            </ul>
+          <div class="footer-col">
+            <h4>Product</h4>
+            <a href="#features">Features</a>
+            <a href="#pricing">Pricing</a>
+            <a href="https://github.com/kevinbarfleur/boardkit/releases" target="_blank" rel="noopener">Download</a>
           </div>
-
-          <!-- Resources -->
-          <div>
-            <h4 class="font-medium text-foreground mb-4">Resources</h4>
-            <ul class="space-y-3">
-              <li><a href="https://github.com/kevinbarfleur/boardkit" class="body-small hover:text-foreground transition-colors">Documentation</a></li>
-              <li><a href="https://github.com/kevinbarfleur/boardkit/releases" class="body-small hover:text-foreground transition-colors">Changelog</a></li>
-              <li><a href="https://github.com/kevinbarfleur/boardkit" class="body-small hover:text-foreground transition-colors">Source Code</a></li>
-            </ul>
+          <div class="footer-col">
+            <h4>Resources</h4>
+            <a href="https://github.com/kevinbarfleur/boardkit" target="_blank" rel="noopener">Documentation</a>
+            <a href="https://github.com/kevinbarfleur/boardkit/releases" target="_blank" rel="noopener">Changelog</a>
+            <a href="https://status.boardkit.sh" target="_blank" rel="noopener">Status</a>
           </div>
-
-          <!-- Connect -->
-          <div>
-            <h4 class="font-medium text-foreground mb-4">Connect</h4>
-            <ul class="space-y-3">
-              <li>
-                <a href="https://twitter.com/boardkit" class="body-small hover:text-foreground transition-colors inline-flex items-center gap-2">
-                  <span class="i-lucide-twitter" />
-                  Twitter
-                </a>
-              </li>
-              <li>
-                <a href="https://github.com/kevinbarfleur/boardkit" class="body-small hover:text-foreground transition-colors inline-flex items-center gap-2">
-                  <span class="i-lucide-github" />
-                  GitHub
-                </a>
-              </li>
-            </ul>
+          <div class="footer-col">
+            <h4>Connect</h4>
+            <a href="https://twitter.com/boardkit" target="_blank" rel="noopener">Twitter</a>
+            <a href="https://github.com/kevinbarfleur/boardkit" target="_blank" rel="noopener">GitHub</a>
+            <a href="https://discord.gg/boardkit" target="_blank" rel="noopener">Discord</a>
           </div>
         </div>
-
-        <!-- Bottom -->
-        <div class="mt-12 pt-8 border-t border-border flex flex-col sm:flex-row justify-between items-center gap-4">
-          <p class="text-xs text-muted-foreground">
-            © {{ new Date().getFullYear() }} Kevin Barfleur. Open source under AGPL-3.0.
-          </p>
-          <div class="flex items-center gap-4">
-            <a href="#" class="text-xs text-muted-foreground hover:text-foreground transition-colors">Privacy</a>
-            <a href="#" class="text-xs text-muted-foreground hover:text-foreground transition-colors">Terms</a>
-          </div>
+        <div class="footer-bottom">
+          © {{ new Date().getFullYear() }} Kevin Barfleur. Open source under AGPL-3.0.
         </div>
       </div>
     </footer>
   </div>
 </template>
+
+<style scoped>
+.landing {
+  min-height: 100vh;
+  position: relative;
+}
+
+/* Grain overlay */
+.grain-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0.08;
+  z-index: 1000;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3CfeComponentTransfer%3E%3CfeFuncR type='discrete' tableValues='0 1'/%3E%3CfeFuncG type='discrete' tableValues='0 1'/%3E%3CfeFuncB type='discrete' tableValues='0 1'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+}
+
+/* Header */
+.header {
+  padding: 20px 0;
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.header .container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.logo {
+  font-family: 'Caveat', cursive;
+  font-size: 24px;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+  text-decoration: none;
+}
+
+.logo:hover {
+  text-decoration: none;
+}
+
+.nav {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+}
+
+.nav a {
+  font-size: 14px;
+  color: hsl(var(--muted-foreground));
+  text-decoration: none;
+}
+
+.nav a:hover {
+  color: hsl(var(--foreground));
+}
+
+/* Footer */
+.footer {
+  border-top: 1px solid hsl(var(--border));
+  padding: 40px 0;
+}
+
+.footer-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 32px;
+  margin-bottom: 32px;
+}
+
+.footer-brand .logo {
+  display: inline-block;
+  margin-bottom: 8px;
+}
+
+.footer-brand p {
+  font-size: 14px;
+  color: hsl(var(--muted-foreground));
+}
+
+.footer-col h4 {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: hsl(var(--foreground));
+}
+
+.footer-col a {
+  display: block;
+  font-size: 14px;
+  color: hsl(var(--muted-foreground));
+  text-decoration: none;
+  padding: 4px 0;
+}
+
+.footer-col a:hover {
+  color: hsl(var(--foreground));
+}
+
+.footer-bottom {
+  padding-top: 24px;
+  border-top: 1px solid hsl(var(--border));
+  font-size: 13px;
+  color: hsl(var(--text-subtle, var(--muted-foreground)));
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .nav {
+    gap: 16px;
+  }
+
+  .footer-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+</style>

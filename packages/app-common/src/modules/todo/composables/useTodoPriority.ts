@@ -10,7 +10,7 @@ export function getPriorityColor(priority?: TodoPriority): string {
     case 'medium':
       return 'text-amber-500'
     case 'low':
-      return 'text-blue-500'
+      return 'text-neutral-400'
     default:
       return 'text-muted-foreground'
   }

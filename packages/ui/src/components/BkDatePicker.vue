@@ -139,8 +139,7 @@ const formatDisplayValue = (dateStr: string | null): string => {
 
 .bk-dp-native-input:focus {
   outline: none;
-  border-color: hsl(var(--ring));
-  box-shadow: 0 0 0 2px hsl(var(--ring) / 0.2);
+  border-color: hsl(var(--border-strong));
 }
 
 .bk-dp-native-input::placeholder {
