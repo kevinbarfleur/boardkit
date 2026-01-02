@@ -1,5 +1,6 @@
 import { actionRegistry, type ActionDefinition } from '@boardkit/core'
 import { useSettingsPanel } from '../composables/useSettingsPanel'
+import router from '../router'
 
 /**
  * Web-specific actions for Boardkit.
@@ -22,6 +23,34 @@ export function registerWebActions(): void {
         if (ctx.selectedWidgetId) {
           openForWidget(ctx.selectedWidgetId)
         }
+      },
+    },
+    {
+      id: 'view.switch-to-library',
+      title: 'Go to Library',
+      subtitle: 'Browse modules by type',
+      keywords: ['library', 'browse', 'modules', 'view', 'list'],
+      icon: 'library',
+      group: 'view',
+      contexts: ['global', 'canvas'],
+      shortcutHint: '⌘⇧L',
+      priority: 40,
+      run: () => {
+        router.push('/library')
+      },
+    },
+    {
+      id: 'view.switch-to-canvas',
+      title: 'Go to Canvas',
+      subtitle: 'Return to the board view',
+      keywords: ['canvas', 'board', 'view', 'spatial'],
+      icon: 'layout-dashboard',
+      group: 'view',
+      contexts: ['global'],
+      shortcutHint: '⌘⇧L',
+      priority: 40,
+      run: () => {
+        router.push('/')
       },
     },
   ]

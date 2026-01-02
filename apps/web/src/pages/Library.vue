@@ -1,35 +1,33 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { registerCoreActions, registerCoreMenus, useBoardStore, pluginManager, menuActionBus } from '@boardkit/core'
 import { useTheme, useToast, BkMenuBar } from '@boardkit/ui'
-import { useCanvasExport } from '@boardkit/app-common'
 import { registerModules } from '../modules'
 import { registerWebActions } from '../actions/webActions'
 import { usePersistence } from '../composables/usePersistence'
 import { useDocumentList } from '../composables/useDocumentList'
 import { useSettingsPanel } from '../composables/useSettingsPanel'
-import BoardCanvas from '../components/BoardCanvas.vue'
+import { useLibraryView } from '../composables/useLibraryView'
+import { useSidebarState } from '@boardkit/app-common'
+import LibrarySidebar from '../components/LibrarySidebar.vue'
+import LibraryContent from '../components/LibraryContent.vue'
 import CommandPalette from '../components/CommandPalette.vue'
 import SettingsPanel from '../components/SettingsPanel.vue'
 import DocumentPickerModal from '../components/DocumentPickerModal.vue'
-import ElementPropertiesPanel from '../components/ElementPropertiesPanel.vue'
 
 // Register all modules before using the store
 registerModules()
 
-const route = useRoute()
 const router = useRouter()
 const boardStore = useBoardStore()
 const { initTheme } = useTheme()
 const toaster = useToast()
 const persistence = usePersistence()
 const documentList = useDocumentList()
-const { openAppSettings } = useSettingsPanel()
-const canvasExport = useCanvasExport()
-
-// Canvas component ref for export
-const boardCanvasRef = ref<InstanceType<typeof BoardCanvas> | null>(null)
+const { openAppSettings, openForWidget } = useSettingsPanel()
+const { sidebarCollapsed, toggleSidebarCollapse } = useSidebarState()
+const libraryView = useLibraryView()
 
 // Track if we've already shown orphan widget notification for this document
 const shownOrphanNotification = ref<string | null>(null)
@@ -39,6 +37,22 @@ const isDocumentPickerOpen = ref(false)
 
 // Menu action bus unsubscribe function
 let unsubscribeMenuActions: (() => void) | null = null
+
+// ============================================================================
+// Computed
+// ============================================================================
+
+const selectedTypeName = computed(() => {
+  if (!libraryView.selectedModuleType.value) return null
+  const moduleType = libraryView.moduleTypes.value.find(
+    (t) => t.moduleId === libraryView.selectedModuleType.value
+  )
+  return moduleType?.displayName ?? null
+})
+
+// ============================================================================
+// Handlers
+// ============================================================================
 
 const openCommandPalette = () => {
   isCommandPaletteOpen.value = true
@@ -66,7 +80,6 @@ const handleGoToLatest = async () => {
 
 // Document sidebar handlers
 const handleSelectDocument = async (id: string) => {
-  // Check for unsaved changes
   if (boardStore.isDirty) {
     await persistence.saveDocument()
   }
@@ -83,27 +96,10 @@ const handleDeleteDocument = async (id: string) => {
   await persistence.deleteDocument(id)
   await documentList.refreshDocumentList()
 
-  // If we deleted the current document, open another one
   if (!documentList.currentDocumentId.value && documentList.documents.value.length > 0) {
     await persistence.openDocument(documentList.documents.value[0].id)
   } else if (documentList.documents.value.length === 0) {
     await persistence.createDocument('Untitled Board')
-    await documentList.refreshDocumentList()
-  }
-}
-
-const handleRenameDocument = async (id: string, newTitle: string) => {
-  await documentList.renameDocument(id, newTitle)
-  // If this is the current document, update the store title
-  if (id === documentList.currentDocumentId.value) {
-    boardStore.setTitle(newTitle)
-  }
-}
-
-const handleDuplicateDocument = async (id: string) => {
-  const newId = await documentList.duplicateDocument(id)
-  if (newId) {
-    await persistence.openDocument(newId)
     await documentList.refreshDocumentList()
   }
 }
@@ -114,87 +110,37 @@ const handleOpenSettings = () => {
 
 // Navigation handler for view switching
 const handleSwitchView = (view: 'canvas' | 'library') => {
-  if (view === 'library') {
-    router.push('/library')
+  if (view === 'canvas') {
+    router.push('/')
   }
 }
 
-/**
- * Focus on a specific widget (center viewport and select it).
- * Called when navigating from Library with ?widget=<id>
- */
-const focusOnWidget = (widgetId: string) => {
-  const widget = boardStore.widgets.find((w) => w.id === widgetId)
-  if (!widget) return
-
-  // Select the widget
-  boardStore.selectWidget(widgetId)
-
-  // Center the viewport on the widget
-  // Get canvas dimensions (assume a reasonable default)
-  const viewportWidth = window.innerWidth
-  const viewportHeight = window.innerHeight - 48 // Account for menu bar
-
-  const widgetCenterX = widget.rect.x + widget.rect.width / 2
-  const widgetCenterY = widget.rect.y + widget.rect.height / 2
-
-  // Calculate viewport position to center the widget
-  const zoom = boardStore.viewport.zoom
-  const newX = viewportWidth / 2 - widgetCenterX * zoom
-  const newY = viewportHeight / 2 - widgetCenterY * zoom
-
-  boardStore.updateViewport({ x: newX, y: newY })
-
-  // Clear the query param to avoid re-focusing on page refresh
-  router.replace({ query: {} })
+// Library-specific handlers
+const handleSelectType = (moduleId: string | null) => {
+  libraryView.selectModuleType(moduleId)
 }
 
-// Export handlers
-const handleExportPng = async () => {
-  const canvasEl = boardCanvasRef.value?.canvasRef
-  if (!canvasEl) {
-    toaster.error('Canvas not available for export')
-    return
-  }
-
-  try {
-    await canvasExport.exportToPng(canvasEl, {
-      backgroundColor: 'white',
-      padding: 40,
-    })
-    toaster.success('PNG exported successfully')
-  } catch (error) {
-    console.error('[Board] PNG export failed:', error)
-    toaster.error('Failed to export PNG')
-  }
+const handleSearch = (query: string) => {
+  libraryView.setSearchQuery(query)
 }
 
-const handleExportSvg = async () => {
-  const canvasEl = boardCanvasRef.value?.canvasRef
-  if (!canvasEl) {
-    toaster.error('Canvas not available for export')
-    return
-  }
-
-  try {
-    await canvasExport.exportToSvg(canvasEl, {
-      backgroundColor: 'white',
-      padding: 40,
-    })
-    toaster.success('SVG exported successfully')
-  } catch (error) {
-    console.error('[Board] SVG export failed:', error)
-    toaster.error('Failed to export SVG')
-  }
+const handleOpenInCanvas = (widgetId: string) => {
+  libraryView.focusWidget(widgetId)
 }
+
+const handleOpenWidgetSettings = (widgetId: string) => {
+  openForWidget(widgetId)
+}
+
+// ============================================================================
+// Lifecycle
+// ============================================================================
 
 onMounted(async () => {
   initTheme()
 
-  // Initialize persistence (loads last document or creates new)
+  // Initialize persistence
   await persistence.initialize()
-
-  // Sync document list with persistence
   await documentList.refreshDocumentList()
 
   // Register core menus
@@ -227,15 +173,8 @@ onMounted(async () => {
   // Setup autosave
   persistence.setupAutosave()
 
-  // Initialize plugin manager (loads enabled plugins)
+  // Initialize plugin manager
   await pluginManager.initialize()
-
-  // Check for widget focus query param (from Library "Open in Canvas")
-  await nextTick()
-  const widgetId = route.query.widget as string | undefined
-  if (widgetId) {
-    focusOnWidget(widgetId)
-  }
 })
 
 onUnmounted(() => {
@@ -244,20 +183,18 @@ onUnmounted(() => {
   }
 })
 
-// Watch for orphan widgets and show notification
+// Watch for orphan widgets
 watch(
   () => boardStore.hasOrphanWidgets,
   (hasOrphans) => {
     const currentDocId = documentList.currentDocumentId.value
 
-    // Only show notification once per document session
     if (hasOrphans && currentDocId && shownOrphanNotification.value !== currentDocId) {
       shownOrphanNotification.value = currentDocId
 
       const orphanCount = boardStore.orphanWidgets.length
       const moduleIds = boardStore.orphanModuleIds
 
-      // Show toast with action to open settings
       toaster.warning(
         `${orphanCount} widget${orphanCount > 1 ? 's' : ''} use${orphanCount === 1 ? 's' : ''} uninstalled plugins: ${moduleIds.join(', ')}`,
         {
@@ -280,7 +217,7 @@ watch(
     <!-- Unified App Bar -->
     <BkMenuBar
       platform="web"
-      current-view="canvas"
+      current-view="library"
       :is-saving="persistence.isSaving.value"
       :last-saved="persistence.lastSaved.value"
       :can-undo="persistence.canUndo.value"
@@ -296,9 +233,26 @@ watch(
     />
 
     <!-- Main Content -->
-    <div class="flex-1 flex flex-col min-w-0 relative overflow-hidden">
-      <BoardCanvas ref="boardCanvasRef" @open-command-palette="openCommandPalette" />
-      <ElementPropertiesPanel />
+    <div class="flex-1 flex min-w-0 overflow-hidden">
+      <!-- Library Sidebar -->
+      <LibrarySidebar
+        :module-types="libraryView.moduleTypes.value"
+        :selected-type="libraryView.selectedModuleType.value"
+        :total-count="libraryView.totalWidgetCount.value"
+        :collapsed="sidebarCollapsed"
+        @select-type="handleSelectType"
+        @toggle-collapse="toggleSidebarCollapse"
+      />
+
+      <!-- Library Content -->
+      <LibraryContent
+        :widgets="libraryView.filteredWidgets.value"
+        :selected-type-name="selectedTypeName"
+        :search-query="libraryView.searchQuery.value"
+        @search="handleSearch"
+        @open-in-canvas="handleOpenInCanvas"
+        @open-settings="handleOpenWidgetSettings"
+      />
     </div>
 
     <!-- Modals -->

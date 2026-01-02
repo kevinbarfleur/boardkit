@@ -24,6 +24,8 @@ import { useTheme } from '../composables/useTheme'
 interface Props {
   /** Platform for filtering menus ('web' | 'desktop') */
   platform?: 'web' | 'desktop'
+  /** Current view for web platform ('canvas' | 'library') */
+  currentView?: 'canvas' | 'library'
   /** Whether document is currently saving */
   isSaving?: boolean
   /** Timestamp of last save */
@@ -40,6 +42,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   platform: 'web',
+  currentView: undefined,
   isSaving: false,
   lastSaved: null,
   canUndo: false,
@@ -63,6 +66,8 @@ const emit = defineEmits<{
   'go-to-history': [id: string]
   /** Emitted when going to latest version */
   'go-to-latest': []
+  /** Emitted when switching between canvas and library view (web only) */
+  'switch-view': [view: 'canvas' | 'library']
 }>()
 
 // State
@@ -257,6 +262,28 @@ watch(() => props.platform, refreshMenus)
     <!-- Separator between title and menus -->
     <BkDivider orientation="vertical" class="appbar-title-separator" />
 
+    <!-- View Toggle (Web only) -->
+    <div v-if="platform === 'web' && currentView" class="view-toggle">
+      <BkTooltip content="Canvas view">
+        <button
+          class="view-toggle-btn"
+          :class="{ active: currentView === 'canvas' }"
+          @click="emit('switch-view', 'canvas')"
+        >
+          <BkIcon icon="layout-dashboard" :size="16" />
+        </button>
+      </BkTooltip>
+      <BkTooltip content="Library view">
+        <button
+          class="view-toggle-btn"
+          :class="{ active: currentView === 'library' }"
+          @click="emit('switch-view', 'library')"
+        >
+          <BkIcon icon="library" :size="16" />
+        </button>
+      </BkTooltip>
+    </div>
+
     <!-- Center-left section: Menus -->
     <nav class="appbar-menus">
       <div
@@ -448,6 +475,42 @@ watch(() => props.platform, refreshMenus)
   height: 20px;
   margin: 0;
   opacity: 0.4;
+}
+
+/* View toggle */
+.view-toggle {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  background: hsl(var(--muted) / 0.5);
+  border-radius: 6px;
+}
+
+.view-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.view-toggle-btn:hover {
+  color: hsl(var(--foreground));
+  background: hsl(var(--accent));
+}
+
+.view-toggle-btn.active {
+  color: hsl(var(--primary));
+  background: hsl(var(--background));
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 /* Navigation menus */
