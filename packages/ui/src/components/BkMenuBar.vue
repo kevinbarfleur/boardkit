@@ -270,7 +270,7 @@ watch(() => props.platform, refreshMenus)
           :class="{ active: currentView === 'canvas' }"
           @click="emit('switch-view', 'canvas')"
         >
-          <BkIcon icon="layout-dashboard" :size="16" />
+          <BkIcon icon="layout-grid" :size="16" />
         </button>
       </BkTooltip>
       <BkTooltip content="Library view">
@@ -279,7 +279,7 @@ watch(() => props.platform, refreshMenus)
           :class="{ active: currentView === 'library' }"
           @click="emit('switch-view', 'library')"
         >
-          <BkIcon icon="library" :size="16" />
+          <BkIcon icon="list" :size="16" />
         </button>
       </BkTooltip>
     </div>

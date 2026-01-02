@@ -41,7 +41,7 @@ const isAllSelected = computed(() => props.selectedType === null)
     >
       <template v-if="!collapsed">
         <div class="flex items-center gap-2 min-w-0">
-          <BkIcon icon="library" class="w-5 h-5 text-primary shrink-0" />
+          <BkIcon icon="layers" class="w-5 h-5 text-primary shrink-0" />
           <span class="text-sm font-medium text-foreground truncate">
             Library
           </span>
@@ -61,7 +61,7 @@ const isAllSelected = computed(() => props.selectedType === null)
             class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-accent transition-colors"
             @click="emit('toggle-collapse')"
           >
-            <BkIcon icon="library" class="w-5 h-5 text-primary" />
+            <BkIcon icon="layers" class="w-5 h-5 text-primary" />
           </button>
         </BkTooltip>
       </template>

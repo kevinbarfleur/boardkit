@@ -12,15 +12,22 @@ import { ScratchpadModule } from './scratchpad'
 import { KanbanModule } from './kanban'
 import { TaskRadarModule } from './task-radar' // Demonstrates data sharing
 
+// Track if modules have been registered to make function idempotent
+let modulesRegistered = false
+
 /**
  * Register all core modules.
  * This function is called once at application startup.
+ * It's idempotent - calling it multiple times has no effect.
  *
  * Note: Official plugins (Habit Tracker, Stats Card, Focus Lens, Google Calendar)
  * are now available separately via the plugin system. Install them from:
  * github.com/kevinbarfleur/boardkit-official-plugins
  */
 export function registerModules() {
+  if (modulesRegistered) return
+  modulesRegistered = true
+
   moduleRegistry.register(TextModule)
   moduleRegistry.register(TodoModule)
   moduleRegistry.register(TimerModule)
