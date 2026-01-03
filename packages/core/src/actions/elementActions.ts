@@ -2,6 +2,18 @@ import type { ActionDefinition } from '../types/action'
 import type { TextElement } from '../types/element'
 import { useBoardStore } from '../stores/boardStore'
 import { DEFAULT_ELEMENT_STYLE, DEFAULT_FONT_SIZE, DEFAULT_FONT_FAMILY } from '../types/element'
+import { createImageElement, importImageFile } from '../services/imageImportService'
+
+// Store a reference to the file picker function (set by platform-specific code)
+let openImagePickerFn: (() => Promise<File[]>) | null = null
+
+/**
+ * Set the platform-specific image picker function.
+ * Called by Web/Desktop apps during initialization.
+ */
+export function setImagePickerFn(fn: () => Promise<File[]>): void {
+  openImagePickerFn = fn
+}
 
 /**
  * Element Actions
@@ -154,6 +166,49 @@ export function createElementActions(): ActionDefinition[] {
           fontWeight: 'normal',
           textAlign: 'left',
         } as Omit<TextElement, 'id' | 'zIndex'>)
+      },
+    },
+    {
+      id: 'element.add-image',
+      title: 'Add Image',
+      subtitle: 'Import an image from your device',
+      keywords: ['add', 'create', 'image', 'picture', 'photo', 'import'],
+      icon: 'image',
+      group: 'element',
+      contexts: ['global', 'canvas'],
+      priority: 57,
+      run: async (ctx) => {
+        if (!openImagePickerFn) {
+          console.warn('Image picker not initialized')
+          return
+        }
+
+        try {
+          const files = await openImagePickerFn()
+          if (files.length === 0) return
+
+          const x = ctx.pointerPosition?.x ?? 200
+          const y = ctx.pointerPosition?.y ?? 200
+
+          // Import each file
+          for (let i = 0; i < files.length; i++) {
+            const file = files[i]
+            const { assetId, dimensions } = await importImageFile(file)
+
+            // Offset multiple images
+            const offsetX = (i % 3) * 320
+            const offsetY = Math.floor(i / 3) * 320
+
+            const element = createImageElement(
+              assetId,
+              dimensions,
+              { x: x + offsetX, y: y + offsetY }
+            )
+            boardStore.addElement(element)
+          }
+        } catch (error) {
+          console.error('Failed to import image:', error)
+        }
       },
     },
 

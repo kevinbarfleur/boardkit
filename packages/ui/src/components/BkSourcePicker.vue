@@ -40,6 +40,8 @@ interface Props {
   emptyText?: string
   /** Empty state hint */
   emptyHint?: string
+  /** Compact mode - no form section wrapper, used when nested */
+  compact?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -49,6 +51,7 @@ const props = withDefaults(defineProps<Props>(), {
   mode: 'single',
   emptyText: 'No data sources available',
   emptyHint: 'Add a widget that provides data first',
+  compact: false,
 })
 
 const emit = defineEmits<{
@@ -111,7 +114,8 @@ const summaryText = computed(() => {
 </script>
 
 <template>
-  <BkFormSection :title="title" no-dividers>
+  <!-- Full mode with form section wrapper -->
+  <BkFormSection v-if="!compact" :title="title" no-dividers>
     <template #title>
       <span class="flex items-center gap-1.5">
         <BkIcon v-if="icon" :icon="icon" :size="12" />
@@ -209,4 +213,46 @@ const summaryText = computed(() => {
       </div>
     </div>
   </BkFormSection>
+
+  <!-- Compact mode - simple checkbox list without borders -->
+  <div v-else class="space-y-2">
+    <!-- Compact header -->
+    <div class="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+      <BkIcon v-if="icon" :icon="icon" :size="12" />
+      {{ title }}
+    </div>
+
+    <!-- Empty state (compact) -->
+    <div v-if="providers.length === 0" class="py-2 text-center">
+      <p class="text-xs text-muted-foreground">{{ emptyText }}</p>
+    </div>
+
+    <!-- Provider list (compact) - simple checkbox rows -->
+    <div v-else class="space-y-1">
+      <label
+        v-for="provider in providers"
+        :key="provider.id"
+        class="flex items-center gap-2.5 py-1.5 px-1 rounded-md cursor-pointer hover:bg-accent/30 transition-colors"
+      >
+        <!-- Checkbox -->
+        <BkCheckbox
+          :model-value="isSelected(provider.id)"
+          size="sm"
+          @update:model-value="toggleSelection(provider.id)"
+        />
+
+        <!-- Icon -->
+        <div
+          class="shrink-0 w-5 h-5 rounded flex items-center justify-center bg-muted text-muted-foreground"
+        >
+          <BkIcon :icon="getProviderIcon(provider)" :size="12" />
+        </div>
+
+        <!-- Content -->
+        <span class="flex-1 text-sm text-foreground truncate">
+          {{ provider.title }}
+        </span>
+      </label>
+    </div>
+  </div>
 </template>

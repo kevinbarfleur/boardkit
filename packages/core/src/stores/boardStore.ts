@@ -1,13 +1,14 @@
 import { defineStore } from 'pinia'
 import { ref, computed, toRaw } from 'vue'
 import { nanoid } from 'nanoid'
-import type { BoardkitDocument, Widget, Viewport, WidgetVisibilitySettings } from '../types/document'
+import type { BoardkitDocument, Widget, Viewport, WidgetVisibilitySettings, CanvasSettings } from '../types/document'
 import type { HistoryOptions } from '../types/module'
 import {
   DEFAULT_WIDGET_VISIBILITY,
   MIN_WIDGET_SCALE,
   MAX_WIDGET_SCALE,
   DEFAULT_WIDGET_SCALE,
+  DEFAULT_CANVAS_SETTINGS,
 } from '../types/document'
 import type { CanvasElement, BoardBackground, LineElement, DrawElement, GridSettings, Point, ElementGroup, AnchorPosition, ArrowBinding, Connection, ConnectionTargetType } from '../types/element'
 import type { DataSharingState, DataPermission, DataLink } from '../types/dataContract'
@@ -107,6 +108,7 @@ export const useBoardStore = defineStore('board', () => {
   const viewport = computed(() => document.value?.board.viewport ?? { x: 0, y: 0, zoom: 1 })
   const background = computed(() => document.value?.board.background ?? { ...DEFAULT_BACKGROUND })
   const grid = computed((): GridSettings => document.value?.board.grid ?? { ...DEFAULT_GRID_SETTINGS })
+  const canvasSettings = computed((): CanvasSettings => document.value?.board.canvasSettings ?? { ...DEFAULT_CANVAS_SETTINGS })
   const groups = computed((): ElementGroup[] => document.value?.board.groups ?? [])
   const connections = computed((): Connection[] => document.value?.board.connections ?? [])
   const moduleStates = computed(() => document.value?.modules ?? {})
@@ -1113,6 +1115,22 @@ export const useBoardStore = defineStore('board', () => {
   }
 
   // ============================================================================
+  // Actions - Canvas Settings
+  // ============================================================================
+
+  /**
+   * Update canvas settings.
+   */
+  function updateCanvasSettings(updates: Partial<CanvasSettings>): void {
+    if (!document.value) return
+    if (!document.value.board.canvasSettings) {
+      document.value.board.canvasSettings = { ...DEFAULT_CANVAS_SETTINGS }
+    }
+    Object.assign(document.value.board.canvasSettings, updates)
+    markDirty('Updated canvas settings')
+  }
+
+  // ============================================================================
   // Actions - Grid (Snap to Grid)
   // ============================================================================
 
@@ -1121,20 +1139,16 @@ export const useBoardStore = defineStore('board', () => {
    */
   function toggleGrid(): void {
     if (!document.value) return
-    setGridEnabled(!grid.value.enabled)
+    updateCanvasSettings({ snapToGrid: !canvasSettings.value.snapToGrid })
   }
 
   /**
    * Set grid enabled state.
+   * @deprecated Use updateCanvasSettings({ snapToGrid: enabled }) instead.
    */
   function setGridEnabled(enabled: boolean): void {
     if (!document.value) return
-
-    if (!document.value.board.grid) {
-      document.value.board.grid = { ...DEFAULT_GRID_SETTINGS }
-    }
-    document.value.board.grid.enabled = enabled
-    markDirty(enabled ? 'Enabled grid snapping' : 'Disabled grid snapping')
+    updateCanvasSettings({ snapToGrid: enabled })
   }
 
   /**
@@ -1155,20 +1169,21 @@ export const useBoardStore = defineStore('board', () => {
 
   /**
    * Snap a value to the grid.
-   * Uses fixed GRID_SIZE (20px) to match visual background pattern.
-   * Returns the original value if grid is disabled.
+   * Uses gridSpacing from canvasSettings (defaults to 20px).
+   * Returns the original value if snap is disabled.
    */
   function snapToGrid(value: number): number {
-    if (!grid.value.enabled) return value
-    return Math.round(value / GRID_SIZE) * GRID_SIZE
+    if (!canvasSettings.value.snapToGrid) return value
+    const spacing = canvasSettings.value.gridSpacing
+    return Math.round(value / spacing) * spacing
   }
 
   /**
    * Snap a point to the grid.
-   * Returns the original point if grid is disabled.
+   * Returns the original point if snap is disabled.
    */
   function snapPointToGrid(point: Point): Point {
-    if (!grid.value.enabled) return point
+    if (!canvasSettings.value.snapToGrid) return point
     return {
       x: snapToGrid(point.x),
       y: snapToGrid(point.y),
@@ -1177,7 +1192,7 @@ export const useBoardStore = defineStore('board', () => {
 
   /**
    * Snap a rect's position and size to the grid.
-   * Returns the original rect if grid is disabled.
+   * Returns the original rect if snap is disabled.
    */
   function snapRectToGrid(rect: { x: number; y: number; width: number; height: number }): {
     x: number
@@ -1185,7 +1200,7 @@ export const useBoardStore = defineStore('board', () => {
     width: number
     height: number
   } {
-    if (!grid.value.enabled) return rect
+    if (!canvasSettings.value.snapToGrid) return rect
     return {
       x: snapToGrid(rect.x),
       y: snapToGrid(rect.y),
@@ -2285,6 +2300,12 @@ export const useBoardStore = defineStore('board', () => {
 
     // Actions - Background
     setBackground,
+
+    // Getters - Canvas Settings
+    canvasSettings,
+
+    // Actions - Canvas Settings
+    updateCanvasSettings,
 
     // Actions - Grid (Snap to Grid)
     toggleGrid,

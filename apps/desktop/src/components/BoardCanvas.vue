@@ -26,6 +26,7 @@ import {
   WidgetFrame,
   BkContextMenu,
   BkDataSourcePicker,
+  BkToolButton,
   AnchorPointsOverlay,
   useTheme,
   type ContextMenuItem,
@@ -176,6 +177,7 @@ const elements = computed(() => boardStore.elements)
 const viewport = computed(() => boardStore.viewport)
 const background = computed(() => boardStore.background)
 const grid = computed(() => boardStore.grid)
+const canvasSettings = computed(() => boardStore.canvasSettings)
 
 // Canvas size for grid overlay (updated via ResizeObserver)
 const canvasWidth = ref(window.innerWidth)
@@ -243,10 +245,11 @@ const backgroundStyle = computed(() => {
   const bg = background.value
   const zoom = viewport.value.zoom
 
-  // Grid size is fixed at 20px in canvas coordinates
-  // Visual size scales with zoom: 20px canvas = 20*zoom screen pixels
+  // Grid size from canvas settings (default: 20px)
+  // Visual size scales with zoom: gridSpacing canvas = gridSpacing*zoom screen pixels
   // This ensures perfect alignment between visual grid and snap-to-grid
-  const baseSize = 20 * zoom
+  const gridSpacing = canvasSettings.value.gridSpacing
+  const baseSize = gridSpacing * zoom
 
   // Reduce opacity when zoomed out to improve visibility
   // Full opacity at zoom >= 60%, fades progressively below
@@ -1375,7 +1378,6 @@ const handleCanvasMouseUp = (e: MouseEvent) => {
 // Zoom constants
 const MIN_ZOOM = 0.1
 const MAX_ZOOM = 3
-const ZOOM_SENSITIVITY = 0.002
 
 // Cache for scrollable container checks to avoid repeated getComputedStyle calls
 const scrollableCache = new WeakMap<HTMLElement, boolean>()
@@ -1434,7 +1436,7 @@ const handleWheel = (e: WheelEvent) => {
   closeContextMenu()
 
   if (e.ctrlKey || e.metaKey) {
-    const delta = -e.deltaY * ZOOM_SENSITIVITY
+    const delta = -e.deltaY * canvasSettings.value.zoomSensitivity
     const zoomFactor = Math.exp(delta)
     const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, viewport.value.zoom * zoomFactor))
 
@@ -1455,6 +1457,27 @@ const handleWheel = (e: WheelEvent) => {
       y: viewport.value.y - e.deltaY,
     })
   }
+}
+
+// Zoom button handlers (zoom centered on screen center)
+function handleZoomIn() {
+  const newZoom = Math.min(MAX_ZOOM, viewport.value.zoom * 1.25)
+  const centerX = canvasWidth.value / 2
+  const centerY = canvasHeight.value / 2
+  const scale = newZoom / viewport.value.zoom
+  const newX = centerX - (centerX - viewport.value.x) * scale
+  const newY = centerY - (centerY - viewport.value.y) * scale
+  boardStore.updateViewport({ x: newX, y: newY, zoom: newZoom })
+}
+
+function handleZoomOut() {
+  const newZoom = Math.max(MIN_ZOOM, viewport.value.zoom * 0.8)
+  const centerX = canvasWidth.value / 2
+  const centerY = canvasHeight.value / 2
+  const scale = newZoom / viewport.value.zoom
+  const newX = centerX - (centerX - viewport.value.x) * scale
+  const newY = centerY - (centerY - viewport.value.y) * scale
+  boardStore.updateViewport({ x: newX, y: newY, zoom: newZoom })
 }
 
 // Element event handlers
@@ -2268,11 +2291,25 @@ defineExpose({
       :style="marqueeStyle"
     />
 
-    <!-- Zoom indicator -->
-    <div
-      class="absolute bottom-4 right-4 px-2 py-1 rounded bg-background/80 border text-xs text-muted-foreground pointer-events-none"
-    >
-      {{ Math.round(viewport.zoom * 100) }}%
+    <!-- Zoom controls -->
+    <div class="absolute bottom-4 right-4 flex items-center gap-0.5 bg-background/80 border rounded-lg px-1 py-0.5">
+      <BkToolButton
+        icon="zoom-out"
+        tooltip="Zoom Out"
+        shortcut="⌘−"
+        size="sm"
+        @click="handleZoomOut"
+      />
+      <BkToolButton
+        icon="zoom-in"
+        tooltip="Zoom In"
+        shortcut="⌘+"
+        size="sm"
+        @click="handleZoomIn"
+      />
+      <div class="px-2 text-xs text-muted-foreground tabular-nums min-w-[40px] text-center">
+        {{ Math.round(viewport.zoom * 100) }}%
+      </div>
     </div>
 
     <!-- Context Menu -->

@@ -124,6 +124,10 @@ import {
   Focus,
   KeyRound,
   ExternalLink,
+  // Image element icons
+  Image,
+  FlipHorizontal,
+  FlipVertical,
   type LucideIcon,
 } from 'lucide-vue-next'
 
@@ -252,6 +256,10 @@ const iconComponents: Record<string, LucideIcon> = {
   focus: Focus,
   'key-round': KeyRound,
   'external-link': ExternalLink,
+  // Image element icons
+  image: Image,
+  'flip-horizontal': FlipHorizontal,
+  'flip-vertical': FlipVertical,
 }
 
 export type IconName = keyof typeof iconComponents
@@ -267,6 +275,11 @@ const props = withDefaults(defineProps<Props>(), {
   strokeWidth: 1.5,
 })
 
+// Don't inherit attrs automatically - we forward class manually
+defineOptions({
+  inheritAttrs: false,
+})
+
 const iconComponent = computed<Component | null>(() => {
   return iconComponents[props.icon] || null
 })
@@ -279,5 +292,6 @@ const iconComponent = computed<Component | null>(() => {
     :size="props.size"
     :stroke-width="props.strokeWidth"
     class="shrink-0"
+    v-bind="$attrs"
   />
 </template>

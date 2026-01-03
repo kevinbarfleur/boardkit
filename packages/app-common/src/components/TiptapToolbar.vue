@@ -91,7 +91,7 @@ const isActive = (name: string) => {
 <template>
   <div
     v-if="editor"
-    class="flex items-center gap-1 px-2 py-1.5 border-b border-border bg-muted/30"
+    class="flex items-center gap-1 px-2 py-1.5 border border-border bg-muted/30 rounded-lg"
   >
     <!-- Headings -->
     <button

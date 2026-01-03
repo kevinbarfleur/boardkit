@@ -10,6 +10,7 @@ export { actionRegistry, ActionRegistry } from './actions/ActionRegistry'
 export { registerCoreActions, refreshCoreActions, menuActionBus } from './actions/coreActions'
 export type { MenuActionEvent } from './actions/coreActions'
 export { dataSharingEventBus } from './actions/dataActions'
+export { setImagePickerFn } from './actions/elementActions'
 
 // Menu System
 export { menuRegistry, MenuRegistry } from './menu/MenuRegistry'
@@ -24,6 +25,7 @@ export {
 } from './stores/boardStore'
 export { useToolStore } from './stores/toolStore'
 export { useDataSharingStore } from './stores/dataSharingStore'
+export { useAssetStore } from './stores/assetStore'
 
 // Migrations
 export {
@@ -126,6 +128,18 @@ export {
   setSecretsVault,
   getSecretsVault,
   isSecretsVaultInitialized,
+  // Image import service
+  validateImageFile,
+  validateImageBlob,
+  getImageDimensions,
+  importImageFile,
+  importImageFromUrl,
+  importImageFromClipboard,
+  createImageElement,
+  importAndAddImage,
+  importAndAddImages,
+  type ImageImportResult,
+  type ImageValidationResult,
 } from './services'
 
 // Plugin System

@@ -3,10 +3,12 @@ import { ref, computed, watch } from 'vue'
 import {
   useBoardStore,
   useToolStore,
+  actionRegistry,
   FONT_FAMILY_CSS,
   FONT_FAMILY_LABELS,
   type ToolType,
   type FontFamily,
+  type ActionContext,
   TOOL_SHORTCUTS,
   type ElementStyle,
   type StrokeDashType,
@@ -220,6 +222,26 @@ function toggleStylePanel() {
 function handleBackgroundClick() {
   emit('backgroundClick')
 }
+
+function handleAddImage() {
+  const ctx: ActionContext = {
+    selectedWidget: boardStore.selectedWidget,
+    selectedWidgetId: boardStore.selectedWidgetId,
+    selectedWidgetIds: boardStore.selectedWidgetIds,
+    selectedElement: boardStore.selectedElement,
+    selectedElementId: boardStore.selectedElementId,
+    selectedElementIds: boardStore.selectedElementIds,
+    isMultiSelection: boardStore.isMultiSelection,
+    selectionCount: boardStore.selectedWidgetIds.length + boardStore.selectedElementIds.length,
+    activeTool: toolStore.activeTool,
+    viewport: boardStore.viewport,
+    widgets: boardStore.widgets,
+    elements: boardStore.elements,
+    platform: 'desktop',
+    isDirty: boardStore.isDirty,
+  }
+  actionRegistry.execute('element.add-image', ctx)
+}
 </script>
 
 <template>
@@ -237,6 +259,15 @@ function handleBackgroundClick() {
         @click="selectTool(tool.id)"
       />
     </template>
+
+    <BkDivider orientation="vertical" class="mx-1 h-6" />
+
+    <!-- Image button (action, not a tool) -->
+    <BkToolButton
+      icon="image"
+      tooltip="Add Image"
+      @click="handleAddImage"
+    />
 
     <BkDivider orientation="vertical" class="mx-1 h-6" />
 

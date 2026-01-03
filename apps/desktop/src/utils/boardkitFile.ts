@@ -3,12 +3,17 @@ import { save, open } from '@tauri-apps/plugin-dialog'
 import { readFile, writeFile, rename, remove, BaseDirectory, exists } from '@tauri-apps/plugin-fs'
 import {
   type BoardkitDocument,
+  type ImageElement,
+  type Asset,
   validateDocument,
   DocumentValidationError,
+  getExtensionForMimeType,
+  getMimeTypeForExtension,
 } from '@boardkit/core'
 
 const PACKAGE_JSON_NAME = 'package.json'
 const BOARD_JSON_NAME = 'board.json'
+const ASSETS_FOLDER = 'assets'
 const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB
 
 interface PackageJson {
@@ -21,23 +26,100 @@ interface PackageJson {
 }
 
 /**
- * Export a BoardkitDocument to a .boardkit file (ZIP container)
+ * Result of importing a .boardkit file.
+ * Includes the document and any embedded assets.
  */
-export async function exportBoardkit(document: BoardkitDocument): Promise<Uint8Array> {
+export interface ImportResult {
+  document: BoardkitDocument
+  assets: Map<string, Blob>
+}
+
+/**
+ * Get referenced asset IDs from a document (those used by image elements).
+ */
+function getReferencedAssetIds(document: BoardkitDocument): Set<string> {
+  const ids = new Set<string>()
+  for (const element of document.board.elements) {
+    if (element.type === 'image') {
+      ids.add((element as ImageElement).assetId)
+    }
+  }
+  return ids
+}
+
+/**
+ * Clean up orphan assets from a document.
+ * Returns a new document with only referenced assets.
+ */
+function cleanupOrphanAssets(document: BoardkitDocument): BoardkitDocument {
+  if (!document.assets) {
+    return document
+  }
+
+  const referencedIds = getReferencedAssetIds(document)
+  const cleanedAssets: Record<string, Asset> = {}
+
+  for (const [id, asset] of Object.entries(document.assets.assets)) {
+    if (referencedIds.has(id)) {
+      cleanedAssets[id] = asset
+    }
+  }
+
+  return {
+    ...document,
+    assets: { assets: cleanedAssets },
+  }
+}
+
+/**
+ * Export a BoardkitDocument to a .boardkit file (ZIP container)
+ *
+ * @param document - The document to export
+ * @param assetBlobs - Map of assetId -> Blob for embedded assets
+ */
+export async function exportBoardkit(
+  document: BoardkitDocument,
+  assetBlobs?: Map<string, Blob>
+): Promise<Uint8Array> {
   const zip = new JSZip()
+
+  // Clean up orphan assets before export
+  const cleanedDocument = cleanupOrphanAssets(document)
+  const referencedIds = getReferencedAssetIds(cleanedDocument)
 
   // Create package.json
   const packageJson: PackageJson = {
-    name: document.meta.title.toLowerCase().replace(/\s+/g, '-'),
+    name: cleanedDocument.meta.title.toLowerCase().replace(/\s+/g, '-'),
     version: '1.0.0',
     boardkit: {
-      formatVersion: document.version,
+      formatVersion: cleanedDocument.version,
       createdWith: 'Boardkit Desktop v0.1.0',
     },
   }
 
   zip.file(PACKAGE_JSON_NAME, JSON.stringify(packageJson, null, 2))
-  zip.file(BOARD_JSON_NAME, JSON.stringify(document, null, 2))
+  zip.file(BOARD_JSON_NAME, JSON.stringify(cleanedDocument, null, 2))
+
+  // Add assets folder if there are assets
+  if (assetBlobs && cleanedDocument.assets) {
+    const assetsFolder = zip.folder(ASSETS_FOLDER)
+    if (assetsFolder) {
+      for (const [assetId, blob] of assetBlobs) {
+        // Only include referenced assets
+        if (!referencedIds.has(assetId)) {
+          continue
+        }
+
+        const asset = cleanedDocument.assets.assets[assetId]
+        if (asset) {
+          const extension = getExtensionForMimeType(asset.mimeType)
+          // Convert Blob to ArrayBuffer for JSZip
+          const arrayBuffer = await blob.arrayBuffer()
+          assetsFolder.file(`${assetId}.${extension}`, arrayBuffer)
+        }
+      }
+    }
+  }
 
   // Generate ZIP as Uint8Array
   return await zip.generateAsync({
@@ -48,9 +130,9 @@ export async function exportBoardkit(document: BoardkitDocument): Promise<Uint8A
 }
 
 /**
- * Import a .boardkit file and return the BoardkitDocument
+ * Import a .boardkit file and return the BoardkitDocument with assets.
  */
-export async function importBoardkit(data: Uint8Array): Promise<BoardkitDocument> {
+export async function importBoardkit(data: Uint8Array): Promise<ImportResult> {
   // Check file size before processing
   if (data.length > MAX_FILE_SIZE) {
     throw new Error(`File too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024}MB.`)
@@ -75,14 +157,43 @@ export async function importBoardkit(data: Uint8Array): Promise<BoardkitDocument
   }
 
   // Validate document structure
+  let document: BoardkitDocument
   try {
-    return validateDocument(parsedData)
+    document = validateDocument(parsedData)
   } catch (error) {
     if (error instanceof DocumentValidationError) {
       throw new Error(`Invalid .boardkit file: ${error.message}`)
     }
     throw error
   }
+
+  // Extract assets from assets/ folder
+  const assets = new Map<string, Blob>()
+
+  // Process assets using forEach for reliable iteration
+  const assetPromises: Promise<void>[] = []
+  zip.forEach((relativePath, zipEntry) => {
+    if (relativePath.startsWith(`${ASSETS_FOLDER}/`) && !zipEntry.dir) {
+      const filename = relativePath.split('/').pop() ?? ''
+      const dotIndex = filename.lastIndexOf('.')
+      const assetId = dotIndex > 0 ? filename.substring(0, dotIndex) : filename
+      const extension = dotIndex > 0 ? filename.substring(dotIndex + 1) : ''
+
+      const mimeType = getMimeTypeForExtension(extension)
+      if (mimeType) {
+        assetPromises.push(
+          zipEntry.async('arraybuffer').then((data) => {
+            const blob = new Blob([data], { type: mimeType })
+            assets.set(assetId, blob)
+          })
+        )
+      }
+    }
+  })
+
+  await Promise.all(assetPromises)
+
+  return { document, assets }
 }
 
 /**
@@ -111,7 +222,7 @@ export async function saveToFile(document: BoardkitDocument): Promise<boolean> {
 /**
  * Open a .boardkit file using Tauri's file dialog
  */
-export async function openFromFile(): Promise<BoardkitDocument | null> {
+export async function openFromFile(): Promise<ImportResult | null> {
   const path = await open({
     multiple: false,
     directory: false,
@@ -127,6 +238,25 @@ export async function openFromFile(): Promise<BoardkitDocument | null> {
 
   const data = await readFile(path as string)
   return await importBoardkit(data)
+}
+
+/**
+ * Open image files using Tauri's file dialog.
+ */
+export async function openImageFiles(): Promise<string[] | null> {
+  const paths = await open({
+    multiple: true,
+    directory: false,
+    filters: [
+      {
+        name: 'Images',
+        extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'],
+      },
+    ],
+  })
+
+  if (!paths) return null
+  return Array.isArray(paths) ? paths : [paths]
 }
 
 /**

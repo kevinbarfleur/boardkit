@@ -70,6 +70,43 @@ const migrations: Migration[] = [
       }
     },
   },
+  {
+    fromVersion: 2,
+    toVersion: 3,
+    migrate: (doc: LegacyDocument): LegacyDocument => {
+      // Migration v2 -> v3:
+      // - Add assets registry for binary files (images)
+      return {
+        ...doc,
+        version: 3,
+        assets: doc.assets ?? {
+          assets: {},
+        },
+      }
+    },
+  },
+  {
+    fromVersion: 3,
+    toVersion: 4,
+    migrate: (doc: LegacyDocument): LegacyDocument => {
+      // Migration v3 -> v4:
+      // - Add canvasSettings for zoom sensitivity, snap-to-grid, and grid spacing
+      // - Migrate grid.enabled to canvasSettings.snapToGrid
+      const snapEnabled = doc.board?.grid?.enabled ?? true
+      return {
+        ...doc,
+        version: 4,
+        board: {
+          ...doc.board,
+          canvasSettings: {
+            zoomSensitivity: 0.002,
+            snapToGrid: snapEnabled,
+            gridSpacing: 20,
+          },
+        },
+      }
+    },
+  },
 ]
 
 // ============================================================================

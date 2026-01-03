@@ -1,6 +1,6 @@
 import { ref, computed, watch } from 'vue'
 import { useDebounceFn, useDocumentVisibility, useStorage } from '@vueuse/core'
-import { useBoardStore, type BoardkitDocument } from '@boardkit/core'
+import { useBoardStore, useAssetStore, type BoardkitDocument } from '@boardkit/core'
 import { mkdir, exists } from '@tauri-apps/plugin-fs'
 import { useVault } from './useVault'
 import {
@@ -467,14 +467,18 @@ export function usePersistence() {
 
     try {
       isLoading.value = true
-      const doc = await openFromFile()
-      if (!doc) return false
+      const result = await openFromFile()
+      if (!result) return false
+
+      // Load imported assets into the asset store
+      const assetStore = useAssetStore()
+      await assetStore.loadAssets(result.assets)
 
       // Create a new file in the vault with the imported content
-      const filePath = await vault.createFile(doc.meta.title, doc)
+      const filePath = await vault.createFile(result.document.meta.title, result.document)
       if (!filePath) return false
 
-      boardStore.loadDocument(doc)
+      boardStore.loadDocument(result.document)
       currentFilePath.value = filePath
       lastSaved.value = Date.now()
       boardStore.markClean()

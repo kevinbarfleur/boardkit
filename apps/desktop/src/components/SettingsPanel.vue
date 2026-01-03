@@ -15,6 +15,7 @@ import {
   BkIcon,
   BkToggle,
   BkSelect,
+  BkSlider,
   BkButtonGroup,
   BkFormRow,
   BkFormSection,
@@ -48,9 +49,25 @@ const {
 const appSettingsTab = ref<'general' | 'plugins'>('general')
 
 const appSettingsTabs: BkTab[] = [
-  { id: 'general', label: 'General', icon: 'settings' },
-  { id: 'plugins', label: 'Plugins', icon: 'puzzle' },
+  { id: 'general', label: 'General', icon: 'settings-2' },
+  { id: 'plugins', label: 'Plugins', icon: 'zap' },
 ]
+
+// Compute content wrapper class based on active tab (card tabs style)
+const appSettingsContentClass = computed(() => {
+  const base = ['border', 'border-border', 'bg-popover', 'rounded-b-lg', 'rounded-tr-lg']
+
+  const tabIds = appSettingsTabs.map((t) => t.id)
+  const activeIndex = tabIds.indexOf(appSettingsTab.value)
+  const isFirstActive = activeIndex === 0
+
+  // Top-left: rounded only if first tab is NOT active
+  if (!isFirstActive) {
+    base.push('rounded-tl-lg')
+  }
+
+  return base.join(' ')
+})
 
 // Sync appSettingsTab with initialTab when opening app settings
 watch(
@@ -98,6 +115,9 @@ const themeOptions = [
   { value: 'dark', label: 'Dark' },
   { value: 'system', label: 'System' },
 ]
+
+// Canvas settings
+const canvasSettings = computed(() => boardStore.canvasSettings)
 
 // =============================================================================
 // Widget & Module
@@ -319,21 +339,21 @@ const visibilityOptions = [
 
 <template>
   <!-- Click-outside-to-close (transparent, doesn't block canvas interactions) -->
-  <div v-if="isOpen" class="fixed inset-0 top-14 z-30" @mousedown="close" />
+  <div v-if="isOpen" class="fixed inset-0 top-14 z-[110]" @mousedown="close" />
 
   <!-- Floating Panel -->
   <Transition
-    enter-active-class="transition-all duration-200 ease-out"
+    enter-active-class="transition-all duration-150 ease-out"
     enter-from-class="translate-x-4 opacity-0"
     enter-to-class="translate-x-0 opacity-100"
-    leave-active-class="transition-all duration-150 ease-in"
+    leave-active-class="transition-all duration-100 ease-in"
     leave-from-class="translate-x-0 opacity-100"
     leave-to-class="translate-x-4 opacity-0"
   >
     <!-- App Settings Panel -->
     <aside
       v-if="isOpen && isAppSettings"
-      class="fixed right-4 top-[4.5rem] bottom-4 z-40 w-80 rounded-xl border border-border bg-popover flex flex-col shadow-2xl"
+      class="fixed right-4 top-[4.5rem] bottom-4 z-[120] w-[380px] rounded-xl border border-border bg-popover flex flex-col shadow-2xl"
     >
       <!-- Header -->
       <div class="flex items-center gap-3 px-4 py-3 border-b border-border">
@@ -351,70 +371,107 @@ const visibilityOptions = [
         </button>
       </div>
 
-      <!-- Tabs -->
-      <div class="border-b border-border px-4">
+      <!-- Scrollable Content with Card Tabs -->
+      <div class="flex-1 overflow-y-auto px-3 pt-3">
+        <!-- Card Tabs -->
         <BkTabs
           v-model="appSettingsTab"
           :tabs="appSettingsTabs"
-          size="sm"
+          variant="card"
+          :full-width="false"
         />
-      </div>
 
-      <!-- Scrollable Content -->
-      <div class="flex-1 overflow-y-auto p-4 space-y-4">
-        <!-- General Tab -->
-        <template v-if="appSettingsTab === 'general'">
-          <!-- Vault Section -->
-          <BkFormSection title="Vault">
-            <div class="p-3">
-              <div class="flex items-center gap-3 mb-3">
-                <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
-                  <BkIcon icon="folder" :size="16" class="text-primary" />
+        <!-- Content area with border that connects to active tab -->
+        <div :class="appSettingsContentClass">
+          <!-- General Tab -->
+          <div v-show="appSettingsTab === 'general'" class="p-3 space-y-4">
+            <!-- Vault Section -->
+            <BkFormSection title="Vault">
+              <div class="p-3">
+                <div class="flex items-center gap-3 mb-3">
+                  <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+                    <BkIcon icon="folder" :size="16" class="text-primary" />
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-foreground truncate">
+                      {{ vault.vaultName.value || 'No vault' }}
+                    </p>
+                    <p class="text-xs text-muted-foreground truncate">
+                      {{ vault.vaultPath.value || 'Not configured' }}
+                    </p>
+                  </div>
                 </div>
-                <div class="flex-1 min-w-0">
-                  <p class="text-sm font-medium text-foreground truncate">
-                    {{ vault.vaultName.value || 'No vault' }}
-                  </p>
-                  <p class="text-xs text-muted-foreground truncate">
-                    {{ vault.vaultPath.value || 'Not configured' }}
-                  </p>
-                </div>
+                <button
+                  class="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm rounded-lg border border-border hover:bg-accent transition-colors"
+                  @click="handleChangeVault"
+                >
+                  <BkIcon icon="folder" :size="14" />
+                  Change vault
+                </button>
               </div>
-              <button
-                class="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm rounded-lg border border-border hover:bg-accent transition-colors"
-                @click="handleChangeVault"
-              >
-                <BkIcon icon="folder" :size="14" />
-                Change vault
-              </button>
-            </div>
-          </BkFormSection>
+            </BkFormSection>
 
-          <!-- Appearance Section -->
-          <BkFormSection title="Appearance">
-            <BkFormRow label="Theme" icon="palette" layout="stacked">
-              <BkButtonGroup
-                :model-value="theme"
-                :options="themeOptions"
-                full-width
-                @update:model-value="(v) => setTheme(v as 'light' | 'dark' | 'system')"
-              />
-            </BkFormRow>
-          </BkFormSection>
-        </template>
+            <!-- Appearance Section -->
+            <BkFormSection title="Appearance">
+              <BkFormRow label="Theme" icon="palette" layout="stacked">
+                <BkButtonGroup
+                  :model-value="theme"
+                  :options="themeOptions"
+                  full-width
+                  @update:model-value="(v) => setTheme(v as 'light' | 'dark' | 'system')"
+                />
+              </BkFormRow>
+            </BkFormSection>
 
-        <!-- Plugins Tab -->
-        <template v-else-if="appSettingsTab === 'plugins'">
-          <BkPluginSettings
-            :plugins="plugins"
-            :loading="pluginsLoading"
-            @install="handlePluginInstall"
-            @toggle="handlePluginToggle"
-            @update="handlePluginUpdate"
-            @uninstall="handlePluginUninstall"
-            @check-updates="handleCheckUpdates"
-          />
-        </template>
+            <!-- Canvas Section -->
+            <BkFormSection title="Canvas">
+              <BkFormRow label="Zoom Sensitivity" icon="zoom-in">
+                <BkSlider
+                  :model-value="canvasSettings.zoomSensitivity * 1000"
+                  :min="0.5"
+                  :max="5"
+                  :step="0.5"
+                  class="w-24"
+                  @update:model-value="(v: number) => boardStore.updateCanvasSettings({ zoomSensitivity: v / 1000 })"
+                />
+              </BkFormRow>
+              <BkFormRow label="Snap to Grid" icon="grid-3x3">
+                <BkToggle
+                  :model-value="canvasSettings.snapToGrid"
+                  size="sm"
+                  @update:model-value="(v: boolean) => boardStore.updateCanvasSettings({ snapToGrid: v })"
+                />
+              </BkFormRow>
+              <BkFormRow label="Grid Size" icon="ruler">
+                <BkSlider
+                  :model-value="canvasSettings.gridSpacing"
+                  :min="10"
+                  :max="100"
+                  :step="10"
+                  show-value
+                  class="w-24"
+                  @update:model-value="(v: number) => boardStore.updateCanvasSettings({ gridSpacing: v })"
+                />
+              </BkFormRow>
+            </BkFormSection>
+          </div>
+
+          <!-- Plugins Tab -->
+          <div v-show="appSettingsTab === 'plugins'" class="p-3">
+            <BkPluginSettings
+              :plugins="plugins"
+              :loading="pluginsLoading"
+              @install="handlePluginInstall"
+              @toggle="handlePluginToggle"
+              @update="handlePluginUpdate"
+              @uninstall="handlePluginUninstall"
+              @check-updates="handleCheckUpdates"
+            />
+          </div>
+        </div>
+
+        <!-- Bottom spacing -->
+        <div class="h-3" />
       </div>
 
       <!-- Footer -->
@@ -426,7 +483,7 @@ const visibilityOptions = [
     <!-- Widget Settings Panel -->
     <aside
       v-else-if="isOpen && widget"
-      class="fixed right-4 top-[4.5rem] bottom-4 z-40 w-80 rounded-xl border border-border bg-popover flex flex-col shadow-2xl"
+      class="fixed right-4 top-[4.5rem] bottom-4 z-[120] w-80 rounded-xl border border-border bg-popover flex flex-col shadow-2xl"
     >
       <!-- Header -->
       <div class="flex items-center gap-3 px-4 py-3 border-b border-border">

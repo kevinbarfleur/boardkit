@@ -189,7 +189,7 @@ watch(
         role="dialog"
         aria-modal="true"
         aria-label="Command palette"
-        class="fixed inset-0 z-[999] flex items-start justify-center pt-[15vh]"
+        class="fixed inset-0 z-[200] flex items-start justify-center pt-[12vh]"
         @keydown="handleKeydown"
       >
         <!-- Backdrop -->
@@ -211,7 +211,7 @@ watch(
           <div
             v-if="props.open"
             ref="dialogRef"
-            class="relative w-full max-w-xl overflow-hidden rounded-xl border border-border bg-card shadow-2xl"
+            class="relative w-full max-w-xl overflow-hidden rounded-xl border border-border bg-popover shadow-2xl"
           >
             <slot
               :listbox-id="listboxId"

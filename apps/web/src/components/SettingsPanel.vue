@@ -2,12 +2,14 @@
 import { ref, computed, watch } from 'vue'
 import {
   useBoardStore,
+  useAssetStore,
   moduleRegistry,
   useConfigurationProviders,
   isModuleConfigured,
   DEFAULT_WIDGET_VISIBILITY,
   type WidgetVisibilityMode,
   type ModuleContext,
+  type ImageElement,
 } from '@boardkit/core'
 import { useSettingsPanel } from '../composables/useSettingsPanel'
 import { useDocumentList } from '../composables/useDocumentList'
@@ -15,6 +17,7 @@ import {
   BkIcon,
   BkToggle,
   BkSelect,
+  BkSlider,
   BkButtonGroup,
   BkFormRow,
   BkFormSection,
@@ -22,16 +25,21 @@ import {
   BkPluginSettings,
   BkTabs,
   useTheme,
+  useModal,
+  useToast,
   type ConfigPanelProvider,
   type BkTab,
 } from '@boardkit/ui'
 import { usePlugins } from '@boardkit/app-common'
 
 const boardStore = useBoardStore()
+const assetStore = useAssetStore()
 const { isOpen, widgetId, initialTab, isAppSettings, close } = useSettingsPanel()
 const { getAllProviders, extractContractIdsFromSchema } = useConfigurationProviders()
 const documentList = useDocumentList()
 const { theme, setTheme } = useTheme()
+const { confirm } = useModal()
+const toast = useToast()
 
 // Plugins
 const {
@@ -45,18 +53,35 @@ const {
 } = usePlugins()
 
 // App Settings Tabs
-const appSettingsTab = ref<'general' | 'plugins'>('general')
+const appSettingsTab = ref<'general' | 'plugins' | 'assets'>('general')
 
 const appSettingsTabs: BkTab[] = [
-  { id: 'general', label: 'General', icon: 'settings' },
-  { id: 'plugins', label: 'Plugins', icon: 'puzzle' },
+  { id: 'general', label: 'General', icon: 'settings-2' },
+  { id: 'plugins', label: 'Plugins', icon: 'zap' },
+  { id: 'assets', label: 'Assets', icon: 'image' },
 ]
+
+// Compute content wrapper class based on active tab (card tabs style)
+const appSettingsContentClass = computed(() => {
+  const base = ['border', 'border-border', 'bg-popover', 'rounded-b-lg', 'rounded-tr-lg']
+
+  const tabIds = appSettingsTabs.map((t) => t.id)
+  const activeIndex = tabIds.indexOf(appSettingsTab.value)
+  const isFirstActive = activeIndex === 0
+
+  // Top-left: rounded only if first tab is NOT active
+  if (!isFirstActive) {
+    base.push('rounded-tl-lg')
+  }
+
+  return base.join(' ')
+})
 
 // Sync appSettingsTab with initialTab when opening app settings
 watch(
   () => [isOpen.value, isAppSettings.value, initialTab.value] as const,
   ([open, isApp, tab]) => {
-    if (open && isApp && tab && (tab === 'general' || tab === 'plugins')) {
+    if (open && isApp && tab && (tab === 'general' || tab === 'plugins' || tab === 'assets')) {
       appSettingsTab.value = tab
     }
   },
@@ -94,6 +119,9 @@ const themeOptions = [
   { value: 'system', label: 'System' },
 ]
 
+// Canvas settings
+const canvasSettings = computed(() => boardStore.canvasSettings)
+
 const storageInfo = computed(() => {
   const count = documentList.documents.value.length
   return {
@@ -101,6 +129,91 @@ const storageInfo = computed(() => {
     label: count === 1 ? '1 board' : `${count} boards`,
   }
 })
+
+// =============================================================================
+// Assets Management
+// =============================================================================
+
+interface AssetInfo {
+  id: string
+  filename: string
+  mimeType: string
+  size: number
+  sizeFormatted: string
+  blobUrl: string | null
+  usedByCount: number
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+const assets = computed<AssetInfo[]>(() => {
+  // Access version to trigger reactivity
+  void assetStore.version
+
+  const doc = boardStore.document
+  if (!doc?.assets?.assets) return []
+
+  const assetList: AssetInfo[] = []
+
+  for (const [assetId, asset] of Object.entries(doc.assets.assets)) {
+    // Count how many image elements use this asset
+    const usedByCount = doc.board.elements.filter(
+      (el) => el.type === 'image' && (el as ImageElement).assetId === assetId
+    ).length
+
+    assetList.push({
+      id: assetId,
+      filename: asset.filename,
+      mimeType: asset.mimeType,
+      size: asset.size,
+      sizeFormatted: formatFileSize(asset.size),
+      blobUrl: assetStore.getBlobUrl(assetId),
+      usedByCount,
+    })
+  }
+
+  return assetList.sort((a, b) => a.filename.localeCompare(b.filename))
+})
+
+const totalAssetsSize = computed(() => {
+  const total = assets.value.reduce((sum, a) => sum + a.size, 0)
+  return formatFileSize(total)
+})
+
+async function deleteAsset(assetId: string) {
+  const confirmed = await confirm({
+    title: 'Delete Asset',
+    message: 'Delete this asset? Image elements using it will show "Image not found".',
+    confirmLabel: 'Delete',
+    destructive: true,
+  })
+  if (confirmed) {
+    assetStore.removeAsset(assetId)
+    toast.success('Asset deleted')
+  }
+}
+
+async function cleanupOrphanAssets() {
+  const orphanCount = assetStore.getOrphanAssetIds().length
+  if (orphanCount === 0) {
+    toast.info('No orphan assets to clean up')
+    return
+  }
+  const confirmed = await confirm({
+    title: 'Clean Up Assets',
+    message: `Delete ${orphanCount} unused asset${orphanCount !== 1 ? 's' : ''}? This cannot be undone.`,
+    confirmLabel: 'Delete',
+    destructive: true,
+  })
+  if (confirmed) {
+    const removed = assetStore.cleanupOrphans()
+    toast.success(`Removed ${removed} orphan asset${removed !== 1 ? 's' : ''}`)
+  }
+}
 
 // =============================================================================
 // Widget & Module
@@ -322,21 +435,21 @@ const visibilityOptions = [
 
 <template>
   <!-- Click-outside-to-close (transparent, doesn't block canvas interactions) -->
-  <div v-if="isOpen" class="fixed inset-0 top-14 z-30" @mousedown="close" />
+  <div v-if="isOpen" class="fixed inset-0 top-14 z-[110]" @mousedown="close" />
 
   <!-- Floating Panel -->
   <Transition
-    enter-active-class="transition-all duration-200 ease-out"
+    enter-active-class="transition-all duration-150 ease-out"
     enter-from-class="translate-x-4 opacity-0"
     enter-to-class="translate-x-0 opacity-100"
-    leave-active-class="transition-all duration-150 ease-in"
+    leave-active-class="transition-all duration-100 ease-in"
     leave-from-class="translate-x-0 opacity-100"
     leave-to-class="translate-x-4 opacity-0"
   >
     <!-- App Settings Panel -->
     <aside
       v-if="isOpen && isAppSettings"
-      class="fixed right-4 top-[4.5rem] bottom-4 z-40 w-80 rounded-xl border border-border bg-popover flex flex-col shadow-2xl"
+      class="fixed right-4 top-[4.5rem] bottom-4 z-[120] w-[380px] rounded-xl border border-border bg-popover flex flex-col shadow-2xl"
     >
       <!-- Header -->
       <div class="flex items-center gap-3 px-4 py-3 border-b border-border">
@@ -354,65 +467,190 @@ const visibilityOptions = [
         </button>
       </div>
 
-      <!-- Tabs -->
-      <div class="border-b border-border px-4">
+      <!-- Scrollable Content with Card Tabs -->
+      <div class="flex-1 overflow-y-auto px-3 pt-3">
+        <!-- Card Tabs -->
         <BkTabs
           v-model="appSettingsTab"
           :tabs="appSettingsTabs"
-          size="sm"
+          variant="card"
+          :full-width="false"
         />
-      </div>
 
-      <!-- Scrollable Content -->
-      <div class="flex-1 overflow-y-auto p-4 space-y-4">
-        <!-- General Tab -->
-        <template v-if="appSettingsTab === 'general'">
-          <!-- Storage Section -->
-          <BkFormSection title="Storage">
-            <div class="p-3">
-              <div class="flex items-center gap-3 mb-3">
-                <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
-                  <BkIcon icon="database" :size="16" class="text-primary" />
+        <!-- Content area with border that connects to active tab -->
+        <div :class="appSettingsContentClass">
+          <!-- General Tab -->
+          <div v-show="appSettingsTab === 'general'" class="p-3 space-y-4">
+            <!-- Storage Section -->
+            <BkFormSection title="Storage">
+              <div class="p-3">
+                <div class="flex items-center gap-3 mb-3">
+                  <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+                    <BkIcon icon="database" :size="16" class="text-primary" />
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-foreground">Local Storage</p>
+                    <p class="text-xs text-muted-foreground">
+                      {{ storageInfo.label }} saved in browser
+                    </p>
+                  </div>
                 </div>
-                <div class="flex-1 min-w-0">
-                  <p class="text-sm font-medium text-foreground">Local Storage</p>
-                  <p class="text-xs text-muted-foreground">
-                    {{ storageInfo.label }} saved in browser
-                  </p>
+                <p class="text-xs text-muted-foreground">
+                  Your boards are stored locally in your browser using IndexedDB.
+                  Use Export to back up your boards.
+                </p>
+              </div>
+            </BkFormSection>
+
+            <!-- Appearance Section -->
+            <BkFormSection title="Appearance">
+              <BkFormRow label="Theme" icon="palette" layout="stacked">
+                <BkButtonGroup
+                  :model-value="theme"
+                  :options="themeOptions"
+                  full-width
+                  @update:model-value="(v) => setTheme(v as 'light' | 'dark' | 'system')"
+                />
+              </BkFormRow>
+            </BkFormSection>
+
+            <!-- Canvas Section -->
+            <BkFormSection title="Canvas">
+              <BkFormRow label="Zoom Sensitivity" icon="zoom-in">
+                <BkSlider
+                  :model-value="canvasSettings.zoomSensitivity * 1000"
+                  :min="0.5"
+                  :max="5"
+                  :step="0.5"
+                  class="w-24"
+                  @update:model-value="(v: number) => boardStore.updateCanvasSettings({ zoomSensitivity: v / 1000 })"
+                />
+              </BkFormRow>
+              <BkFormRow label="Snap to Grid" icon="grid-3x3">
+                <BkToggle
+                  :model-value="canvasSettings.snapToGrid"
+                  size="sm"
+                  @update:model-value="(v: boolean) => boardStore.updateCanvasSettings({ snapToGrid: v })"
+                />
+              </BkFormRow>
+              <BkFormRow label="Grid Size" icon="ruler">
+                <BkSlider
+                  :model-value="canvasSettings.gridSpacing"
+                  :min="10"
+                  :max="100"
+                  :step="10"
+                  show-value
+                  class="w-24"
+                  @update:model-value="(v: number) => boardStore.updateCanvasSettings({ gridSpacing: v })"
+                />
+              </BkFormRow>
+            </BkFormSection>
+          </div>
+
+          <!-- Plugins Tab -->
+          <div v-show="appSettingsTab === 'plugins'" class="p-3">
+            <BkPluginSettings
+              :plugins="plugins"
+              :loading="pluginsLoading"
+              @install="handlePluginInstall"
+              @toggle="handlePluginToggle"
+              @update="handlePluginUpdate"
+              @uninstall="handlePluginUninstall"
+              @check-updates="handleCheckUpdates"
+            />
+          </div>
+
+          <!-- Assets Tab -->
+          <div v-show="appSettingsTab === 'assets'" class="p-3 space-y-4">
+            <!-- Assets Summary -->
+            <BkFormSection title="Document Assets">
+              <div class="p-3">
+                <div class="flex items-center gap-3 mb-3">
+                  <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+                    <BkIcon icon="image" :size="16" class="text-primary" />
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-foreground">
+                      {{ assets.length }} asset{{ assets.length !== 1 ? 's' : '' }}
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                      Total size: {{ totalAssetsSize }}
+                    </p>
+                  </div>
+                </div>
+
+                <!-- Cleanup button -->
+                <button
+                  class="w-full px-3 py-2 text-xs text-muted-foreground border border-border rounded-lg hover:bg-accent transition-colors"
+                  @click="cleanupOrphanAssets"
+                >
+                  <BkIcon icon="trash-2" :size="12" class="inline mr-1" />
+                  Clean up unused assets
+                </button>
+              </div>
+            </BkFormSection>
+
+            <!-- Assets List -->
+            <BkFormSection v-if="assets.length > 0" title="All Assets">
+              <div class="divide-y divide-border">
+                <div
+                  v-for="asset in assets"
+                  :key="asset.id"
+                  class="p-3 flex items-center gap-3"
+                >
+                  <!-- Thumbnail -->
+                  <div class="w-10 h-10 rounded bg-muted overflow-hidden flex-shrink-0">
+                    <img
+                      v-if="asset.blobUrl"
+                      :src="asset.blobUrl"
+                      :alt="asset.filename"
+                      class="w-full h-full object-cover"
+                    />
+                    <div v-else class="w-full h-full flex items-center justify-center">
+                      <BkIcon icon="image" :size="16" class="text-muted-foreground" />
+                    </div>
+                  </div>
+
+                  <!-- Info -->
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm text-foreground truncate">{{ asset.filename }}</p>
+                    <p class="text-xs text-muted-foreground">
+                      {{ asset.sizeFormatted }}
+                      <span v-if="asset.usedByCount > 0" class="text-primary">
+                        · Used by {{ asset.usedByCount }} element{{ asset.usedByCount !== 1 ? 's' : '' }}
+                      </span>
+                      <span v-else class="text-amber-500">
+                        · Unused
+                      </span>
+                    </p>
+                  </div>
+
+                  <!-- Delete button -->
+                  <button
+                    class="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                    title="Delete asset"
+                    @click="deleteAsset(asset.id)"
+                  >
+                    <BkIcon icon="trash-2" :size="14" />
+                  </button>
                 </div>
               </div>
-              <p class="text-xs text-muted-foreground">
-                Your boards are stored locally in your browser using IndexedDB.
-                Use Export to back up your boards.
-              </p>
+            </BkFormSection>
+
+            <!-- Empty state -->
+            <div
+              v-else
+              class="py-8 text-center text-sm text-muted-foreground"
+            >
+              <BkIcon icon="image" :size="24" class="mx-auto mb-2 opacity-50" />
+              <p>No assets in this document</p>
+              <p class="text-xs mt-1">Add images to your board to see them here</p>
             </div>
-          </BkFormSection>
+          </div>
+        </div>
 
-          <!-- Appearance Section -->
-          <BkFormSection title="Appearance">
-            <BkFormRow label="Theme" icon="palette" layout="stacked">
-              <BkButtonGroup
-                :model-value="theme"
-                :options="themeOptions"
-                full-width
-                @update:model-value="(v) => setTheme(v as 'light' | 'dark' | 'system')"
-              />
-            </BkFormRow>
-          </BkFormSection>
-        </template>
-
-        <!-- Plugins Tab -->
-        <template v-else-if="appSettingsTab === 'plugins'">
-          <BkPluginSettings
-            :plugins="plugins"
-            :loading="pluginsLoading"
-            @install="handlePluginInstall"
-            @toggle="handlePluginToggle"
-            @update="handlePluginUpdate"
-            @uninstall="handlePluginUninstall"
-            @check-updates="handleCheckUpdates"
-          />
-        </template>
+        <!-- Bottom spacing -->
+        <div class="h-3" />
       </div>
 
       <!-- Footer -->
@@ -424,7 +662,7 @@ const visibilityOptions = [
     <!-- Widget Settings Panel -->
     <aside
       v-else-if="isOpen && widget"
-      class="fixed right-4 top-[4.5rem] bottom-4 z-40 w-80 rounded-xl border border-border bg-popover flex flex-col shadow-2xl"
+      class="fixed right-4 top-[4.5rem] bottom-4 z-[120] w-80 rounded-xl border border-border bg-popover flex flex-col shadow-2xl"
     >
       <!-- Header -->
       <div class="flex items-center gap-3 px-4 py-3 border-b border-border">

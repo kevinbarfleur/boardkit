@@ -11,6 +11,7 @@ export type { DropdownItem } from './components/BkDropdown.vue'
 export { default as BkMenu } from './components/BkMenu.vue'
 export { default as BkHistoryList } from './components/BkHistoryList.vue'
 export { default as BkModal } from './components/BkModal.vue'
+export type { ModalSize } from './components/BkModal.vue'
 export { default as BkConfirmDialog } from './components/BkConfirmDialog.vue'
 export { default as BkDataConnectionDialog } from './components/BkDataConnectionDialog.vue'
 export { default as BkDataSourcePicker } from './components/BkDataSourcePicker.vue'
@@ -58,6 +59,8 @@ export { default as BkSchemaForm } from './components/BkSchemaForm.vue'
 export { default as BkModalProvider } from './components/BkModalProvider.vue'
 export { default as BkFormModal } from './components/BkFormModal.vue'
 export { default as BkFullScreenAlert } from './components/BkFullScreenAlert.vue'
+export { default as BkImagePickerModal } from './components/BkImagePickerModal.vue'
+export type { ImageAsset, ImagePickerResult } from './components/BkImagePickerModal.vue'
 
 // Plugin Components
 export { default as BkPluginCard } from './components/BkPluginCard.vue'
@@ -112,6 +115,7 @@ export { useTheme } from './composables/useTheme'
 export { useModal, MODAL_INJECTION_KEY } from './composables/useModal'
 export { useToast, TOAST_INJECTION_KEY } from './composables/useToast'
 export { useWidgetTransform, WIDGET_TRANSFORM_KEY, type WidgetTransform } from './composables/useWidgetTransform'
+export { usePlatform, initPlatform, type Platform } from './composables/usePlatform'
 
 // Modal Types
 export type {

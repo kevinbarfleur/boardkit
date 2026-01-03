@@ -2,9 +2,10 @@ import { openDB, type IDBPDatabase } from 'idb'
 import type { StorageAdapter, DocumentInfo } from './types'
 
 const DB_NAME = 'boardkit'
-const DB_VERSION = 2
+const DB_VERSION = 3
 const STORE_NAME = 'documents'
 const HISTORY_STORE = 'history'
+const ASSETS_STORE = 'assets'
 
 let dbPromise: Promise<IDBPDatabase> | null = null
 
@@ -19,6 +20,11 @@ function getDB(): Promise<IDBPDatabase> {
           const historyStore = db.createObjectStore(HISTORY_STORE, { keyPath: 'id' })
           historyStore.createIndex('documentId', 'documentId')
           historyStore.createIndex('timestamp', 'timestamp')
+        }
+        // v3: Add assets store for binary files (images)
+        if (oldVersion < 3 && !db.objectStoreNames.contains(ASSETS_STORE)) {
+          const assetsStore = db.createObjectStore(ASSETS_STORE, { keyPath: 'id' })
+          assetsStore.createIndex('documentId', 'documentId')
         }
       },
     })
@@ -132,5 +138,102 @@ export const historyStorage = {
       await tx.store.delete(entry.id)
     }
     await tx.done
+  },
+}
+
+// ============================================================================
+// Asset Storage (for images and other binary files)
+// ============================================================================
+
+/** Asset entry stored in IndexedDB */
+export interface AssetEntry {
+  /** Composite key: documentId:assetId */
+  id: string
+  /** Document this asset belongs to */
+  documentId: string
+  /** Asset ID (from document's asset registry) */
+  assetId: string
+  /** Binary data */
+  blob: Blob
+}
+
+/** Asset storage functions */
+export const assetStorage = {
+  /**
+   * Save an asset blob for a document.
+   */
+  async save(documentId: string, assetId: string, blob: Blob): Promise<void> {
+    const db = await getDB()
+    const entry: AssetEntry = {
+      id: `${documentId}:${assetId}`,
+      documentId,
+      assetId,
+      blob,
+    }
+    await db.put(ASSETS_STORE, entry)
+  },
+
+  /**
+   * Load an asset blob by document and asset ID.
+   */
+  async load(documentId: string, assetId: string): Promise<Blob | null> {
+    const db = await getDB()
+    const entry = await db.get(ASSETS_STORE, `${documentId}:${assetId}`)
+    return entry?.blob ?? null
+  },
+
+  /**
+   * Delete an asset by document and asset ID.
+   */
+  async delete(documentId: string, assetId: string): Promise<void> {
+    const db = await getDB()
+    await db.delete(ASSETS_STORE, `${documentId}:${assetId}`)
+  },
+
+  /**
+   * Get all asset IDs for a document.
+   */
+  async listByDocument(documentId: string): Promise<string[]> {
+    const db = await getDB()
+    const index = db.transaction(ASSETS_STORE).store.index('documentId')
+    const entries = await index.getAll(documentId)
+    return entries.map((e) => e.assetId)
+  },
+
+  /**
+   * Get all assets for a document as a Map.
+   */
+  async loadAllByDocument(documentId: string): Promise<Map<string, Blob>> {
+    const db = await getDB()
+    const index = db.transaction(ASSETS_STORE).store.index('documentId')
+    const entries = await index.getAll(documentId)
+    const map = new Map<string, Blob>()
+    for (const entry of entries) {
+      map.set(entry.assetId, entry.blob)
+    }
+    return map
+  },
+
+  /**
+   * Delete all assets for a document.
+   */
+  async deleteByDocument(documentId: string): Promise<void> {
+    const db = await getDB()
+    const index = db.transaction(ASSETS_STORE, 'readwrite').store.index('documentId')
+    const keys = await index.getAllKeys(documentId)
+    const tx = db.transaction(ASSETS_STORE, 'readwrite')
+    for (const key of keys) {
+      await tx.store.delete(key)
+    }
+    await tx.done
+  },
+
+  /**
+   * Check if an asset exists.
+   */
+  async exists(documentId: string, assetId: string): Promise<boolean> {
+    const db = await getDB()
+    const entry = await db.get(ASSETS_STORE, `${documentId}:${assetId}`)
+    return entry !== undefined
   },
 }

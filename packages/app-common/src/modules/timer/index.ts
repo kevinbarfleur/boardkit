@@ -223,10 +223,10 @@ export const TimerModule = defineModule<TimerState>({
   defaultState: createInitialTimerState,
 
   serialize: (state) => {
-    // Persist everything except transient runtime state
-    // Note: status is preserved during runtime, reset happens in deserialize on load
-    const { startedAt, ...persistedState } = state
-    return persistedState
+    // Persist all state including runtime values
+    // startedAt is transient but removing it breaks runtime state updates
+    // On next load, deserialize will handle resetting to idle
+    return state
   },
 
   deserialize: (data) => {
@@ -245,24 +245,47 @@ export const TimerModule = defineModule<TimerState>({
     // Migrate freeTimerMinutes to defaultCountdownMinutes
     const countdownMinutes = saved.defaultCountdownMinutes ?? saved.freeTimerMinutes ?? initial.defaultCountdownMinutes
 
+    // Ensure 1-minute preset is always available (added later, might be missing in old data)
+    let countdownPresets = saved.countdownPresets ?? initial.countdownPresets
+    if (countdownPresets && !countdownPresets.some((p) => p.id === 'p1')) {
+      countdownPresets = [{ id: 'p1', label: '1 min', minutes: 1 }, ...countdownPresets]
+    }
+
     // Calculate default seconds based on mode (only used if not saved)
     const workMinutes = saved.pomodoroWorkMinutes ?? initial.pomodoroWorkMinutes
     const defaultSeconds = mode === 'pomodoro' ? workMinutes * 60 : mode === 'countdown' ? countdownMinutes * 60 : 0
 
-    // IMPORTANT: deserialize is called on EVERY state read, not just initial load
-    // We must preserve runtime state (status, currentSeconds, etc.) if already set
+    // Determine runtime state
+    // If startedAt is stale (> 5 minutes old) and status is 'running', reset to idle
+    // This handles the case where document was saved while timer was running
+    let status = saved.status ?? 'idle'
+    let startedAt = saved.startedAt ?? null
+    let currentSeconds = saved.currentSeconds ?? defaultSeconds
+
+    if (startedAt && status === 'running') {
+      const startTime = new Date(startedAt).getTime()
+      const fiveMinutesAgo = Date.now() - 5 * 60 * 1000
+      if (startTime < fiveMinutesAgo) {
+        // Stale session - reset to idle
+        status = 'idle'
+        startedAt = null
+        currentSeconds = defaultSeconds
+      }
+    }
+
     return {
       ...initial,
       ...saved,
-      // Apply migrations only
+      // Apply migrations
       mode,
       pomodoroShortBreakMinutes: shortBreak,
       defaultCountdownMinutes: countdownMinutes,
-      // Preserve runtime state if it exists, otherwise use defaults
-      status: saved.status ?? 'idle',
-      currentSeconds: saved.currentSeconds ?? defaultSeconds,
+      countdownPresets,
+      // Runtime state with stale session handling
+      status,
+      currentSeconds,
       targetSeconds: saved.targetSeconds ?? defaultSeconds,
-      startedAt: saved.startedAt ?? null,
+      startedAt,
       pomodoroPhase: saved.pomodoroPhase ?? 'work',
       laps: saved.laps ?? [],
       sessionHistory: saved.sessionHistory ?? [],

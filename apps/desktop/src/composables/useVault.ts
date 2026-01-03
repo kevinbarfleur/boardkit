@@ -15,6 +15,7 @@ import {
   type BoardkitDocument,
   validateDocument,
   DocumentValidationError,
+  useAssetStore,
 } from '@boardkit/core'
 import { exportBoardkit, importBoardkit } from '../utils/boardkitFile'
 
@@ -174,7 +175,8 @@ export function useVault() {
 
     try {
       console.log('Creating file:', filePath)
-      const data = await exportBoardkit(document)
+      const assetStore = useAssetStore()
+      const data = await exportBoardkit(document, assetStore.getAllBlobs())
       console.log('Exported boardkit, size:', data.length)
       await writeFileAtomically(filePath, data)
       console.log('File written successfully')
@@ -196,7 +198,8 @@ export function useVault() {
    */
   async function saveFile(filePath: string, document: BoardkitDocument): Promise<boolean> {
     try {
-      const data = await exportBoardkit(document)
+      const assetStore = useAssetStore()
+      const data = await exportBoardkit(document, assetStore.getAllBlobs())
       await writeFileAtomically(filePath, data)
 
       // Update mtime tracking
@@ -219,7 +222,11 @@ export function useVault() {
   async function loadFile(filePath: string): Promise<BoardkitDocument | null> {
     try {
       const data = await readFile(filePath)
-      const document = await importBoardkit(data)
+      const result = await importBoardkit(data)
+
+      // Load imported assets into the asset store
+      const assetStore = useAssetStore()
+      await assetStore.loadAssets(result.assets)
 
       activeFilePath.value = filePath
 
@@ -227,7 +234,7 @@ export function useVault() {
       const fileStat = await stat(filePath)
       lastKnownMtime.value = fileStat.mtime?.getTime() ?? Date.now()
 
-      return document
+      return result.document
     } catch (error) {
       console.error('Failed to load file:', error)
       if (error instanceof DocumentValidationError) {
@@ -300,7 +307,8 @@ export function useVault() {
     try {
       // Load the original document
       const data = await readFile(filePath)
-      const document = await importBoardkit(data)
+      const result = await importBoardkit(data)
+      const document = result.document
 
       // Find the original name and create a new name
       const originalFile = files.value.find((f) => f.path === filePath)
@@ -319,9 +327,10 @@ export function useVault() {
       document.meta.createdAt = Date.now()
       document.meta.updatedAt = Date.now()
 
-      // Save as new file
+      // Save as new file with assets
+      const assetStore = useAssetStore()
       const newPath = `${vaultPath.value}/${copyName}.boardkit`
-      const newData = await exportBoardkit(document)
+      const newData = await exportBoardkit(document, assetStore.getAllBlobs())
       await writeFileAtomically(newPath, newData)
 
       await scanVaultFiles()
@@ -357,8 +366,13 @@ export function useVault() {
       if (currentMtime > lastKnownMtime.value) {
         // File was modified externally
         const data = await readFile(activeFilePath.value)
-        const document = await importBoardkit(data)
-        return { changed: true, document, mtime: currentMtime }
+        const result = await importBoardkit(data)
+
+        // Load imported assets
+        const assetStore = useAssetStore()
+        await assetStore.loadAssets(result.assets)
+
+        return { changed: true, document: result.document, mtime: currentMtime }
       }
 
       return { changed: false, document: null, mtime: currentMtime }

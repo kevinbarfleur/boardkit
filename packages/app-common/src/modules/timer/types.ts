@@ -156,6 +156,7 @@ export const defaultTimerSettings: Omit<
 
   // Countdown
   countdownPresets: [
+    { id: 'p1', label: '1 min', minutes: 1 },
     { id: 'p5', label: '5 min', minutes: 5 },
     { id: 'p10', label: '10 min', minutes: 10 },
     { id: 'p15', label: '15 min', minutes: 15 },

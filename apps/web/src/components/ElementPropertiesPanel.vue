@@ -9,9 +9,13 @@ import {
   type FontWeight,
   type TextAlign,
   type TextElement,
+  type ImageElement,
+  type ImageObjectFit,
   isTextElement,
   isShapeElement,
+  isImageElement,
   FONT_FAMILY_LABELS,
+  IMAGE_OBJECT_FIT_LABELS,
 } from '@boardkit/core'
 import {
   BkFormSection,
@@ -54,6 +58,11 @@ const isTextOnly = computed(() =>
 // Check if selection contains shapes (rectangles/ellipses)
 const hasShapeElements = computed(() =>
   selectedElements.value.some((el) => isShapeElement(el))
+)
+
+// Check if selection contains images
+const hasImageElements = computed(() =>
+  selectedElements.value.some((el) => isImageElement(el))
 )
 
 // Panel collapsed state
@@ -199,6 +208,52 @@ const isFontWeightMixed = computed(() =>
 )
 
 // ============================================================================
+// Image-specific property getters (ONLY looks at image elements)
+// ============================================================================
+
+// Filter to get only image elements from selection
+const imageElements = computed(() =>
+  selectedElements.value.filter((el): el is ImageElement => isImageElement(el))
+)
+
+// Helper to get mixed value only from image elements
+function getImageMixedValue<T>(
+  getter: (el: ImageElement) => T | undefined
+): T | typeof MIXED | undefined {
+  const elements = imageElements.value
+  if (elements.length === 0) return undefined
+  const first = getter(elements[0])
+  for (const el of elements) {
+    if (getter(el) !== first) return MIXED
+  }
+  return first
+}
+
+const objectFit = computed((): ImageObjectFit | undefined => {
+  const value = getImageMixedValue((el) => el.objectFit)
+  return value === MIXED ? undefined : (value ?? 'contain')
+})
+const isObjectFitMixed = computed(() =>
+  getImageMixedValue((el) => el.objectFit) === MIXED
+)
+
+const flipX = computed(() => {
+  const value = getImageMixedValue((el) => el.flipX)
+  return value === MIXED ? undefined : (value ?? false)
+})
+const isFlipXMixed = computed(() =>
+  getImageMixedValue((el) => el.flipX) === MIXED
+)
+
+const flipY = computed(() => {
+  const value = getImageMixedValue((el) => el.flipY)
+  return value === MIXED ? undefined : (value ?? false)
+})
+const isFlipYMixed = computed(() =>
+  getImageMixedValue((el) => el.flipY) === MIXED
+)
+
+// ============================================================================
 // Update handlers
 // ============================================================================
 
@@ -245,6 +300,29 @@ function updateRotation(degrees: number) {
   }
 }
 
+function updateImageProperty(
+  property: 'objectFit' | 'flipX' | 'flipY',
+  value: ImageObjectFit | boolean
+) {
+  for (const el of selectedElements.value) {
+    if (isImageElement(el)) {
+      boardStore.updateElement(el.id, { [property]: value })
+    }
+  }
+}
+
+function toggleFlip(axis: 'x' | 'y') {
+  for (const el of selectedElements.value) {
+    if (isImageElement(el)) {
+      if (axis === 'x') {
+        boardStore.updateElement(el.id, { flipX: !el.flipX })
+      } else {
+        boardStore.updateElement(el.id, { flipY: !el.flipY })
+      }
+    }
+  }
+}
+
 // ============================================================================
 // Options
 // ============================================================================
@@ -273,13 +351,19 @@ const fontWeightOptions = [
   { value: 'medium' as FontWeight, label: 'M' },
   { value: 'bold' as FontWeight, label: 'B' },
 ]
+
+const objectFitOptions: Array<{ value: ImageObjectFit; label: string }> = [
+  { value: 'contain', label: IMAGE_OBJECT_FIT_LABELS.contain },
+  { value: 'cover', label: IMAGE_OBJECT_FIT_LABELS.cover },
+  { value: 'fill', label: IMAGE_OBJECT_FIT_LABELS.fill },
+]
 </script>
 
 <template>
   <Transition name="slide">
     <div
       v-if="hasSelection"
-      class="element-properties-panel absolute left-4 top-4 z-50"
+      class="element-properties-panel absolute left-4 top-4 z-[120]"
       :class="{ collapsed: isCollapsed }"
     >
       <div class="panel-container">
@@ -421,6 +505,39 @@ const fontWeightOptions = [
               />
             </BkFormRow>
           </BkFormSection>
+
+          <!-- Image Section (only for image elements) -->
+          <BkFormSection v-if="hasImageElements" title="Image" no-dividers>
+            <BkFormRow label="Fit" icon="maximize-2">
+              <BkSelect
+                :model-value="objectFit ?? 'contain'"
+                :options="objectFitOptions"
+                size="sm"
+                @update:model-value="updateImageProperty('objectFit', $event as ImageObjectFit)"
+              />
+            </BkFormRow>
+
+            <BkFormRow label="Flip" icon="flip-horizontal">
+              <div class="flex gap-1">
+                <button
+                  class="flip-btn"
+                  :class="{ active: flipX }"
+                  title="Flip Horizontal"
+                  @click="toggleFlip('x')"
+                >
+                  <BkIcon icon="flip-horizontal" :size="14" />
+                </button>
+                <button
+                  class="flip-btn"
+                  :class="{ active: flipY }"
+                  title="Flip Vertical"
+                  @click="toggleFlip('y')"
+                >
+                  <BkIcon icon="flip-vertical" :size="14" />
+                </button>
+              </div>
+            </BkFormRow>
+          </BkFormSection>
         </div>
       </div>
     </div>
@@ -500,5 +617,33 @@ const fontWeightOptions = [
 .slide-leave-to {
   opacity: 0;
   transform: translateX(-10px);
+}
+
+/* ==========================================================================
+   Image Flip Buttons
+   ========================================================================== */
+.flip-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 6px;
+  color: hsl(var(--muted-foreground));
+  background: hsl(var(--muted) / 0.5);
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.flip-btn:hover {
+  background: hsl(var(--accent));
+  color: hsl(var(--foreground));
+}
+
+.flip-btn.active {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  border-color: hsl(var(--primary));
 }
 </style>

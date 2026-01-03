@@ -59,6 +59,7 @@ const emit = defineEmits<{
   elementEditStart: [id: string, type: 'text' | 'label']
   elementContextMenu: [id: string, event: MouseEvent]
   elementDoubleClick: [id: string, event: MouseEvent]
+  elementReplaceImage: [id: string]
   groupResizeStart: [handle: string, bounds: { x: number; y: number; width: number; height: number }, event: MouseEvent]
   groupMoveStart: [event: MouseEvent]
   groupRotateStart: [bounds: { x: number; y: number; width: number; height: number }, event: MouseEvent]
@@ -239,6 +240,10 @@ function handleElementDoubleClick(id: string, event: MouseEvent) {
   emit('elementDoubleClick', id, event)
 }
 
+function handleElementReplaceImage(id: string) {
+  emit('elementReplaceImage', id)
+}
+
 function handleGroupResizeStart(handle: string, event: MouseEvent) {
   if (selectionBounds.value) {
     emit('groupResizeStart', handle, selectionBounds.value, event)
@@ -286,6 +291,7 @@ const bindingCandidateElements = computed(() => {
       @edit-start="handleElementEditStart"
       @context-menu="handleElementContextMenu"
       @double-click="handleElementDoubleClick"
+      @replace-image="handleElementReplaceImage"
     />
 
     <!-- Render preview element during drawing -->

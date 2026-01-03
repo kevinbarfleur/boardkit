@@ -10,6 +10,7 @@ import type {
   ConfigurationSchema,
   ConfigurationSection,
   SourcePickerSection,
+  SourcePickerGroupSection,
   ItemBuilderSection,
 } from '@boardkit/core'
 import BkSourcePicker, { type SourcePickerProvider } from './BkSourcePicker.vue'
@@ -187,8 +188,79 @@ function isSourcePicker(section: ConfigurationSection): section is SourcePickerS
   return section.type === 'source-picker'
 }
 
+function isSourcePickerGroup(section: ConfigurationSection): section is SourcePickerGroupSection {
+  return section.type === 'source-picker-group'
+}
+
 function isItemBuilder(section: ConfigurationSection): section is ItemBuilderSection {
   return section.type === 'item-builder'
+}
+
+// Handle source picker group updates
+// Each contract in the group may share the same stateKey, so we need to merge selections
+function handleSourceGroupUpdate(
+  section: SourcePickerGroupSection,
+  contractId: string,
+  value: string | string[] | null
+) {
+  // Find all contracts that share the same stateKey
+  const contract = section.contracts.find((c) => c.contractId === contractId)
+  if (!contract) return
+
+  // Get current value for this stateKey
+  const currentValue = getStateValue(contract.stateKey) as string[] | null
+
+  // Check if other contracts share this stateKey
+  const sharedContracts = section.contracts.filter(
+    (c) => c.stateKey === contract.stateKey && c.contractId !== contractId
+  )
+
+  if (sharedContracts.length === 0) {
+    // No sharing - just update directly
+    emit('update', contract.stateKey, value)
+    return
+  }
+
+  // With sharing, we need to merge values from all contracts
+  // The new value replaces selections from this contract,
+  // but we keep selections from other contracts
+
+  // Get providers for other contracts to identify which values belong to them
+  const otherContractProviderIds = new Set<string>()
+  for (const otherContract of sharedContracts) {
+    const providers = getProvidersForContract(otherContract.contractId)
+    for (const p of providers) {
+      otherContractProviderIds.add(p.id)
+    }
+  }
+
+  // Filter current value to keep only other contracts' selections
+  const keptSelections = (currentValue || []).filter((id) => otherContractProviderIds.has(id))
+
+  // Merge with new value
+  const newSelections = Array.isArray(value) ? value : value ? [value] : []
+  const mergedValue = [...keptSelections, ...newSelections]
+
+  emit('update', contract.stateKey, mergedValue.length > 0 ? mergedValue : null)
+}
+
+// Get current selections for a specific contract within a group
+function getGroupContractValue(
+  section: SourcePickerGroupSection,
+  contractId: string
+): string[] | null {
+  const contract = section.contracts.find((c) => c.contractId === contractId)
+  if (!contract) return null
+
+  const value = getStateValue(contract.stateKey) as string[] | null
+  if (!value) return null
+
+  // Filter to only include providers from this contract
+  const contractProviders = getProvidersForContract(contractId)
+  const contractProviderIds = new Set(contractProviders.map((p) => p.id))
+
+  const filtered = value.filter((id) => contractProviderIds.has(id))
+  return filtered.length > 0 ? filtered : null
 }
 
 // Get custom component for a section
@@ -211,6 +283,36 @@ function getCustomComponent(componentName: string): unknown | undefined {
         :mode="section.mode"
         @update:model-value="(v) => handleSourceUpdate(section.stateKey, v)"
       />
+
+      <!-- Source Picker Group Section -->
+      <BkFormSection
+        v-else-if="isSourcePickerGroup(section)"
+        :title="section.title"
+        no-dividers
+      >
+        <template #title>
+          <span class="flex items-center gap-1.5">
+            <BkIcon :icon="section.icon" :size="12" />
+            {{ section.title }}
+          </span>
+        </template>
+        <div class="space-y-3 p-3">
+          <p v-if="section.description" class="text-sm text-muted-foreground mb-3">
+            {{ section.description }}
+          </p>
+          <BkSourcePicker
+            v-for="contract in section.contracts"
+            :key="contract.contractId"
+            :title="contract.label"
+            :icon="contract.icon"
+            :providers="getProvidersForContract(contract.contractId)"
+            :model-value="getGroupContractValue(section, contract.contractId)"
+            mode="multi"
+            compact
+            @update:model-value="(v) => handleSourceGroupUpdate(section, contract.contractId, v)"
+          />
+        </div>
+      </BkFormSection>
 
       <!-- Item Builder Section -->
       <template v-else-if="isItemBuilder(section)">

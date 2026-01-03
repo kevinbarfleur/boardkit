@@ -66,6 +66,9 @@ export function getAnchorPoint(element: CanvasElement, anchor: AnchorPosition): 
   return anchors.get(anchor) ?? { x: element.rect.x, y: element.rect.y }
 }
 
+/** Element types that can be targets for arrow binding */
+const BINDABLE_ELEMENT_TYPES = ['rectangle', 'ellipse', 'image'] as const
+
 /**
  * Find the nearest shape element to a point and its closest anchor.
  * Useful for determining binding targets during arrow drag.
@@ -83,9 +86,9 @@ export function findNearestShapeAndAnchor(
 ): { elementId: string; anchor: AnchorPosition; point: Point; distance: number } | null {
   let nearest: { elementId: string; anchor: AnchorPosition; point: Point; distance: number } | null = null
 
-  // Only check shape elements (rectangle, ellipse)
+  // Check bindable elements (rectangle, ellipse, image)
   const shapes = elements.filter(el =>
-    (el.type === 'rectangle' || el.type === 'ellipse') &&
+    BINDABLE_ELEMENT_TYPES.includes(el.type as typeof BINDABLE_ELEMENT_TYPES[number]) &&
     !excludeIds.includes(el.id)
   )
 

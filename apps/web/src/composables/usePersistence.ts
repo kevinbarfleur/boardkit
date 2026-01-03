@@ -1,10 +1,11 @@
 import { ref, watch, computed, toRaw } from 'vue'
 import { useDebounceFn, useDocumentVisibility, useStorage } from '@vueuse/core'
-import { useBoardStore } from '@boardkit/core'
+import { useBoardStore, useAssetStore } from '@boardkit/core'
 import {
   indexedDBStorage,
   listDocuments,
   historyStorage,
+  assetStorage,
   type DocumentInfo,
   type HistoryEntry,
 } from '@boardkit/platform'
@@ -260,6 +261,13 @@ export function usePersistence() {
       lastSaved.value = (data as BoardkitDocument).meta.updatedAt
       boardStore.markClean()
 
+      // Load assets from IndexedDB into asset store
+      const assetStore = useAssetStore()
+      const blobs = await assetStorage.loadAllByDocument(id)
+      if (blobs.size > 0) {
+        await assetStore.loadAssets(blobs)
+      }
+
       // Load history for this document
       await loadHistory()
 
@@ -295,6 +303,14 @@ export function usePersistence() {
       const plainDoc = deepClone(doc)
 
       await indexedDBStorage.save(currentDocumentId.value, plainDoc)
+
+      // Save assets to IndexedDB
+      const assetStore = useAssetStore()
+      const blobs = assetStore.getAllBlobs()
+      for (const [assetId, blob] of blobs) {
+        await assetStorage.save(currentDocumentId.value, assetId, blob)
+      }
+
       boardStore.markClean()
       lastSaved.value = doc.meta.updatedAt
 
@@ -319,6 +335,7 @@ export function usePersistence() {
     try {
       await indexedDBStorage.delete(id)
       await historyStorage.deleteByDocument(id)
+      await assetStorage.deleteByDocument(id)
       await refreshDocumentList()
 
       if (currentDocumentId.value === id) {
@@ -412,11 +429,15 @@ export function usePersistence() {
       if (!file) return false
 
       isLoading.value = true
-      const doc = await importBoardkit(file)
+      const result = await importBoardkit(file)
 
       const id = nanoid()
-      boardStore.loadDocument(doc)
+      boardStore.loadDocument(result.document)
       currentDocumentId.value = id
+
+      // Load imported assets into the asset store
+      const assetStore = useAssetStore()
+      await assetStore.loadAssets(result.assets)
 
       await saveDocument(true)
       await refreshDocumentList()

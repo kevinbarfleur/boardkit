@@ -215,8 +215,8 @@ describe('Document Migrations', () => {
   })
 
   describe('CURRENT_DOCUMENT_VERSION', () => {
-    it('should be 2', () => {
-      expect(CURRENT_DOCUMENT_VERSION).toBe(2)
+    it('should be 4', () => {
+      expect(CURRENT_DOCUMENT_VERSION).toBe(4)
     })
   })
 })

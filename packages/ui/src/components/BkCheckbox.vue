@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import BkIcon from './BkIcon.vue'
-
 interface Props {
   modelValue?: boolean
   disabled?: boolean
@@ -31,22 +29,29 @@ const toggle = () => {
       :id="props.id"
       :aria-checked="props.modelValue"
       :disabled="props.disabled"
-      class="h-4 w-4 shrink-0 rounded border flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:border-border-strong disabled:cursor-not-allowed disabled:opacity-50"
+      class="bk-checkbox-btn h-4 w-4 shrink-0 rounded border flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:border-border-strong disabled:cursor-not-allowed disabled:opacity-50"
       :class="[
         props.modelValue
-          ? 'bg-primary border-primary text-primary-foreground'
+          ? 'bg-primary border-primary'
           : 'bg-background border-border'
       ]"
       @click="toggle"
       @keydown.space.prevent="toggle"
       @keydown.enter.prevent="toggle"
     >
-      <BkIcon
+      <svg
         v-if="props.modelValue"
-        icon="check"
-        :size="12"
-        class="text-primary-foreground"
-      />
+        class="bk-check-icon"
+        width="12"
+        height="12"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke-width="3"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M20 6 9 17l-5-5" />
+      </svg>
     </button>
     <label
       v-if="$slots.default"
@@ -59,3 +64,25 @@ const toggle = () => {
     </label>
   </div>
 </template>
+
+<style>
+/*
+ * Checkmark colors are hardcoded instead of using UnoCSS classes (e.g. text-primary-foreground)
+ * because UnoCSS generates colors in the format `hsl(var(--x) / <alpha-value>)` which doesn't
+ * reliably cascade to SVG stroke via CSS inheritance or currentColor.
+ *
+ * Additionally, passing colors via Vue reactive bindings (:stroke="color") doesn't work
+ * consistently, while hardcoded inline styles do.
+ *
+ * These values match --primary-foreground from globals.css:
+ * - Dark mode: #fafafa (light check on light bg-primary)
+ * - Light mode: #171717 (dark check on dark bg-primary)
+ */
+.bk-check-icon {
+  stroke: #fafafa;
+}
+
+.light .bk-check-icon {
+  stroke: #171717;
+}
+</style>

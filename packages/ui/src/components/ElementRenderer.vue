@@ -5,11 +5,13 @@ import type { Options } from 'roughjs/bin/core'
 import { getStroke } from 'perfect-freehand'
 import {
   FONT_FAMILY_CSS,
+  useAssetStore,
   type CanvasElement,
   type ShapeElement,
   type LineElement,
   type DrawElement,
   type TextElement,
+  type ImageElement,
 } from '@boardkit/core'
 import SelectionHandles from './SelectionHandles.vue'
 
@@ -83,25 +85,80 @@ const emit = defineEmits<{
   editStart: [id: string, type: 'text' | 'label']
   contextMenu: [id: string, event: MouseEvent]
   doubleClick: [id: string, event: MouseEvent]
+  replaceImage: [id: string]
 }>()
 
 // Inject SVG ref from parent (CanvasElementsLayer)
 const parentSvg = inject<Ref<SVGSVGElement | null>>('canvasSvg', ref(null))
 
+// Use asset store directly (Pinia stores are singletons, so this works across packages)
+// This avoids reactivity issues with provide/inject
+const assetStore = useAssetStore()
+
 // Ref for the RoughJS rendered group
 const roughGroupRef = ref<SVGGElement | null>(null)
+
+// Image loading state
+const imageLoading = ref(true)
+const imageError = ref(false)
 
 // Type guards
 const isShape = computed(() => props.element.type === 'rectangle' || props.element.type === 'ellipse')
 const isLine = computed(() => props.element.type === 'line' || props.element.type === 'arrow')
 const isDraw = computed(() => props.element.type === 'draw')
 const isText = computed(() => props.element.type === 'text')
+const isImage = computed(() => props.element.type === 'image')
 
 // Typed element accessors
 const shapeElement = computed(() => (isShape.value ? (props.element as ShapeElement) : null))
 const lineElement = computed(() => (isLine.value ? (props.element as LineElement) : null))
 const drawElement = computed(() => (isDraw.value ? (props.element as DrawElement) : null))
 const textElement = computed(() => (isText.value ? (props.element as TextElement) : null))
+const imageElement = computed(() => (isImage.value ? (props.element as ImageElement) : null))
+
+// Image URL from asset store
+// Access version to create reactive dependency when assets change
+const imageUrl = computed(() => {
+  if (!imageElement.value) {
+    return null
+  }
+  // Access version to trigger reactivity when assets are added/removed
+  // This is necessary because getBlobUrl reads from shallowRef maps
+  const _ver = assetStore.version
+  return assetStore.getBlobUrl(imageElement.value.assetId)
+})
+
+// Image CSS transform for flipping
+const imageTransform = computed(() => {
+  if (!imageElement.value) return ''
+  const scaleX = imageElement.value.flipX ? -1 : 1
+  const scaleY = imageElement.value.flipY ? -1 : 1
+  if (scaleX === 1 && scaleY === 1) return ''
+  return `scale(${scaleX}, ${scaleY})`
+})
+
+// Reset loading state when image URL changes
+watch(imageUrl, () => {
+  if (imageUrl.value) {
+    imageLoading.value = true
+    imageError.value = false
+  }
+})
+
+function handleImageLoad() {
+  imageLoading.value = false
+  imageError.value = false
+}
+
+function handleImageError() {
+  imageLoading.value = false
+  imageError.value = true
+}
+
+function handleReplaceImage(event: MouseEvent) {
+  event.stopPropagation()
+  emit('replaceImage', props.element.id)
+}
 
 // Line coordinates relative to element rect
 const lineCoords = computed(() => {
@@ -526,13 +583,28 @@ function handleContextMenu(event: MouseEvent) {
       @contextmenu="handleContextMenu"
     />
 
+    <!-- Hit target: Image (using rect for bounding box) -->
+    <rect
+      v-if="isImage"
+      class="hit-target"
+      :x="-HIT_PADDING"
+      :y="-HIT_PADDING"
+      :width="element.rect.width + HIT_PADDING * 2"
+      :height="element.rect.height + HIT_PADDING * 2"
+      fill="transparent"
+      @mousedown="handleMouseDown"
+      @click.stop
+      @dblclick="handleDoubleClick"
+      @contextmenu="handleContextMenu"
+    />
+
     <!-- ============================================================ -->
     <!-- ROUGHJS RENDERED SHAPES (pointer-events: none)               -->
     <!-- For rectangle, ellipse, line, arrow                          -->
     <!-- ============================================================ -->
 
     <g
-      v-if="!isText && !isDraw"
+      v-if="!isText && !isDraw && !isImage"
       ref="roughGroupRef"
       class="rough-shape"
       pointer-events="none"
@@ -551,6 +623,96 @@ function handleContextMenu(event: MouseEvent) {
       :opacity="element.style.opacity"
       pointer-events="none"
     />
+
+    <!-- ============================================================ -->
+    <!-- IMAGE ELEMENT                                                 -->
+    <!-- ============================================================ -->
+
+    <foreignObject
+      v-if="isImage"
+      :width="element.rect.width"
+      :height="element.rect.height"
+      class="element-image-container"
+      pointer-events="none"
+    >
+      <!-- Error placeholder (no URL) -->
+      <div
+        v-if="!imageUrl"
+        class="element-image-error"
+        :style="{
+          width: element.rect.width + 'px',
+          height: element.rect.height + 'px',
+        }"
+      >
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+          <line x1="3" y1="3" x2="21" y2="21"/>
+        </svg>
+        <span>Image not found</span>
+        <button
+          v-if="selected"
+          class="element-image-select-btn"
+          @click="handleReplaceImage"
+        >
+          Select Image
+        </button>
+      </div>
+
+      <!-- Image container (when URL exists) -->
+      <template v-else>
+        <!-- Loading placeholder (shown on top while loading) -->
+        <div
+          v-if="imageLoading && !imageError"
+          class="element-image-loading"
+          :style="{
+            width: element.rect.width + 'px',
+            height: element.rect.height + 'px',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+          }"
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <polyline points="21 15 16 10 5 21"/>
+          </svg>
+        </div>
+
+        <!-- Error placeholder (load failed) -->
+        <div
+          v-if="imageError"
+          class="element-image-error"
+          :style="{
+            width: element.rect.width + 'px',
+            height: element.rect.height + 'px',
+          }"
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <line x1="3" y1="3" x2="21" y2="21"/>
+          </svg>
+          <span>Failed to load</span>
+        </div>
+
+        <!-- Actual image (always rendered to trigger @load, hidden while loading) -->
+        <img
+          v-show="!imageError"
+          class="element-image"
+          :src="imageUrl"
+          :alt="imageElement?.alt ?? ''"
+          :style="{
+            width: element.rect.width + 'px',
+            height: element.rect.height + 'px',
+            objectFit: imageElement?.objectFit ?? 'contain',
+            transform: imageTransform,
+            opacity: imageLoading ? 0 : 1,
+          }"
+          @load="handleImageLoad"
+          @error="handleImageError"
+        />
+      </template>
+    </foreignObject>
 
     <!-- Text -->
     <foreignObject
@@ -654,5 +816,66 @@ function handleContextMenu(event: MouseEvent) {
   font-size: 14px;
   padding: 8px;
   pointer-events: none;
+}
+
+.element-image-container {
+  overflow: visible;
+}
+
+.element-image {
+  display: block;
+  border-radius: 2px;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.element-image-loading,
+.element-image-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+}
+
+.element-image-loading svg,
+.element-image-error svg {
+  opacity: 0.5;
+}
+
+.element-image-loading {
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+.element-image-select-btn {
+  margin-top: 8px;
+  padding: 6px 12px;
+  font-size: 11px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  pointer-events: auto;
+  transition: all 0.15s;
+}
+
+.element-image-select-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
 }
 </style>

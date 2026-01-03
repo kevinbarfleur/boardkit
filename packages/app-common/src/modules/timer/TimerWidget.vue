@@ -1,19 +1,41 @@
 <script setup lang="ts">
 /**
- * Timer Widget v2
+ * Timer Widget v3
  *
- * Multi-mode timer with task linking support.
+ * Multi-mode timer with water fill effect and task linking.
  * Modes: Pomodoro, Countdown, Stopwatch
+ *
+ * Features:
+ * - Drift-free timing using useTimestamp
+ * - Water fill animation for visual progress
+ * - Task linking to todo/kanban items
+ * - Session history tracking
  */
 
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { useTimestamp } from '@vueuse/core'
 import { nanoid } from 'nanoid'
 import type { ModuleContext } from '@boardkit/core'
-import { useProvideData, timerStatusContractV1, timerHistoryContractV1} from '@boardkit/core'
-import type { PublicTimerStatus, PublicTimerHistory, TaskTimeEntry } from '@boardkit/core'
+import {
+  useProvideData,
+  useConsumeData,
+  useModuleConfiguration,
+  timerStatusContractV1,
+  timerHistoryContractV1,
+  todoContractV1,
+  kanbanContractV1,
+} from '@boardkit/core'
+import type {
+  PublicTimerStatus,
+  PublicTimerHistory,
+  TaskTimeEntry,
+  PublicTodoList,
+  PublicKanbanBoard,
+} from '@boardkit/core'
 import { BkIcon, BkButton, BkButtonGroup } from '@boardkit/ui'
-import type { TimerState, TimerMode, TimerSession, SessionType, LapRecord, PomodoroPhase } from './types'
+import type { TimerState, TimerMode, TimerSession, SessionType, LapRecord, TaskReference } from './types'
 import { defaultTimerSettings } from './types'
+import { WaterTimer, TaskLinkChip, TaskLinkPopover, SessionStats } from './components'
 
 interface Props {
   context: ModuleContext<TimerState>
@@ -21,14 +43,19 @@ interface Props {
 
 const props = defineProps<Props>()
 
-// === Timer Interval ===
-const timerInterval = ref<number | null>(null)
+const emit = defineEmits<{
+  'open-settings': [options?: { tab?: string }]
+}>()
 
-// === Computed State (following TodoWidget pattern) ===
+// === Drift-free Timer with useTimestamp ===
+const now = useTimestamp({ interval: 100 })
+
+// === Computed State ===
 const mode = computed(() => props.context.state.mode)
 const status = computed(() => props.context.state.status)
-const currentSeconds = computed(() => props.context.state.currentSeconds)
+const startedAt = computed(() => props.context.state.startedAt)
 const targetSeconds = computed(() => props.context.state.targetSeconds)
+const pausedSeconds = computed(() => props.context.state.currentSeconds) // Seconds when paused
 const pomodoroPhase = computed(() => props.context.state.pomodoroPhase)
 const pomodoroSessionCount = computed(() => props.context.state.pomodoroSessionCount)
 const laps = computed(() => props.context.state.laps || [])
@@ -37,7 +64,6 @@ const sessionHistory = computed(() => props.context.state.sessionHistory || [])
 
 // Settings with defaults
 const showLinkedTask = computed(() => props.context.state.showLinkedTask ?? defaultTimerSettings.showLinkedTask)
-const showSessionHistory = computed(() => props.context.state.showSessionHistory ?? defaultTimerSettings.showSessionHistory)
 const compactMode = computed(() => props.context.state.compactMode ?? defaultTimerSettings.compactMode)
 const countdownPresets = computed(() => props.context.state.countdownPresets ?? defaultTimerSettings.countdownPresets)
 const maxLapsDisplayed = computed(() => props.context.state.maxLapsDisplayed ?? defaultTimerSettings.maxLapsDisplayed)
@@ -50,7 +76,6 @@ const autoStartWork = computed(() => props.context.state.autoStartWork ?? defaul
 const defaultCountdownMinutes = computed(() => props.context.state.defaultCountdownMinutes ?? defaultTimerSettings.defaultCountdownMinutes)
 const soundEnabled = computed(() => props.context.state.soundEnabled ?? defaultTimerSettings.soundEnabled)
 const soundVolume = computed(() => props.context.state.soundVolume ?? defaultTimerSettings.soundVolume)
-const notificationSound = computed(() => props.context.state.notificationSound ?? defaultTimerSettings.notificationSound)
 
 // Derived state
 const isRunning = computed(() => status.value === 'running')
@@ -61,10 +86,37 @@ const isStopwatch = computed(() => mode.value === 'stopwatch')
 const isCountdown = computed(() => mode.value === 'countdown')
 const isPomodoro = computed(() => mode.value === 'pomodoro')
 
-// Progress percent
+// === Drift-free Time Calculation ===
+const currentSeconds = computed(() => {
+  if (isStopwatch.value) {
+    // Stopwatch: count up from startedAt
+    if (!startedAt.value || !isRunning.value) {
+      return pausedSeconds.value
+    }
+    const elapsedMs = now.value - new Date(startedAt.value).getTime()
+    return pausedSeconds.value + Math.floor(elapsedMs / 1000)
+  } else {
+    // Countdown/Pomodoro: count down from target
+    if (!startedAt.value || !isRunning.value) {
+      return pausedSeconds.value
+    }
+    const elapsedMs = now.value - new Date(startedAt.value).getTime()
+    const elapsed = Math.floor(elapsedMs / 1000)
+    return Math.max(0, pausedSeconds.value - elapsed)
+  }
+})
+
+// Progress percent (0-100)
 const progressPercent = computed(() => {
   if (isStopwatch.value) return 0
   if (targetSeconds.value === 0) return 0
+
+  // For breaks, progress goes from 100 to 0 (water drains)
+  if (isBreak.value) {
+    return Math.round((currentSeconds.value / targetSeconds.value) * 100)
+  }
+
+  // For work/countdown, progress goes from 0 to 100 (water fills)
   const elapsed = targetSeconds.value - currentSeconds.value
   return Math.round((elapsed / targetSeconds.value) * 100)
 })
@@ -89,7 +141,7 @@ const modeOptions = [
   { value: 'stopwatch', label: 'Stopwatch' },
 ]
 
-// Status label
+// Status label for WaterTimer
 const statusLabel = computed(() => {
   if (isBreak.value) {
     return pomodoroPhase.value === 'long-break' ? 'Long Break' : 'Break'
@@ -100,21 +152,92 @@ const statusLabel = computed(() => {
   return ''
 })
 
-// Progress color
-const progressColor = computed(() => {
-  if (isBreak.value) return 'text-green-500'
-  return 'text-primary'
+// === Task Linking ===
+const { needsSetup } = useModuleConfiguration(props.context)
+
+// Consume todo and kanban data for task selection
+const { allData: todoData } = useConsumeData<TimerState, PublicTodoList>(
+  props.context,
+  todoContractV1,
+  { multi: true }
+)
+
+const { allData: kanbanData } = useConsumeData<TimerState, PublicKanbanBoard>(
+  props.context,
+  kanbanContractV1,
+  { multi: true }
+)
+
+// Build task groups for the popover
+const taskGroups = computed(() => {
+  const groups: Array<{
+    widgetId: string
+    title: string
+    icon: string
+    tasks: Array<{
+      widgetId: string
+      widgetTitle: string
+      taskId: string
+      taskLabel: string
+      sourceType: 'todo' | 'kanban'
+    }>
+  }> = []
+
+  // Add todo tasks
+  for (const todoList of todoData.value) {
+    const pendingItems = todoList.items.filter((item) => !item.completed)
+    if (pendingItems.length > 0) {
+      groups.push({
+        widgetId: todoList.widgetId,
+        title: todoList.title || 'Todo List',
+        icon: 'check-square',
+        tasks: pendingItems.map((item) => ({
+          widgetId: todoList.widgetId,
+          widgetTitle: todoList.title || 'Todo List',
+          taskId: item.id,
+          taskLabel: item.label,
+          sourceType: 'todo' as const,
+        })),
+      })
+    }
+  }
+
+  // Add kanban tasks
+  for (const board of kanbanData.value) {
+    if (board.items.length > 0) {
+      groups.push({
+        widgetId: board.widgetId,
+        title: board.title || 'Kanban Board',
+        icon: 'columns-3',
+        tasks: board.items.map((item) => ({
+          widgetId: board.widgetId,
+          widgetTitle: board.title || 'Kanban Board',
+          taskId: item.id,
+          taskLabel: item.title,
+          sourceType: 'kanban' as const,
+        })),
+      })
+    }
+  }
+
+  return groups
 })
 
-// SVG circle calculations
-const circleSize = 140
-const strokeWidth = 6
-const radius = (circleSize - strokeWidth) / 2
-const circumference = 2 * Math.PI * radius
-const strokeDashoffset = computed(() => {
-  if (isStopwatch.value) return circumference
-  return circumference * (1 - progressPercent.value / 100)
+const noTaskProviders = computed(() => {
+  return todoData.value.length === 0 && kanbanData.value.length === 0
 })
+
+function handleLinkTask(task: TaskReference) {
+  props.context.updateState({ linkedTask: task })
+}
+
+function handleUnlinkTask() {
+  props.context.updateState({ linkedTask: null })
+}
+
+function handleConfigureProviders() {
+  emit('open-settings', { tab: 'configure' })
+}
 
 // === Helpers ===
 
@@ -170,46 +293,6 @@ function createSession(duration: number, skipped = false): TimerSession {
   }
 }
 
-// === Interval Management ===
-
-function startInterval() {
-  console.log('[Timer] startInterval called, existing interval:', timerInterval.value)
-  if (timerInterval.value) clearInterval(timerInterval.value)
-  timerInterval.value = window.setInterval(tick, 1000)
-  console.log('[Timer] New interval created:', timerInterval.value)
-}
-
-function stopInterval() {
-  if (timerInterval.value) {
-    clearInterval(timerInterval.value)
-    timerInterval.value = null
-  }
-}
-
-// === Tick Logic ===
-
-function tick() {
-  console.log('[Timer] tick called', {
-    status: status.value,
-    isStopwatch: isStopwatch.value,
-    currentSeconds: currentSeconds.value,
-  })
-  if (isStopwatch.value) {
-    props.context.updateState({
-      currentSeconds: currentSeconds.value + 1,
-    })
-  } else {
-    if (currentSeconds.value <= 0) {
-      stopInterval()
-      completeSession()
-      return
-    }
-    props.context.updateState({
-      currentSeconds: currentSeconds.value - 1,
-    })
-  }
-}
-
 // === Session Completion ===
 
 function completeSession(skipped = false) {
@@ -239,10 +322,6 @@ function completeSession(skipped = false) {
       pomodoroPhase: isLongBreak ? 'long-break' : 'short-break',
       sessionHistory: newHistory,
     })
-
-    if (autoStartBreaks.value) {
-      startInterval()
-    }
   } else if (isPomodoro.value && isBreak.value) {
     const workSeconds = pomodoroWorkMinutes.value * 60
 
@@ -254,10 +333,6 @@ function completeSession(skipped = false) {
       pomodoroPhase: 'work',
       sessionHistory: newHistory,
     })
-
-    if (autoStartWork.value) {
-      startInterval()
-    }
   } else if (isCountdown.value) {
     const countdownSeconds = defaultCountdownMinutes.value * 60
 
@@ -271,6 +346,7 @@ function completeSession(skipped = false) {
   } else if (isStopwatch.value) {
     props.context.updateState({
       status: 'idle',
+      currentSeconds: currentSeconds.value,
       startedAt: null,
       sessionHistory: newHistory,
     })
@@ -279,13 +355,18 @@ function completeSession(skipped = false) {
   return session
 }
 
+// Watch for timer completion
+watch(currentSeconds, (value) => {
+  if (!isStopwatch.value && value <= 0 && isRunning.value) {
+    completeSession()
+  }
+})
+
 // === Actions ===
 
 function handleModeChange(value: string | string[]) {
   if (typeof value !== 'string') return
   const newMode = value as TimerMode
-
-  stopInterval()
 
   const seconds = getInitialSeconds(newMode)
 
@@ -302,17 +383,14 @@ function handleModeChange(value: string | string[]) {
 }
 
 function handleStart() {
-  console.log('[Timer] handleStart called', {
-    mode: mode.value,
-    status: status.value,
-    isIdle: isIdle.value,
-    isStopwatch: isStopwatch.value,
-    currentSeconds: currentSeconds.value,
-  })
+  if (isIdle.value || (isStopwatch.value && pausedSeconds.value === 0)) {
+    // Starting fresh
+    // For countdown mode, use already-set targetSeconds (from presets)
+    // For other modes, calculate initial seconds
+    const seconds = isCountdown.value
+      ? targetSeconds.value
+      : getInitialSeconds(mode.value)
 
-  if (isIdle.value || (isStopwatch.value && currentSeconds.value === 0)) {
-    const seconds = getInitialSeconds(mode.value)
-    console.log('[Timer] Starting fresh, seconds:', seconds)
     props.context.updateState({
       status: 'running',
       currentSeconds: isStopwatch.value ? 0 : seconds,
@@ -320,31 +398,26 @@ function handleStart() {
       startedAt: new Date().toISOString(),
       laps: isStopwatch.value ? [] : laps.value,
     })
-    console.log('[Timer] After updateState, status:', props.context.state.status)
   } else {
-    console.log('[Timer] Resuming')
+    // Resuming - store current seconds and start fresh
     props.context.updateState({
       status: 'running',
+      currentSeconds: pausedSeconds.value,
       startedAt: new Date().toISOString(),
     })
-    console.log('[Timer] After updateState, status:', props.context.state.status)
   }
-
-  startInterval()
-  console.log('[Timer] Interval started, timerInterval:', timerInterval.value)
 }
 
 function handlePause() {
+  // Store the current calculated seconds when pausing
   props.context.updateState({
     status: 'paused',
+    currentSeconds: currentSeconds.value,
     startedAt: null,
   })
-  stopInterval()
 }
 
 function handleReset() {
-  stopInterval()
-
   const seconds = getInitialSeconds(mode.value)
   props.context.updateState({
     status: 'idle',
@@ -357,7 +430,6 @@ function handleReset() {
 }
 
 function handleSkip() {
-  stopInterval()
   completeSession(true)
 }
 
@@ -419,79 +491,27 @@ function playSound() {
     oscillator.type = 'sine'
 
     const volume = soundVolume.value / 100
-    const now = audioContext.currentTime
+    const nowTime = audioContext.currentTime
 
-    gainNode.gain.setValueAtTime(volume, now)
-    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.5)
+    gainNode.gain.setValueAtTime(volume, nowTime)
+    gainNode.gain.exponentialRampToValueAtTime(0.01, nowTime + 0.5)
 
-    oscillator.start(now)
-    oscillator.stop(now + 0.5)
+    oscillator.start(nowTime)
+    oscillator.stop(nowTime + 0.5)
   } catch {
     // Audio playback failed silently
   }
 }
 
-// === Stats ===
-
-const todayStats = computed(() => {
-  const today = new Date().toISOString().split('T')[0]
-  const todaySessions = sessionHistory.value.filter((s) => s.completedAt.startsWith(today))
-
-  const workSessions = todaySessions.filter(
-    (s) => s.type === 'work' || s.type === 'countdown' || s.type === 'stopwatch'
-  )
-
-  return {
-    sessionsTotal: todaySessions.length,
-    workSessions: workSessions.length,
-    workSeconds: workSessions.reduce((sum, s) => sum + s.duration, 0),
-  }
-})
-
-const recentSessions = computed(() => {
-  return [...sessionHistory.value].reverse().slice(0, 3)
-})
-
-function formatDuration(seconds: number): string {
-  const hours = Math.floor(seconds / 3600)
-  const minutes = Math.floor((seconds % 3600) / 60)
-
-  if (hours > 0) {
-    return `${hours}h ${minutes}m`
-  }
-  return `${minutes}m`
-}
-
-function formatSessionTime(session: TimerSession): string {
-  const date = new Date(session.completedAt)
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-}
-
 // === Lifecycle ===
 
-onMounted(() => {
-  if (isRunning.value) {
-    startInterval()
-  }
-})
-
 onUnmounted(() => {
-  stopInterval()
   if (audioContext && audioContext.state !== 'closed') {
     try {
       audioContext.close()
     } catch {
       // Ignore close errors
     }
-  }
-})
-
-// Watch status for interval management
-watch(status, (newStatus) => {
-  if (newStatus === 'running' && !timerInterval.value) {
-    startInterval()
-  } else if (newStatus !== 'running' && timerInterval.value) {
-    stopInterval()
   }
 })
 
@@ -502,12 +522,9 @@ useProvideData(props.context, timerStatusContractV1, {
     widgetId: props.context.widgetId,
     mode: state.mode,
     status: state.status,
-    displaySeconds: state.currentSeconds,
+    displaySeconds: currentSeconds.value,
     targetSeconds: state.mode === 'stopwatch' ? null : state.targetSeconds,
-    progressPercent:
-      state.mode === 'stopwatch' || state.targetSeconds === 0
-        ? 0
-        : Math.round(((state.targetSeconds - state.currentSeconds) / state.targetSeconds) * 100),
+    progressPercent: progressPercent.value,
     isBreak: state.status === 'break',
     linkedTask: state.linkedTask
       ? {
@@ -585,7 +602,7 @@ useProvideData(props.context, timerHistoryContractV1, {
 <template>
   <div class="timer-widget h-full flex flex-col">
     <!-- Mode Selector -->
-    <div class="px-3 pt-3 pb-2">
+    <div class="shrink-0 px-3 pt-3 pb-2">
       <BkButtonGroup
         :model-value="mode"
         :options="modeOptions"
@@ -596,13 +613,12 @@ useProvideData(props.context, timerHistoryContractV1, {
       />
     </div>
 
-    <!-- Main Content -->
-    <div class="flex-1 flex flex-col items-center justify-center px-4 gap-4">
-      <!-- Countdown Presets (countdown mode, idle state) -->
-      <div
-        v-if="isCountdown && isIdle"
-        class="flex flex-wrap justify-center gap-1.5"
-      >
+    <!-- Countdown Presets (countdown mode, idle state) -->
+    <div
+      v-if="isCountdown && isIdle"
+      class="shrink-0 px-3 pb-2"
+    >
+      <div class="flex flex-wrap justify-center gap-1.5">
         <button
           v-for="preset in countdownPresets"
           :key="preset.id"
@@ -612,64 +628,54 @@ useProvideData(props.context, timerHistoryContractV1, {
           {{ preset.label }}
         </button>
       </div>
+    </div>
 
-      <!-- Timer Display -->
-      <div class="relative flex items-center justify-center">
-        <svg
-          class="-rotate-90"
-          :width="circleSize"
-          :height="circleSize"
-          :viewBox="`0 0 ${circleSize} ${circleSize}`"
-        >
-          <!-- Background circle -->
-          <circle
-            :cx="circleSize / 2"
-            :cy="circleSize / 2"
-            :r="radius"
-            fill="none"
-            stroke="currentColor"
-            :stroke-width="strokeWidth"
-            class="text-muted"
-          />
-          <!-- Progress circle -->
-          <circle
-            v-if="!isStopwatch"
-            :cx="circleSize / 2"
-            :cy="circleSize / 2"
-            :r="radius"
-            fill="none"
-            stroke="currentColor"
-            :stroke-width="strokeWidth"
-            stroke-linecap="round"
-            :stroke-dasharray="circumference"
-            :stroke-dashoffset="strokeDashoffset"
-            :class="progressColor"
-            class="transition-all duration-300"
-          />
-        </svg>
+    <!-- Timer Display -->
+    <div class="flex-1 flex flex-col items-center justify-center px-4 min-h-[160px]">
+      <!-- Water Timer (Pomodoro/Countdown) -->
+      <WaterTimer
+        v-if="!isStopwatch"
+        :progress="progressPercent"
+        :time="displayTime"
+        :status-label="statusLabel"
+        :is-break="isBreak"
+        :size="160"
+      />
 
-        <!-- Time display -->
-        <div class="absolute inset-0 flex flex-col items-center justify-center">
-          <span class="text-3xl font-bold text-foreground font-mono tracking-tight">
-            {{ displayTime }}
-          </span>
-          <span
-            v-if="statusLabel"
-            :class="isBreak ? 'text-green-500' : 'text-muted-foreground'"
-            class="text-xs mt-0.5"
-          >
-            {{ statusLabel }}
-          </span>
+      <!-- Simple Time Display (Stopwatch) -->
+      <div v-else class="text-center">
+        <div class="text-4xl font-bold text-foreground font-mono tracking-tight">
+          {{ displayTime }}
+        </div>
+        <div v-if="statusLabel" class="text-xs text-muted-foreground mt-1">
+          {{ statusLabel }}
         </div>
       </div>
+    </div>
 
-      <!-- Controls -->
+    <!-- Linked Task -->
+    <div v-if="showLinkedTask" class="shrink-0 px-3 pb-2">
+      <TaskLinkChip
+        v-if="linkedTask"
+        :task="linkedTask"
+        @unlink="handleUnlinkTask"
+      />
+      <TaskLinkPopover
+        v-else
+        :task-groups="taskGroups"
+        :no-providers="noTaskProviders"
+        @select="handleLinkTask"
+        @configure="handleConfigureProviders"
+      />
+    </div>
+
+    <!-- Controls -->
+    <div class="shrink-0 px-3 py-3">
       <div class="flex items-center justify-center gap-2">
         <!-- Play/Resume -->
         <BkButton
           v-if="!isRunning"
           variant="default"
-          size="sm"
           @click="handleStart"
         >
           <BkIcon icon="play" :size="16" />
@@ -680,7 +686,6 @@ useProvideData(props.context, timerHistoryContractV1, {
         <BkButton
           v-if="isRunning"
           variant="secondary"
-          size="sm"
           @click="handlePause"
         >
           <BkIcon icon="pause" :size="16" />
@@ -691,7 +696,6 @@ useProvideData(props.context, timerHistoryContractV1, {
         <BkButton
           v-if="!isIdle"
           variant="ghost"
-          size="sm"
           @click="handleReset"
         >
           <BkIcon icon="rotate-ccw" :size="16" />
@@ -701,7 +705,6 @@ useProvideData(props.context, timerHistoryContractV1, {
         <BkButton
           v-if="isStopwatch && isRunning"
           variant="ghost"
-          size="sm"
           @click="handleRecordLap"
         >
           <BkIcon icon="flag" :size="16" />
@@ -711,85 +714,39 @@ useProvideData(props.context, timerHistoryContractV1, {
         <BkButton
           v-if="!isStopwatch && (isRunning || isPaused || isBreak)"
           variant="ghost"
-          size="sm"
           @click="handleSkip"
         >
           <BkIcon icon="skip-forward" :size="16" />
         </BkButton>
       </div>
-
-      <!-- Stopwatch Laps -->
-      <div
-        v-if="isStopwatch && laps.length > 0 && !compactMode"
-        class="w-full max-w-xs"
-      >
-        <div class="text-xs font-medium text-muted-foreground mb-1.5">Laps</div>
-        <div class="space-y-0.5 max-h-20 overflow-y-auto">
-          <div
-            v-for="lap in [...laps].reverse().slice(0, maxLapsDisplayed)"
-            :key="lap.id"
-            class="flex items-center justify-between px-2 py-1 text-xs rounded bg-muted/50"
-          >
-            <span class="text-muted-foreground">#{{ lap.number }}</span>
-            <span class="font-mono text-foreground">
-              {{ Math.floor(lap.elapsedSeconds / 60).toString().padStart(2, '0') }}:{{ (lap.elapsedSeconds % 60).toString().padStart(2, '0') }}
-            </span>
-            <span class="text-muted-foreground font-mono">
-              +{{ Math.floor(lap.splitSeconds / 60).toString().padStart(2, '0') }}:{{ (lap.splitSeconds % 60).toString().padStart(2, '0') }}
-            </span>
-          </div>
-        </div>
-      </div>
     </div>
 
-    <!-- Footer Stats -->
+    <!-- Stopwatch Laps -->
     <div
-      v-if="!compactMode && todayStats.sessionsTotal > 0"
-      class="border-t border-border px-4 py-2"
+      v-if="isStopwatch && laps.length > 0 && !compactMode"
+      class="shrink-0 px-3 pb-2"
     >
-      <div class="flex items-center justify-center gap-4 text-xs text-muted-foreground">
-        <div class="flex items-center gap-1">
-          <BkIcon icon="check-circle" :size="12" />
-          {{ todayStats.workSessions }} session{{ todayStats.workSessions !== 1 ? 's' : '' }}
-        </div>
+      <div class="text-xs font-medium text-muted-foreground mb-1.5">Laps</div>
+      <div class="space-y-0.5">
         <div
-          v-if="todayStats.workSeconds > 0"
-          class="flex items-center gap-1"
+          v-for="lap in [...laps].reverse().slice(0, maxLapsDisplayed)"
+          :key="lap.id"
+          class="flex items-center justify-between px-2 py-1 text-xs rounded bg-muted/50"
         >
-          <BkIcon icon="clock" :size="12" />
-          {{ formatDuration(todayStats.workSeconds) }}
+          <span class="text-muted-foreground">#{{ lap.number }}</span>
+          <span class="font-mono text-foreground">
+            {{ Math.floor(lap.elapsedSeconds / 60).toString().padStart(2, '0') }}:{{ (lap.elapsedSeconds % 60).toString().padStart(2, '0') }}
+          </span>
+          <span class="text-muted-foreground font-mono">
+            +{{ Math.floor(lap.splitSeconds / 60).toString().padStart(2, '0') }}:{{ (lap.splitSeconds % 60).toString().padStart(2, '0') }}
+          </span>
         </div>
       </div>
     </div>
 
-    <!-- Session History -->
-    <div
-      v-if="showSessionHistory && !compactMode && recentSessions.length > 0"
-      class="border-t border-border px-3 py-2 max-h-24 overflow-y-auto"
-    >
-      <div
-        v-for="session in recentSessions"
-        :key="session.id"
-        class="flex items-center gap-2 py-1 text-xs"
-      >
-        <BkIcon
-          :icon="session.type === 'work' || session.type === 'countdown' || session.type === 'stopwatch' ? 'briefcase' : 'coffee'"
-          :size="12"
-          :class="session.type.includes('break') ? 'text-green-500' : 'text-muted-foreground'"
-        />
-        <span class="text-foreground">
-          {{ formatDuration(session.duration) }}
-        </span>
-        <span
-          v-if="session.taskRef"
-          class="flex-1 truncate text-muted-foreground"
-        >
-          - {{ session.taskRef.taskLabel }}
-        </span>
-        <span class="text-muted-foreground ml-auto">
-          {{ formatSessionTime(session) }}
-        </span>
-      </div>
+    <!-- Session Stats -->
+    <div v-if="!compactMode" class="shrink-0 px-3 pb-3 border-t border-border pt-2">
+      <SessionStats :sessions="sessionHistory" />
     </div>
   </div>
 </template>

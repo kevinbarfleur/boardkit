@@ -16,7 +16,7 @@ export interface Point {
   y: number
 }
 
-export type ElementType = 'rectangle' | 'ellipse' | 'line' | 'arrow' | 'draw' | 'text'
+export type ElementType = 'rectangle' | 'ellipse' | 'line' | 'arrow' | 'draw' | 'text' | 'image'
 
 /**
  * Stroke dash pattern type.
@@ -148,13 +148,40 @@ export interface TextElement extends BaseElement {
 }
 
 // ============================================================================
+// Image Element
+// ============================================================================
+
+/**
+ * How image content fits within its bounding box.
+ */
+export type ImageObjectFit = 'contain' | 'cover' | 'fill'
+
+/**
+ * Image element for displaying raster/vector images on the canvas.
+ * Images are stored as assets and referenced by assetId.
+ */
+export interface ImageElement extends BaseElement {
+  type: 'image'
+  /** Reference to asset in the document's asset registry */
+  assetId: string
+  /** Alternative text for accessibility */
+  alt?: string
+  /** How image fits within bounds. Default: 'contain' */
+  objectFit?: ImageObjectFit
+  /** Horizontal flip */
+  flipX?: boolean
+  /** Vertical flip */
+  flipY?: boolean
+}
+
+// ============================================================================
 // Union Type
 // ============================================================================
 
 /**
  * Union of all canvas element types.
  */
-export type CanvasElement = ShapeElement | LineElement | DrawElement | TextElement
+export type CanvasElement = ShapeElement | LineElement | DrawElement | TextElement | ImageElement
 
 // ============================================================================
 // Board Background
@@ -190,6 +217,10 @@ export function isDrawElement(element: CanvasElement): element is DrawElement {
 
 export function isTextElement(element: CanvasElement): element is TextElement {
   return element.type === 'text'
+}
+
+export function isImageElement(element: CanvasElement): element is ImageElement {
+  return element.type === 'image'
 }
 
 // ============================================================================
@@ -237,6 +268,20 @@ export const FONT_FAMILY_LABELS: Record<FontFamily, string> = {
   handwritten: 'Handwritten',
   code: 'Code',
   serif: 'Serif',
+}
+
+/**
+ * Default object fit for image elements.
+ */
+export const DEFAULT_IMAGE_OBJECT_FIT: ImageObjectFit = 'contain'
+
+/**
+ * Display labels for image object fit options.
+ */
+export const IMAGE_OBJECT_FIT_LABELS: Record<ImageObjectFit, string> = {
+  contain: 'Contain',
+  cover: 'Cover',
+  fill: 'Fill',
 }
 
 // ============================================================================

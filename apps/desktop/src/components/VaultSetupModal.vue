@@ -30,7 +30,7 @@ const handleSelectFolder = async () => {
 </script>
 
 <template>
-  <BkModal :open="true" title="Welcome to Boardkit">
+  <BkModal :open="true" title="Welcome to Boardkit" @submit="handleSelectFolder">
     <div class="space-y-6">
       <!-- Welcome message -->
       <div class="text-center space-y-2">

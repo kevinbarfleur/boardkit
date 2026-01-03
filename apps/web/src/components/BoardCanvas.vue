@@ -1,12 +1,17 @@
 <script setup lang="ts">
-import { ref, shallowRef, computed, onMounted, onUnmounted } from 'vue'
+import { ref, shallowRef, computed, onMounted, onUnmounted, provide } from 'vue'
 import {
   useBoardStore,
   useToolStore,
+  useAssetStore,
   moduleRegistry,
   pluginManager,
   useKeyboardShortcuts,
   actionRegistry,
+  setImagePickerFn,
+  importImageFile,
+  importImageFromClipboard,
+  createImageElement,
   FONT_FAMILY_CSS,
   DEFAULT_WIDGET_VISIBILITY,
   findNearestShapeAndAnchor,
@@ -22,10 +27,13 @@ import {
   isTextElement,
   isShapeElement,
 } from '@boardkit/core'
+import { openImagePicker } from '../utils/boardkitFile'
 import {
   WidgetFrame,
   BkContextMenu,
   BkDataSourcePicker,
+  BkImagePickerModal,
+  BkToolButton,
   AnchorPointsOverlay,
   useTheme,
   type ContextMenuItem,
@@ -33,6 +41,8 @@ import {
   type MenuItem,
   type MenuContent,
   type MenuGroup,
+  type ImageAsset,
+  type ImagePickerResult,
 } from '@boardkit/ui'
 import WidgetRenderer from './WidgetRenderer.vue'
 import CanvasElementsLayer from './CanvasElementsLayer.vue'
@@ -47,9 +57,133 @@ const emit = defineEmits<{
 
 const boardStore = useBoardStore()
 const toolStore = useToolStore()
+const assetStore = useAssetStore()
 const dataSharingUI = useDataSharingUI()
 const { openAppSettings } = useSettingsPanel()
 const { theme } = useTheme()
+
+// Provide asset store for child components (ElementRenderer)
+// We provide the store directly so components can react to changes
+provide('assetStore', assetStore)
+
+// ============================================================================
+// Image Picker Modal State
+// ============================================================================
+const imagePickerModalOpen = ref(false)
+const imagePickerPosition = ref<{ x: number; y: number } | null>(null)
+const imagePickerReplaceElementId = ref<string | null>(null) // Set when replacing an existing image
+let imagePickerResolve: ((files: File[]) => void) | null = null
+
+// Get existing assets for the picker modal
+const existingImageAssets = computed<ImageAsset[]>(() => {
+  const assets: ImageAsset[] = []
+  for (const assetId of assetStore.assetIds) {
+    const asset = assetStore.getAsset(assetId)
+    const url = assetStore.getBlobUrl(assetId)
+    if (asset && url) {
+      assets.push({
+        id: assetId,
+        url,
+        filename: asset.filename,
+        size: asset.size,
+      })
+    }
+  }
+  return assets
+})
+
+/**
+ * Open the image picker modal.
+ * Returns a promise that resolves with selected files (empty if cancelled or existing asset used).
+ */
+const openImagePickerModal = (position?: { x: number; y: number }): Promise<File[]> => {
+  return new Promise((resolve) => {
+    imagePickerPosition.value = position ?? null
+    imagePickerResolve = resolve
+    imagePickerModalOpen.value = true
+  })
+}
+
+/**
+ * Handle image picker selection.
+ */
+const handleImagePickerSelect = async (result: ImagePickerResult) => {
+  // Close modal immediately
+  imagePickerModalOpen.value = false
+
+  const position = imagePickerPosition.value ?? { x: 200, y: 200 }
+  const replaceId = imagePickerReplaceElementId.value
+
+  // REPLACE MODE: Update existing element
+  if (replaceId) {
+    if (result.type === 'existing' && result.assetId) {
+      boardStore.updateElement(replaceId, { assetId: result.assetId })
+    } else if (result.type === 'new' && result.files && result.files.length > 0) {
+      try {
+        const file = result.files[0]
+        const { assetId } = await importImageFile(file)
+        boardStore.updateElement(replaceId, { assetId })
+      } catch (error) {
+        console.error('Failed to replace image:', error)
+      }
+    }
+    imagePickerReplaceElementId.value = null
+    imagePickerResolve?.([])
+    imagePickerResolve = null
+    return
+  }
+
+  // ADD MODE: Create new element(s)
+  if (result.type === 'existing' && result.assetId) {
+    // User selected an existing asset - create element directly
+    const blob = assetStore.getBlob(result.assetId)
+    if (blob) {
+      const dimensions = await assetStore.getImageDimensions(blob)
+      const element = createImageElement(result.assetId, dimensions, position)
+      boardStore.addElement(element)
+    }
+    imagePickerResolve?.([])
+  } else if (result.type === 'new' && result.files) {
+    // User wants to import new files
+    for (let i = 0; i < result.files.length; i++) {
+      const file = result.files[i]
+      try {
+        const { assetId, dimensions } = await importImageFile(file)
+        const offsetX = (i % 3) * 320
+        const offsetY = Math.floor(i / 3) * 320
+        const element = createImageElement(assetId, dimensions, {
+          x: position.x + offsetX,
+          y: position.y + offsetY,
+        })
+        boardStore.addElement(element)
+      } catch (error) {
+        console.error('Failed to import image:', error)
+      }
+    }
+    imagePickerResolve?.([])
+  }
+
+  imagePickerResolve = null
+}
+
+/**
+ * Handle image picker close.
+ */
+const handleImagePickerClose = () => {
+  imagePickerModalOpen.value = false
+  imagePickerReplaceElementId.value = null
+  imagePickerResolve?.([])
+  imagePickerResolve = null
+}
+
+// Register the image picker function for the add-image action
+// This opens our modal instead of directly opening the file picker
+setImagePickerFn(async () => {
+  // Get position from context menu if available, otherwise center of viewport
+  const centerX = (canvasWidth.value / 2 - viewport.value.x) / viewport.value.zoom
+  const centerY = (canvasHeight.value / 2 - viewport.value.y) / viewport.value.zoom
+  return openImagePickerModal({ x: centerX, y: centerY })
+})
 
 // Grid color based on theme (white for dark, black for light)
 const gridColor = computed(() => {
@@ -176,6 +310,7 @@ const elements = computed(() => boardStore.elements)
 const viewport = computed(() => boardStore.viewport)
 const background = computed(() => boardStore.background)
 const grid = computed(() => boardStore.grid)
+const canvasSettings = computed(() => boardStore.canvasSettings)
 
 // Canvas size for grid overlay (updated via ResizeObserver)
 const canvasWidth = ref(window.innerWidth)
@@ -243,10 +378,11 @@ const backgroundStyle = computed(() => {
   const bg = background.value
   const zoom = viewport.value.zoom
 
-  // Grid size is fixed at 20px in canvas coordinates
-  // Visual size scales with zoom: 20px canvas = 20*zoom screen pixels
+  // Grid size from canvas settings (default: 20px)
+  // Visual size scales with zoom: gridSpacing canvas = gridSpacing*zoom screen pixels
   // This ensures perfect alignment between visual grid and snap-to-grid
-  const baseSize = 20 * zoom
+  const gridSpacing = canvasSettings.value.gridSpacing
+  const baseSize = gridSpacing * zoom
 
   // Reduce opacity when zoomed out to improve visibility
   // Full opacity at zoom >= 60%, fades progressively below
@@ -1375,7 +1511,6 @@ const handleCanvasMouseUp = (e: MouseEvent) => {
 // Zoom constants
 const MIN_ZOOM = 0.1
 const MAX_ZOOM = 3
-const ZOOM_SENSITIVITY = 0.002
 
 // Cache for scrollable container checks to avoid repeated getComputedStyle calls
 const scrollableCache = new WeakMap<HTMLElement, boolean>()
@@ -1434,7 +1569,7 @@ const handleWheel = (e: WheelEvent) => {
   closeContextMenu()
 
   if (e.ctrlKey || e.metaKey) {
-    const delta = -e.deltaY * ZOOM_SENSITIVITY
+    const delta = -e.deltaY * canvasSettings.value.zoomSensitivity
     const zoomFactor = Math.exp(delta)
     const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, viewport.value.zoom * zoomFactor))
 
@@ -1455,6 +1590,27 @@ const handleWheel = (e: WheelEvent) => {
       y: viewport.value.y - e.deltaY,
     })
   }
+}
+
+// Zoom button handlers (zoom centered on screen center)
+function handleZoomIn() {
+  const newZoom = Math.min(MAX_ZOOM, viewport.value.zoom * 1.25)
+  const centerX = canvasWidth.value / 2
+  const centerY = canvasHeight.value / 2
+  const scale = newZoom / viewport.value.zoom
+  const newX = centerX - (centerX - viewport.value.x) * scale
+  const newY = centerY - (centerY - viewport.value.y) * scale
+  boardStore.updateViewport({ x: newX, y: newY, zoom: newZoom })
+}
+
+function handleZoomOut() {
+  const newZoom = Math.max(MIN_ZOOM, viewport.value.zoom * 0.8)
+  const centerX = canvasWidth.value / 2
+  const centerY = canvasHeight.value / 2
+  const scale = newZoom / viewport.value.zoom
+  const newX = centerX - (centerX - viewport.value.x) * scale
+  const newY = centerY - (centerY - viewport.value.y) * scale
+  boardStore.updateViewport({ x: newX, y: newY, zoom: newZoom })
 }
 
 // Element event handlers
@@ -1828,6 +1984,22 @@ const handleElementContextMenu = (id: string, e: MouseEvent) => {
   }
 }
 
+// Handle replace image request from image element
+const handleElementReplaceImage = (id: string) => {
+  // Set replace mode (handleImagePickerSelect will check this)
+  imagePickerReplaceElementId.value = id
+
+  // Get element position for modal positioning
+  const element = elements.value.find((e) => e.id === id)
+  imagePickerPosition.value = element ? {
+    x: element.rect.x + element.rect.width / 2,
+    y: element.rect.y + element.rect.height / 2,
+  } : { x: 200, y: 200 }
+
+  // Open the modal
+  imagePickerModalOpen.value = true
+}
+
 const saveTextEdit = () => {
   if (!editingElementId.value) return
 
@@ -2105,6 +2277,81 @@ const handleBackgroundClick = () => {
   boardStore.setBackground({ pattern: nextPattern })
 }
 
+// ============================================================================
+// Image import handlers (drag & drop, paste)
+// ============================================================================
+
+/**
+ * Handle drag over event for image drop.
+ */
+const handleDragOver = (e: DragEvent) => {
+  e.preventDefault()
+  if (e.dataTransfer) {
+    e.dataTransfer.dropEffect = 'copy'
+  }
+}
+
+/**
+ * Handle file drop on canvas.
+ */
+const handleDrop = async (e: DragEvent) => {
+  e.preventDefault()
+  if (!e.dataTransfer) return
+
+  const files = Array.from(e.dataTransfer.files).filter((file) =>
+    file.type.startsWith('image/')
+  )
+
+  if (files.length === 0) return
+
+  const canvasPos = screenToCanvas(e.clientX, e.clientY)
+
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i]
+    try {
+      const { assetId, dimensions } = await importImageFile(file)
+      const offsetX = (i % 3) * 320
+      const offsetY = Math.floor(i / 3) * 320
+      const element = createImageElement(assetId, dimensions, {
+        x: canvasPos.x + offsetX,
+        y: canvasPos.y + offsetY,
+      })
+      boardStore.addElement(element)
+    } catch (error) {
+      console.error('Failed to import dropped image:', error)
+    }
+  }
+}
+
+/**
+ * Handle paste event for images.
+ */
+const handlePaste = async (e: ClipboardEvent) => {
+  // Don't intercept if we're editing text
+  if (isEditingText.value) return
+
+  // Check if clipboard has images
+  if (!e.clipboardData) return
+
+  // Try to import image from clipboard
+  try {
+    const result = await importImageFromClipboard(e.clipboardData.items)
+    if (result) {
+      e.preventDefault()
+      // Place at center of viewport
+      const centerX = (canvasWidth.value / 2 - viewport.value.x) / viewport.value.zoom
+      const centerY = (canvasHeight.value / 2 - viewport.value.y) / viewport.value.zoom
+      const element = createImageElement(result.assetId, result.dimensions, {
+        x: centerX,
+        y: centerY,
+      })
+      boardStore.addElement(element)
+    }
+  } catch (error) {
+    console.error('Failed to import pasted image:', error)
+  }
+}
+
 // ResizeObserver for canvas size tracking
 let resizeObserver: ResizeObserver | null = null
 
@@ -2112,6 +2359,7 @@ onMounted(() => {
   document.addEventListener('mousemove', handleCanvasMouseMove)
   document.addEventListener('mouseup', handleCanvasMouseUp)
   document.addEventListener('keydown', preventSpaceScroll)
+  document.addEventListener('paste', handlePaste)
 
   // Add capturing listener for connection mode clicks
   // This intercepts clicks BEFORE elements can stop propagation
@@ -2135,6 +2383,7 @@ onUnmounted(() => {
   document.removeEventListener('mousemove', handleCanvasMouseMove)
   document.removeEventListener('mouseup', handleCanvasMouseUp)
   document.removeEventListener('keydown', preventSpaceScroll)
+  document.removeEventListener('paste', handlePaste)
 
   // Remove capturing listener for connection mode
   if (canvasRef.value) {
@@ -2165,6 +2414,8 @@ defineExpose({
     @wheel="handleWheel"
     @mousedown="handleCanvasMouseDown"
     @contextmenu="handleCanvasContextMenu"
+    @dragover.prevent="handleDragOver"
+    @drop.prevent="handleDrop"
   >
     <!-- Canvas content with transform -->
     <div ref="canvasContentRef" class="canvas-transform absolute inset-0" :style="transformStyle">
@@ -2185,6 +2436,7 @@ defineExpose({
         @element-edit-start="handleElementEditStart"
         @element-context-menu="handleElementContextMenu"
         @element-double-click="handleElementDoubleClick"
+        @element-replace-image="handleElementReplaceImage"
         @group-move-start="handleGroupMoveStart"
         @group-resize-start="handleGroupResizeStart"
         @group-rotate-start="handleGroupRotateStart"
@@ -2268,11 +2520,25 @@ defineExpose({
       :style="marqueeStyle"
     />
 
-    <!-- Zoom indicator -->
-    <div
-      class="absolute bottom-4 right-4 px-2 py-1 rounded bg-background/80 border text-xs text-muted-foreground pointer-events-none"
-    >
-      {{ Math.round(viewport.zoom * 100) }}%
+    <!-- Zoom controls -->
+    <div class="absolute bottom-4 right-4 flex items-center gap-0.5 bg-background/80 border rounded-lg px-1 py-0.5">
+      <BkToolButton
+        icon="zoom-out"
+        tooltip="Zoom Out"
+        shortcut="⌘−"
+        size="sm"
+        @click="handleZoomOut"
+      />
+      <BkToolButton
+        icon="zoom-in"
+        tooltip="Zoom In"
+        shortcut="⌘+"
+        size="sm"
+        @click="handleZoomIn"
+      />
+      <div class="px-2 text-xs text-muted-foreground tabular-nums min-w-[40px] text-center">
+        {{ Math.round(viewport.zoom * 100) }}%
+      </div>
     </div>
 
     <!-- Context Menu -->
@@ -2297,6 +2563,15 @@ defineExpose({
       empty-hint="Add a Todo widget first, then you can connect to it"
       @close="dataSharingUI.closePicker"
       @update:connections="dataSharingUI.handleConnectionsUpdate"
+    />
+
+    <!-- Image Picker Modal -->
+    <BkImagePickerModal
+      :open="imagePickerModalOpen"
+      :assets="existingImageAssets"
+      :multiple="true"
+      @close="handleImagePickerClose"
+      @select="handleImagePickerSelect"
     />
   </div>
 </template>

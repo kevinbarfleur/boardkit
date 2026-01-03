@@ -7,6 +7,8 @@ import type { CanvasElement, BoardBackground, GridSettings, ElementGroup, Connec
 import { DEFAULT_BACKGROUND } from './element'
 import type { DataSharingState } from './dataContract'
 import { createEmptyDataSharingState } from './dataContract'
+import type { AssetRegistry } from './asset'
+import { createEmptyAssetRegistry } from './asset'
 
 // ============================================================================
 // Current Document Version
@@ -19,8 +21,10 @@ import { createEmptyDataSharingState } from './dataContract'
  * Version history:
  * - v1: Initial version with widgets, elements, and background
  * - v2: Added dataSharing for inter-module data sharing
+ * - v3: Added assets registry for binary files (images)
+ * - v4: Added canvasSettings for zoom, snap-to-grid, and grid spacing
  */
-export const CURRENT_DOCUMENT_VERSION = 2
+export const CURRENT_DOCUMENT_VERSION = 4
 
 // ============================================================================
 // Geometry Types
@@ -37,6 +41,30 @@ export interface Viewport {
   x: number
   y: number
   zoom: number
+}
+
+// ============================================================================
+// Canvas Settings
+// ============================================================================
+
+/**
+ * Canvas behavior settings stored at document level.
+ * These settings persist with the document.
+ */
+export interface CanvasSettings {
+  /** Zoom wheel sensitivity (0.0005 to 0.005). Default: 0.002 */
+  zoomSensitivity: number
+  /** Snap elements to grid when moving/resizing. Default: true */
+  snapToGrid: boolean
+  /** Grid spacing in pixels (10 to 100). Default: 20 */
+  gridSpacing: number
+}
+
+/** Default canvas settings */
+export const DEFAULT_CANVAS_SETTINGS: CanvasSettings = {
+  zoomSensitivity: 0.002,
+  snapToGrid: true,
+  gridSpacing: 20,
 }
 
 // ============================================================================
@@ -93,12 +121,14 @@ export interface BoardState {
   elements: CanvasElement[]
   /** Board background configuration */
   background: BoardBackground
-  /** Grid snapping settings */
+  /** Grid snapping settings (legacy, use canvasSettings instead) */
   grid?: GridSettings
   /** Element groups for grouping functionality */
   groups?: ElementGroup[]
   /** Connections between elements/widgets (orthogonal arrows) */
   connections?: Connection[]
+  /** Canvas behavior settings - added in v4 */
+  canvasSettings?: CanvasSettings
 }
 
 // ============================================================================
@@ -118,6 +148,8 @@ export interface BoardkitDocument {
   modules: Record<string, unknown>
   /** Data sharing state (permissions and links) - added in v2 */
   dataSharing?: DataSharingState
+  /** Asset registry for binary files (images) - added in v3 */
+  assets?: AssetRegistry
 }
 
 // ============================================================================
@@ -142,8 +174,10 @@ export function createEmptyDocument(title: string): BoardkitDocument {
       elements: [],
       background: { ...DEFAULT_BACKGROUND },
       connections: [],
+      canvasSettings: { ...DEFAULT_CANVAS_SETTINGS },
     },
     modules: {},
     dataSharing: createEmptyDataSharingState(),
+    assets: createEmptyAssetRegistry(),
   }
 }

@@ -56,7 +56,7 @@ function handleClose() {
 </script>
 
 <template>
-  <BkModal :open="open" @close="handleClose">
+  <BkModal :open="open" @close="handleClose" @submit="handleConfirm">
     <template #header>
       <div class="flex items-center gap-3">
         <div
@@ -70,7 +70,7 @@ function handleClose() {
             :class="destructive ? 'text-destructive' : 'text-primary'"
           />
         </div>
-        <h3 class="text-lg font-medium font-serif text-foreground">{{ title }}</h3>
+        <h3 class="text-base font-medium text-foreground font-serif">{{ title }}</h3>
       </div>
     </template>
 

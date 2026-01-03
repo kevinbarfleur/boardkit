@@ -1,2 +1,9 @@
 export * from './types'
-export { indexedDBStorage, listDocuments, historyStorage, type HistoryEntry } from './indexeddb'
+export {
+  indexedDBStorage,
+  listDocuments,
+  historyStorage,
+  assetStorage,
+  type HistoryEntry,
+  type AssetEntry,
+} from './indexeddb'
