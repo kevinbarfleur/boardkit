@@ -113,7 +113,7 @@ const hasAnyTasks = computed(() => {
       >
         <!-- No providers connected -->
         <div v-if="noProviders" class="p-4 text-center">
-          <BkIcon icon="link-2-off" :size="24" class="mx-auto text-muted-foreground mb-2" />
+          <BkIcon icon="unlink" :size="24" class="mx-auto text-muted-foreground mb-2" />
           <p class="text-sm text-muted-foreground mb-3">
             No task sources connected
           </p>

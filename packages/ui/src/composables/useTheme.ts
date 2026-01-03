@@ -1,4 +1,4 @@
-import { computed, watch } from 'vue'
+import { computed, watch, ref } from 'vue'
 import { useStorage, usePreferredDark } from '@vueuse/core'
 
 export type Theme = 'light' | 'dark' | 'system'
@@ -10,6 +10,9 @@ const storedTheme = useStorage<Theme>(THEME_KEY, 'system')
 
 // System preference detection with VueUse
 const prefersDark = usePreferredDark()
+
+// Track previous resolved theme for change detection
+const previousResolvedTheme = ref<'light' | 'dark' | null>(null)
 
 export function useTheme() {
   // Computed actual theme (resolved from 'system')
@@ -27,8 +30,13 @@ export function useTheme() {
     root.classList.add(resolvedTheme.value)
   }
 
-  // Watch for changes and apply automatically
-  watch(resolvedTheme, applyTheme, { immediate: true })
+  // Watch for changes, track previous theme, and apply automatically
+  watch(resolvedTheme, (newTheme, oldTheme) => {
+    if (oldTheme) {
+      previousResolvedTheme.value = oldTheme
+    }
+    applyTheme()
+  }, { immediate: true })
 
   const setTheme = (theme: Theme) => {
     storedTheme.value = theme
@@ -46,6 +54,7 @@ export function useTheme() {
   return {
     theme: storedTheme,
     resolvedTheme,
+    previousResolvedTheme,
     initTheme,
     setTheme,
     toggleTheme,

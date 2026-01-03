@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, provide } from 'vue'
 import { useBoardStore, type Connection, type Bounds } from '@boardkit/core'
-import { OrthogonalArrow } from '@boardkit/ui'
+import { OrthogonalArrow, useTheme } from '@boardkit/ui'
 
 // SVG ref for RoughJS rendering
 const svgRef = ref<SVGSVGElement | null>(null)
@@ -55,6 +55,10 @@ const emit = defineEmits<{
 }>()
 
 const boardStore = useBoardStore()
+const { resolvedTheme } = useTheme()
+
+// Theme inversion - invert colors in light mode for visibility
+const isLightTheme = computed(() => resolvedTheme.value === 'light')
 
 // Get all connections from the store
 const connections = computed(() => boardStore.connections)
@@ -131,6 +135,7 @@ function handleConnectionContextMenu(connectionId: string, event: MouseEvent) {
   <svg
     ref="svgRef"
     class="connections-layer"
+    :class="{ 'theme-inverted': isLightTheme }"
     xmlns="http://www.w3.org/2000/svg"
     :style="{
       position: 'absolute',
@@ -171,5 +176,10 @@ function handleConnectionContextMenu(connectionId: string, event: MouseEvent) {
 <style scoped>
 .connections-layer {
   z-index: 1;
+}
+
+/* Theme inversion - invert colors in light mode for better visibility */
+.connections-layer.theme-inverted {
+  filter: invert(100%) hue-rotate(180deg);
 }
 </style>

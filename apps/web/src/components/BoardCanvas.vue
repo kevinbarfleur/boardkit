@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, shallowRef, computed, onMounted, onUnmounted, provide } from 'vue'
+import { ref, shallowRef, computed, onMounted, onUnmounted, provide, watch } from 'vue'
 import {
   useBoardStore,
   useToolStore,
@@ -33,6 +33,7 @@ import {
   BkContextMenu,
   BkDataSourcePicker,
   BkImagePickerModal,
+  BkThemeChangeModal,
   BkToolButton,
   AnchorPointsOverlay,
   useTheme,
@@ -60,11 +61,39 @@ const toolStore = useToolStore()
 const assetStore = useAssetStore()
 const dataSharingUI = useDataSharingUI()
 const { openAppSettings } = useSettingsPanel()
-const { theme } = useTheme()
+const { theme, resolvedTheme } = useTheme()
 
 // Provide asset store for child components (ElementRenderer)
 // We provide the store directly so components can react to changes
 provide('assetStore', assetStore)
+
+// ============================================================================
+// Theme Change Modal State
+// ============================================================================
+const themeChangeModalOpen = ref(false)
+const themeChangeTarget = ref<'light' | 'dark'>('light')
+
+// Count of canvas elements (shapes, lines, drawings, text - not widgets)
+const canvasElementCount = computed(() => boardStore.elements.length)
+
+// Watch for theme changes and show modal if there are elements
+watch(resolvedTheme, (newTheme, oldTheme) => {
+  // Only show modal if:
+  // 1. This is a real change (not initial load)
+  // 2. There are elements on the canvas
+  if (oldTheme && canvasElementCount.value > 0) {
+    themeChangeTarget.value = newTheme
+    themeChangeModalOpen.value = true
+  }
+})
+
+function handleThemeChangeConfirm() {
+  themeChangeModalOpen.value = false
+}
+
+function handleThemeChangeClose() {
+  themeChangeModalOpen.value = false
+}
 
 // ============================================================================
 // Image Picker Modal State
@@ -659,14 +688,15 @@ const contextMenuGroups = computed<MenuContent>(() => {
       })
     }
 
-    // Connect action for visual elements (all except line/arrow which are connectors)
+    // Arrow action for visual elements (all except line/arrow which are connectors)
     const element = boardStore.elements.find(e => e.id === ctx.selectedElementId)
     if (element && element.type !== 'line' && element.type !== 'arrow') {
       groups.push({
+        label: 'Arrow',
         items: [{
           id: 'connection.start-element',
-          label: 'Connect from here',
-          icon: 'link',
+          label: 'Arrow from here',
+          icon: 'arrow-right',
         }],
       })
     }
@@ -755,12 +785,13 @@ const contextMenuGroups = computed<MenuContent>(() => {
       })
     }
 
-    // Connection action (for widgets only)
+    // Arrow action (for widgets)
     groups.push({
+      label: 'Arrow',
       items: [{
         id: 'connection.start-widget',
-        label: 'Connect from here',
-        icon: 'link',
+        label: 'Arrow from here',
+        icon: 'arrow-right',
       }],
     })
 
@@ -2147,12 +2178,15 @@ const completeConnection = (targetId: string, targetType: 'element' | 'widget') 
 }
 
 /**
- * Handle click during connection mode.
- * Uses hover target tracking for reliable detection (instead of event.target).
+ * Handle mousedown during connection mode.
+ * Uses mousedown instead of click because ElementRenderer uses mousedown for selection.
+ * Captures in the capture phase to intercept BEFORE elements can handle it.
  */
-const handleConnectionClickCapture = (e: MouseEvent) => {
+const handleConnectionMouseDownCapture = (e: MouseEvent) => {
   // Only handle in connection mode
   if (!isConnecting.value) return
+  // Only handle left click
+  if (e.button !== 0) return
 
   e.stopPropagation()
   e.preventDefault()
@@ -2361,10 +2395,11 @@ onMounted(() => {
   document.addEventListener('keydown', preventSpaceScroll)
   document.addEventListener('paste', handlePaste)
 
-  // Add capturing listener for connection mode clicks
-  // This intercepts clicks BEFORE elements can stop propagation
+  // Add capturing listener for connection mode mousedown
+  // Uses mousedown instead of click because ElementRenderer handles mousedown for selection
+  // Capture phase ensures we intercept BEFORE elements can handle it
   if (canvasRef.value) {
-    canvasRef.value.addEventListener('click', handleConnectionClickCapture, true)
+    canvasRef.value.addEventListener('mousedown', handleConnectionMouseDownCapture, true)
   }
 
   // Track canvas size for grid overlay
@@ -2387,7 +2422,7 @@ onUnmounted(() => {
 
   // Remove capturing listener for connection mode
   if (canvasRef.value) {
-    canvasRef.value.removeEventListener('click', handleConnectionClickCapture, true)
+    canvasRef.value.removeEventListener('mousedown', handleConnectionMouseDownCapture, true)
   }
 
   // Cleanup ResizeObserver
@@ -2429,6 +2464,7 @@ defineExpose({
         :group-rotation="groupRotation"
         :binding-candidates="bindingCandidates"
         :active-binding="activeBinding"
+        :is-connecting="isConnecting"
         @element-select="(id, event) => handleElementSelect(id, event)"
         @element-move-start="handleElementMoveStart"
         @element-resize-start="handleElementResizeStart"
@@ -2572,6 +2608,15 @@ defineExpose({
       :multiple="true"
       @close="handleImagePickerClose"
       @select="handleImagePickerSelect"
+    />
+
+    <!-- Theme Change Modal -->
+    <BkThemeChangeModal
+      :open="themeChangeModalOpen"
+      :target-theme="themeChangeTarget"
+      :element-count="canvasElementCount"
+      @close="handleThemeChangeClose"
+      @confirm="handleThemeChangeConfirm"
     />
   </div>
 </template>

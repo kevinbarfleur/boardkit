@@ -61,6 +61,7 @@ export { default as BkFormModal } from './components/BkFormModal.vue'
 export { default as BkFullScreenAlert } from './components/BkFullScreenAlert.vue'
 export { default as BkImagePickerModal } from './components/BkImagePickerModal.vue'
 export type { ImageAsset, ImagePickerResult } from './components/BkImagePickerModal.vue'
+export { default as BkThemeChangeModal } from './components/BkThemeChangeModal.vue'
 
 // Plugin Components
 export { default as BkPluginCard } from './components/BkPluginCard.vue'

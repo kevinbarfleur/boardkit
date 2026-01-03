@@ -31,6 +31,38 @@ interface BoundingBox {
 }
 
 /**
+ * Helper to temporarily remove theme inversion filters during export.
+ * This ensures exported images use original colors, not inverted ones.
+ *
+ * @param canvasElement - The canvas container element
+ * @param fn - Async function to execute during the inversion-free window
+ * @returns The result of the async function
+ */
+async function withoutThemeInversion<T>(
+  canvasElement: HTMLElement,
+  fn: () => Promise<T>
+): Promise<T> {
+  // Find all layers that have theme inversion applied
+  const invertedLayers = canvasElement.querySelectorAll('.theme-inverted')
+  const layersArray = Array.from(invertedLayers)
+
+  // Temporarily remove the inversion class
+  for (const layer of layersArray) {
+    layer.classList.remove('theme-inverted')
+  }
+
+  try {
+    // Execute the export function
+    return await fn()
+  } finally {
+    // Restore the inversion class
+    for (const layer of layersArray) {
+      layer.classList.add('theme-inverted')
+    }
+  }
+}
+
+/**
  * useCanvasExport - Composable for exporting the canvas to PNG or SVG
  *
  * Usage:
@@ -184,23 +216,25 @@ export function useCanvasExport() {
     const exportHeight = (bbox.height + padding * 2) * pixelRatio
 
     try {
-      // Clone the canvas element for export
-      const dataUrl = await toPng(canvasElement, {
-        backgroundColor: backgroundColor === 'transparent' ? undefined : backgroundColor,
-        pixelRatio,
-        width: canvasElement.offsetWidth,
-        height: canvasElement.offsetHeight,
-        style: {
-          transform: `translate(${-bbox.minX + padding + viewport.x / viewport.zoom}px, ${-bbox.minY + padding + viewport.y / viewport.zoom}px)`,
-        },
-        filter: (node) => {
-          // Exclude UI elements like toolbars, selection handles during export
-          if (node.classList?.contains('selection-handles')) return false
-          if (node.classList?.contains('marquee-selection')) return false
-          if (node.classList?.contains('tool-toolbar')) return false
-          return true
-        },
-      })
+      // Export without theme inversion to use original colors
+      const dataUrl = await withoutThemeInversion(canvasElement, () =>
+        toPng(canvasElement, {
+          backgroundColor: backgroundColor === 'transparent' ? undefined : backgroundColor,
+          pixelRatio,
+          width: canvasElement.offsetWidth,
+          height: canvasElement.offsetHeight,
+          style: {
+            transform: `translate(${-bbox.minX + padding + viewport.x / viewport.zoom}px, ${-bbox.minY + padding + viewport.y / viewport.zoom}px)`,
+          },
+          filter: (node) => {
+            // Exclude UI elements like toolbars, selection handles during export
+            if (node.classList?.contains('selection-handles')) return false
+            if (node.classList?.contains('marquee-selection')) return false
+            if (node.classList?.contains('tool-toolbar')) return false
+            return true
+          },
+        })
+      )
 
       downloadDataUrl(dataUrl, `${filename}.png`)
     } catch (error) {
@@ -233,18 +267,21 @@ export function useCanvasExport() {
     }
 
     try {
-      const dataUrl = await toSvg(canvasElement, {
-        backgroundColor,
-        width: canvasElement.offsetWidth,
-        height: canvasElement.offsetHeight,
-        filter: (node) => {
-          // Exclude UI elements
-          if (node.classList?.contains('selection-handles')) return false
-          if (node.classList?.contains('marquee-selection')) return false
-          if (node.classList?.contains('tool-toolbar')) return false
-          return true
-        },
-      })
+      // Export without theme inversion to use original colors
+      const dataUrl = await withoutThemeInversion(canvasElement, () =>
+        toSvg(canvasElement, {
+          backgroundColor,
+          width: canvasElement.offsetWidth,
+          height: canvasElement.offsetHeight,
+          filter: (node) => {
+            // Exclude UI elements
+            if (node.classList?.contains('selection-handles')) return false
+            if (node.classList?.contains('marquee-selection')) return false
+            if (node.classList?.contains('tool-toolbar')) return false
+            return true
+          },
+        })
+      )
 
       downloadDataUrl(dataUrl, `${filename}.svg`)
     } catch (error) {
@@ -265,16 +302,19 @@ export function useCanvasExport() {
       pixelRatio = 2,
     } = options
 
-    return toPng(canvasElement, {
-      backgroundColor: backgroundColor === 'transparent' ? undefined : backgroundColor,
-      pixelRatio,
-      filter: (node) => {
-        if (node.classList?.contains('selection-handles')) return false
-        if (node.classList?.contains('marquee-selection')) return false
-        if (node.classList?.contains('tool-toolbar')) return false
-        return true
-      },
-    })
+    // Export without theme inversion to use original colors
+    return withoutThemeInversion(canvasElement, () =>
+      toPng(canvasElement, {
+        backgroundColor: backgroundColor === 'transparent' ? undefined : backgroundColor,
+        pixelRatio,
+        filter: (node) => {
+          if (node.classList?.contains('selection-handles')) return false
+          if (node.classList?.contains('marquee-selection')) return false
+          if (node.classList?.contains('tool-toolbar')) return false
+          return true
+        },
+      })
+    )
   }
 
   /**
@@ -286,15 +326,18 @@ export function useCanvasExport() {
   ): Promise<string> {
     const { backgroundColor = 'white' } = options
 
-    return toSvg(canvasElement, {
-      backgroundColor,
-      filter: (node) => {
-        if (node.classList?.contains('selection-handles')) return false
-        if (node.classList?.contains('marquee-selection')) return false
-        if (node.classList?.contains('tool-toolbar')) return false
-        return true
-      },
-    })
+    // Export without theme inversion to use original colors
+    return withoutThemeInversion(canvasElement, () =>
+      toSvg(canvasElement, {
+        backgroundColor,
+        filter: (node) => {
+          if (node.classList?.contains('selection-handles')) return false
+          if (node.classList?.contains('marquee-selection')) return false
+          if (node.classList?.contains('tool-toolbar')) return false
+          return true
+        },
+      })
+    )
   }
 
   return {

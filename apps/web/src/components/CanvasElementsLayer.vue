@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, provide } from 'vue'
 import { useBoardStore, useToolStore, type CanvasElement, type AnchorPosition } from '@boardkit/core'
-import { ElementRenderer, GroupSelectionBox, AnchorPointsOverlay } from '@boardkit/ui'
+import { ElementRenderer, GroupSelectionBox, AnchorPointsOverlay, useTheme } from '@boardkit/ui'
 
 // SVG ref for RoughJS rendering
 const svgRef = ref<SVGSVGElement | null>(null)
@@ -38,6 +38,8 @@ interface Props {
     elementId: string
     anchor: AnchorPosition
   } | null
+  /** Whether connection mode is active (disables element interactions) */
+  isConnecting?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -49,6 +51,7 @@ const props = withDefaults(defineProps<Props>(), {
   groupRotation: undefined,
   bindingCandidates: () => [],
   activeBinding: null,
+  isConnecting: false,
 })
 
 const emit = defineEmits<{
@@ -67,6 +70,10 @@ const emit = defineEmits<{
 
 const boardStore = useBoardStore()
 const toolStore = useToolStore()
+const { resolvedTheme } = useTheme()
+
+// Theme inversion - invert colors in light mode for visibility
+const isLightTheme = computed(() => resolvedTheme.value === 'light')
 
 // Get elements from store
 const elements = computed(() => boardStore.elements)
@@ -272,6 +279,10 @@ const bindingCandidateElements = computed(() => {
   <svg
     ref="svgRef"
     class="elements-layer"
+    :class="{
+      'connecting-mode': isConnecting,
+      'theme-inverted': isLightTheme
+    }"
     xmlns="http://www.w3.org/2000/svg"
   >
     <!-- Render existing elements -->
@@ -343,5 +354,20 @@ const bindingCandidateElements = computed(() => {
 
 .elements-layer :deep(.element-renderer.preview) {
   pointer-events: none;
+}
+
+/* Disable element interactions during connection mode */
+.elements-layer.connecting-mode :deep(.element-renderer) {
+  pointer-events: none;
+}
+
+/* Theme inversion - invert colors in light mode for better visibility */
+.elements-layer.theme-inverted {
+  filter: invert(100%) hue-rotate(180deg);
+}
+
+/* Counter-invert images to restore original colors */
+.elements-layer.theme-inverted :deep(.element-image) {
+  filter: invert(100%) hue-rotate(180deg);
 }
 </style>

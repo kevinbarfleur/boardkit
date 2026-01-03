@@ -32,10 +32,10 @@ import type {
   PublicTodoList,
   PublicKanbanBoard,
 } from '@boardkit/core'
-import { BkIcon, BkButton, BkButtonGroup } from '@boardkit/ui'
+import { BkIcon, BkButton, BkIconButton, BkTabs, type BkTab } from '@boardkit/ui'
 import type { TimerState, TimerMode, TimerSession, SessionType, LapRecord, TaskReference } from './types'
 import { defaultTimerSettings } from './types'
-import { WaterTimer, TaskLinkChip, TaskLinkPopover, SessionStats } from './components'
+import { WaterTimer, TaskLinkChip, TaskLinkPopover, StopwatchDisplay } from './components'
 
 interface Props {
   context: ModuleContext<TimerState>
@@ -134,12 +134,24 @@ const displayTime = computed(() => {
   return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
 })
 
-// Mode options for button group
-const modeOptions = [
-  { value: 'pomodoro', label: 'Pomodoro' },
-  { value: 'countdown', label: 'Countdown' },
-  { value: 'stopwatch', label: 'Stopwatch' },
-]
+// Mode tabs for BkTabs (disabled when running to prevent mode switch)
+const modeTabs = computed<BkTab[]>(() => [
+  { id: 'pomodoro', label: 'Pomodoro', disabled: isRunning.value },
+  { id: 'countdown', label: 'Countdown', disabled: isRunning.value },
+  { id: 'stopwatch', label: 'Stopwatch', disabled: isRunning.value },
+])
+
+// Dynamic class for tab content container (card tabs pattern)
+const modeContentClass = computed(() => {
+  const base = ['border', 'border-border', 'bg-popover', 'rounded-b-lg', 'rounded-tr-lg', 'flex-1', 'flex', 'flex-col', 'gap-3', 'p-3', 'overflow-auto']
+  const tabIds = modeTabs.value.map((t) => t.id)
+  const activeIndex = tabIds.indexOf(mode.value)
+  // Add rounded top-left corner if active tab is not the first one
+  if (activeIndex !== 0) {
+    base.push('rounded-tl-lg')
+  }
+  return base.join(' ')
+})
 
 // Status label for WaterTimer
 const statusLabel = computed(() => {
@@ -156,16 +168,17 @@ const statusLabel = computed(() => {
 const { needsSetup } = useModuleConfiguration(props.context)
 
 // Consume todo and kanban data for task selection
+// Use stateKey matching TimerState.connectedTaskProviders
 const { allData: todoData } = useConsumeData<TimerState, PublicTodoList>(
   props.context,
   todoContractV1,
-  { multi: true }
+  { multi: true, stateKey: 'connectedTaskProviders' }
 )
 
 const { allData: kanbanData } = useConsumeData<TimerState, PublicKanbanBoard>(
   props.context,
   kanbanContractV1,
-  { multi: true }
+  { multi: true, stateKey: 'connectedTaskProviders' }
 )
 
 // Build task groups for the popover
@@ -597,156 +610,180 @@ useProvideData(props.context, timerHistoryContractV1, {
     }
   },
 })
+
+// === UI Helpers ===
+
+// Today's stats computed
+const todaySessions = computed(() => {
+  const today = new Date().toISOString().split('T')[0]
+  return sessionHistory.value.filter((s) => s.completedAt?.startsWith(today))
+})
+
+const workSessionCount = computed(() => {
+  return todaySessions.value.filter(
+    (s) => s.type === 'work' || s.type === 'countdown' || s.type === 'stopwatch'
+  ).length
+})
+
+const totalFocusedSeconds = computed(() => {
+  return todaySessions.value
+    .filter((s) => s.type === 'work' || s.type === 'countdown' || s.type === 'stopwatch')
+    .reduce((total, session) => total + (session.duration || 0), 0)
+})
+
+const formattedFocusTime = computed(() => {
+  const seconds = totalFocusedSeconds.value
+  if (seconds === 0) return '0m'
+
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`
+  }
+  return `${minutes}m`
+})
+
+// Format lap time
+function formatLapTime(totalSeconds: number): string {
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+}
+
+// Preset button class
+function presetClass(preset: { minutes: number }): string {
+  const isSelected = targetSeconds.value === preset.minutes * 60
+  const base = 'px-2.5 py-1 text-xs rounded-md border transition-colors'
+  if (isSelected) {
+    return `${base} bg-primary text-primary-foreground border-transparent`
+  }
+  return `${base} border-border text-muted-foreground hover:border-primary hover:text-foreground`
+}
 </script>
 
 <template>
-  <div class="timer-widget h-full flex flex-col">
-    <!-- Mode Selector -->
-    <div class="shrink-0 px-3 pt-3 pb-2">
-      <BkButtonGroup
-        :model-value="mode"
-        :options="modeOptions"
-        size="sm"
-        full-width
-        :disabled="isRunning"
-        @update:model-value="handleModeChange"
-      />
-    </div>
+  <div class="timer-widget h-full flex flex-col p-3">
+    <!-- Mode Selector (BkTabs card) -->
+    <BkTabs
+      :model-value="mode"
+      :tabs="modeTabs"
+      variant="card"
+      :full-width="false"
+      @update:model-value="handleModeChange"
+    />
 
-    <!-- Countdown Presets (countdown mode, idle state) -->
-    <div
-      v-if="isCountdown && isIdle"
-      class="shrink-0 px-3 pb-2"
-    >
-      <div class="flex flex-wrap justify-center gap-1.5">
+    <!-- Tab Content Container (connected to tabs) -->
+    <div :class="modeContentClass">
+      <!-- Countdown Presets (contextuel) -->
+      <div v-if="isCountdown && isIdle" class="flex flex-wrap justify-center gap-1.5 py-2">
         <button
           v-for="preset in countdownPresets"
           :key="preset.id"
-          class="px-2.5 py-1 text-xs rounded-md border border-border hover:border-primary hover:text-primary transition-colors"
+          :class="presetClass(preset)"
           @click="handlePresetSelect(preset.minutes)"
         >
           {{ preset.label }}
         </button>
       </div>
-    </div>
 
-    <!-- Timer Display -->
-    <div class="flex-1 flex flex-col items-center justify-center px-4 min-h-[160px]">
-      <!-- Water Timer (Pomodoro/Countdown) -->
-      <WaterTimer
-        v-if="!isStopwatch"
-        :progress="progressPercent"
-        :time="displayTime"
-        :status-label="statusLabel"
-        :is-break="isBreak"
-        :size="160"
-      />
-
-      <!-- Simple Time Display (Stopwatch) -->
-      <div v-else class="text-center">
-        <div class="text-4xl font-bold text-foreground font-mono tracking-tight">
-          {{ displayTime }}
-        </div>
-        <div v-if="statusLabel" class="text-xs text-muted-foreground mt-1">
-          {{ statusLabel }}
-        </div>
+      <!-- Timer Display (HERO - centré) -->
+      <div class="flex-1 flex items-center justify-center min-h-[180px]">
+        <WaterTimer
+          v-if="!isStopwatch"
+          :progress="progressPercent"
+          :time="displayTime"
+          :status-label="statusLabel"
+          :is-break="isBreak"
+          :size="180"
+        />
+        <StopwatchDisplay v-else :time="displayTime" :size="180" />
       </div>
-    </div>
 
-    <!-- Linked Task -->
-    <div v-if="showLinkedTask" class="shrink-0 px-3 pb-2">
-      <TaskLinkChip
-        v-if="linkedTask"
-        :task="linkedTask"
-        @unlink="handleUnlinkTask"
-      />
-      <TaskLinkPopover
-        v-else
-        :task-groups="taskGroups"
-        :no-providers="noTaskProviders"
-        @select="handleLinkTask"
-        @configure="handleConfigureProviders"
-      />
-    </div>
-
-    <!-- Controls -->
-    <div class="shrink-0 px-3 py-3">
-      <div class="flex items-center justify-center gap-2">
-        <!-- Play/Resume -->
+      <!-- Controls -->
+      <div class="flex items-center justify-center gap-2 py-2">
         <BkButton
-          v-if="!isRunning"
-          variant="default"
-          @click="handleStart"
+          :variant="isRunning ? 'secondary' : 'default'"
+          @click="isRunning ? handlePause() : handleStart()"
         >
-          <BkIcon icon="play" :size="16" />
-          {{ isPaused || isBreak ? 'Resume' : 'Start' }}
+          <BkIcon :icon="isRunning ? 'pause' : 'play'" :size="16" />
+          {{ isRunning ? 'Pause' : (isPaused || isBreak ? 'Resume' : 'Start') }}
         </BkButton>
 
-        <!-- Pause -->
-        <BkButton
-          v-if="isRunning"
-          variant="secondary"
-          @click="handlePause"
-        >
-          <BkIcon icon="pause" :size="16" />
-          Pause
-        </BkButton>
-
-        <!-- Reset -->
-        <BkButton
-          v-if="!isIdle"
-          variant="ghost"
-          @click="handleReset"
-        >
+        <BkIconButton v-if="!isIdle" ariaLabel="Reset" size="sm" @click="handleReset">
           <BkIcon icon="rotate-ccw" :size="16" />
-        </BkButton>
+        </BkIconButton>
 
-        <!-- Lap (stopwatch only) -->
-        <BkButton
+        <BkIconButton
           v-if="isStopwatch && isRunning"
-          variant="ghost"
+          ariaLabel="Lap"
+          size="sm"
           @click="handleRecordLap"
         >
           <BkIcon icon="flag" :size="16" />
-        </BkButton>
+        </BkIconButton>
 
-        <!-- Skip (countdown modes only) -->
-        <BkButton
+        <BkIconButton
           v-if="!isStopwatch && (isRunning || isPaused || isBreak)"
-          variant="ghost"
+          ariaLabel="Skip"
+          size="sm"
           @click="handleSkip"
         >
           <BkIcon icon="skip-forward" :size="16" />
-        </BkButton>
+        </BkIconButton>
       </div>
-    </div>
 
-    <!-- Stopwatch Laps -->
-    <div
-      v-if="isStopwatch && laps.length > 0 && !compactMode"
-      class="shrink-0 px-3 pb-2"
-    >
-      <div class="text-xs font-medium text-muted-foreground mb-1.5">Laps</div>
-      <div class="space-y-0.5">
-        <div
-          v-for="lap in [...laps].reverse().slice(0, maxLapsDisplayed)"
-          :key="lap.id"
-          class="flex items-center justify-between px-2 py-1 text-xs rounded bg-muted/50"
-        >
-          <span class="text-muted-foreground">#{{ lap.number }}</span>
-          <span class="font-mono text-foreground">
-            {{ Math.floor(lap.elapsedSeconds / 60).toString().padStart(2, '0') }}:{{ (lap.elapsedSeconds % 60).toString().padStart(2, '0') }}
+      <!-- Divider before Task Link -->
+      <hr v-if="showLinkedTask" class="border-border" />
+
+      <!-- Task Link (optionnel) -->
+      <div v-if="showLinkedTask" class="flex items-center justify-center py-2">
+        <TaskLinkChip v-if="linkedTask" :task="linkedTask" @unlink="handleUnlinkTask" />
+        <TaskLinkPopover
+          v-else
+          :task-groups="taskGroups"
+          :no-providers="noTaskProviders"
+          @select="handleLinkTask"
+          @configure="handleConfigureProviders"
+        />
+      </div>
+
+      <!-- Laps (Stopwatch) -->
+      <template v-if="isStopwatch && laps.length > 0 && !compactMode">
+        <hr class="border-border" />
+        <div class="divide-y divide-border max-h-[120px] overflow-y-auto">
+          <div
+            v-for="lap in [...laps].reverse().slice(0, maxLapsDisplayed)"
+            :key="lap.id"
+            class="px-3 py-2 flex items-center justify-between text-sm"
+          >
+            <span class="text-muted-foreground">#{{ lap.number }}</span>
+            <span class="font-mono">{{ formatLapTime(lap.elapsedSeconds) }}</span>
+            <span class="text-muted-foreground font-mono text-xs">
+              +{{ formatLapTime(lap.splitSeconds) }}
+            </span>
+          </div>
+        </div>
+      </template>
+
+      <!-- Spacer to push stats to bottom -->
+      <div class="flex-1" />
+
+      <!-- Stats (always at bottom) -->
+      <template v-if="!compactMode">
+        <hr class="border-border" />
+        <div class="flex items-center justify-center gap-4 text-sm py-2">
+          <span class="flex items-center gap-1.5 text-muted-foreground">
+            <BkIcon icon="zap" :size="14" />
+            {{ workSessionCount }} session{{ workSessionCount !== 1 ? 's' : '' }}
           </span>
-          <span class="text-muted-foreground font-mono">
-            +{{ Math.floor(lap.splitSeconds / 60).toString().padStart(2, '0') }}:{{ (lap.splitSeconds % 60).toString().padStart(2, '0') }}
+          <span class="text-border">•</span>
+          <span class="flex items-center gap-1.5 text-muted-foreground">
+            <BkIcon icon="clock" :size="14" />
+            {{ formattedFocusTime }} focused
           </span>
         </div>
-      </div>
-    </div>
-
-    <!-- Session Stats -->
-    <div v-if="!compactMode" class="shrink-0 px-3 pb-3 border-t border-border pt-2">
-      <SessionStats :sessions="sessionHistory" />
+      </template>
     </div>
   </div>
 </template>
