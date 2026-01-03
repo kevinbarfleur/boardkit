@@ -439,8 +439,8 @@ const contextMenuGroups = computed<MenuContent>(() => {
   }
 
   // For canvas context: create "Add Widget" submenu with core/plugins separation
-  if (contextType === 'canvas' && groupedActions['board']) {
-    const addWidgetActions = groupedActions['board'].filter(a => a.id.startsWith('board.add-'))
+  if (contextType === 'canvas' && groupedActions['module']) {
+    const addWidgetActions = groupedActions['module'].filter(a => a.id.startsWith('board.add-'))
 
     // Separate core modules from plugins
     const coreItems: MenuItem[] = []
