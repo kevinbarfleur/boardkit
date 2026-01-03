@@ -526,9 +526,9 @@ const contextMenuGroups = computed<MenuContent>(() => {
       })
     }
 
-    // Connect action for shapes (rectangle, ellipse)
+    // Connect action for visual elements (all except line/arrow which are connectors)
     const element = boardStore.elements.find(e => e.id === ctx.selectedElementId)
-    if (element && (element.type === 'rectangle' || element.type === 'ellipse')) {
+    if (element && element.type !== 'line' && element.type !== 'arrow') {
       groups.push({
         items: [{
           id: 'connection.start-element',
@@ -947,12 +947,12 @@ const handleCanvasMouseMove = (e: MouseEvent) => {
       }
     }
 
-    // If no widget found, check elements (shapes)
+    // If no widget found, check elements (all visual elements except lines/arrows)
     if (!foundTarget) {
       for (const element of boardStore.elements) {
-        // Skip the source element and non-shape elements
+        // Skip the source element and line/arrow elements (they are connectors, not targets)
         if (connectionSource.value?.type === 'element' && connectionSource.value.id === element.id) continue
-        if (element.type !== 'rectangle' && element.type !== 'ellipse') continue
+        if (element.type === 'line' || element.type === 'arrow') continue
 
         const { x, y, width, height } = element.rect
         if (canvasPos.x >= x - hitPadding && canvasPos.x <= x + width + hitPadding &&

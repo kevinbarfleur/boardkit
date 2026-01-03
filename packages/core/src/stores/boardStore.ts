@@ -701,8 +701,9 @@ export const useBoardStore = defineStore('board', () => {
     // Update points for line/arrow/draw elements
     translateElementPoints(element, dx, dy)
 
-    // Update any arrows bound to this shape
-    if (element.type === 'rectangle' || element.type === 'ellipse') {
+    // Update any arrows bound to this element
+    // All visual elements except line/arrow can be binding targets
+    if (element.type !== 'line' && element.type !== 'arrow') {
       updateBoundArrowsForElement(elementId)
     }
 
@@ -732,8 +733,9 @@ export const useBoardStore = defineStore('board', () => {
     // Scale points proportionally for line/arrow/draw elements
     scaleElementPoints(element, oldRect, newRect)
 
-    // Update any arrows bound to this shape
-    if (element.type === 'rectangle' || element.type === 'ellipse') {
+    // Update any arrows bound to this element
+    // All visual elements except line/arrow can be binding targets
+    if (element.type !== 'line' && element.type !== 'arrow') {
       updateBoundArrowsForElement(elementId)
     }
 
@@ -1509,7 +1511,8 @@ export const useBoardStore = defineStore('board', () => {
 
     const target = elementMap.value.get(targetId)
     if (!target) return false
-    if (target.type !== 'rectangle' && target.type !== 'ellipse') return false
+    // All visual elements except line/arrow can be binding targets
+    if (target.type === 'line' || target.type === 'arrow') return false
 
     const binding: ArrowBinding = {
       elementId: targetId,

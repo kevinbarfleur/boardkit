@@ -66,8 +66,12 @@ export function getAnchorPoint(element: CanvasElement, anchor: AnchorPosition): 
   return anchors.get(anchor) ?? { x: element.rect.x, y: element.rect.y }
 }
 
-/** Element types that can be targets for arrow binding */
-const BINDABLE_ELEMENT_TYPES = ['rectangle', 'ellipse', 'image'] as const
+/**
+ * Element types that can be targets for arrow binding.
+ * All visual elements with a bounding box can be binding targets.
+ * Note: 'line' and 'arrow' are excluded as they are the elements that do the binding.
+ */
+const BINDABLE_ELEMENT_TYPES = ['rectangle', 'ellipse', 'image', 'draw', 'text'] as const
 
 /**
  * Find the nearest shape element to a point and its closest anchor.

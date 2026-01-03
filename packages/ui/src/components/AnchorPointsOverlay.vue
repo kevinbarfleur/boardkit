@@ -23,9 +23,11 @@ const props = withDefaults(defineProps<Props>(), {
   zoom: 1,
 })
 
-// Only show anchors for shapes
+// Show anchors for all visual elements that can be binding targets
+// Excludes line/arrow (they are connectors, not targets)
 const shouldShow = computed(() => {
-  return props.element.type === 'rectangle' || props.element.type === 'ellipse'
+  const type = props.element.type
+  return type !== 'line' && type !== 'arrow'
 })
 
 // Calculate anchor positions
